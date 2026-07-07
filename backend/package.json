@@ -1,0 +1,29 @@
+{
+  "name": "hair-scalp-quiz-backend",
+  "version": "1.0.0",
+  "description": "Backend for Zaftan Media Hair & Scalp Assessment Quiz",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.10.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "multer": "^1.4.5-lts.1",
+    "undici": "^8.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "allowScripts": {
+    "@google/genai@2.10.0": true,
+    "protobufjs@7.6.4": true
+  }
+}
