@@ -1,33 +1,39 @@
 import { createContext, useContext, useState } from "react";
 
-// Create the context instance
 const QuizContext = createContext();
 
+const INITIAL_STATE = {
+  step: 0,
+  aboutMe: {
+    fullName: "",
+    whatsapp: "",
+    email: "",
+    countryCode: "+91",
+    ageRange: "",
+    gender: "",
+    scalpConsent: false,
+  },
+  hairHealth: {
+    norwood_stage: "",
+    hair_fall_zone: "",
+    daily_loss_amount: "",
+    dandruff_experience: "",
+    family_history: "",
+    loss_duration: "",
+    shedding_amount: "",
+  },
+  internalHealth: {},
+  scalpAnalysis: null,
+  scalpImages: [],
+  sectionSteps: {
+    section4Scalp: "consent",
+  },
+  isLoading: false,
+  error: null,
+};
+
 export function QuizProvider({ children }) {
-  const [state, setState] = useState({
-    step: 0,
-    aboutMe: {
-      fullName: "",
-      whatsapp: "",
-      email: "",
-      countryCode: "+91",
-      ageRange: "",
-      gender: "",
-      scalpConsent: false
-    },
-    hairHealth: {
-      norwood_stage: "",
-      hair_fall_zone: "",
-      daily_loss_amount: "",
-      dandruff_experience: "",
-      family_history: "",
-      loss_duration: ""
-    },
-    sectionSteps: {
-      section4Scalp: "consent"
-    },
-    isLoading: false
-  });
+  const [state, setState] = useState(INITIAL_STATE);
 
   const nextStep = () => {
     setState((prev) => ({ ...prev, step: prev.step + 1 }));
@@ -44,15 +50,50 @@ export function QuizProvider({ children }) {
   const updateAboutMe = (data) => {
     setState((prev) => ({
       ...prev,
-      aboutMe: { ...prev.aboutMe, ...data }
+      aboutMe: { ...prev.aboutMe, ...data },
     }));
   };
 
   const updateHairHealth = (data) => {
     setState((prev) => ({
       ...prev,
-      hairHealth: { ...prev.hairHealth, ...data }
+      hairHealth: { ...prev.hairHealth, ...data },
     }));
+  };
+
+  const updateInternalHealth = (data) => {
+    setState((prev) => ({
+      ...prev,
+      internalHealth: { ...prev.internalHealth, ...data },
+    }));
+  };
+
+  const setScalpAnalysis = (analysis) => {
+    setState((prev) => ({
+      ...prev,
+      scalpAnalysis: analysis,
+      isLoading: false,
+      error: null,
+    }));
+  };
+
+  const setScalpImages = (images) => {
+    setState((prev) => ({
+      ...prev,
+      scalpImages: images,
+    }));
+  };
+
+  const setLoading = (isLoading) => {
+    setState((prev) => ({ ...prev, isLoading }));
+  };
+
+  const setError = (error) => {
+    setState((prev) => ({ ...prev, error, isLoading: false }));
+  };
+
+  const resetQuiz = () => {
+    setState(INITIAL_STATE);
   };
 
   const updateSectionStep = (section, targetStep) => {
@@ -60,21 +101,27 @@ export function QuizProvider({ children }) {
       ...prev,
       sectionSteps: {
         ...prev.sectionSteps,
-        [section]: targetStep
-      }
+        [section]: targetStep,
+      },
     }));
   };
 
   return (
-    <QuizContext.Provider 
-      value={{ 
-        state, 
-        nextStep, 
-        prevStep, 
-        goToStep, 
-        updateAboutMe, 
+    <QuizContext.Provider
+      value={{
+        state,
+        nextStep,
+        prevStep,
+        goToStep,
+        updateAboutMe,
         updateHairHealth,
-        updateSectionStep
+        updateInternalHealth,
+        setScalpAnalysis,
+        setScalpImages,
+        setLoading,
+        setError,
+        resetQuiz,
+        updateSectionStep,
       }}
     >
       {children}
@@ -82,12 +129,10 @@ export function QuizProvider({ children }) {
   );
 }
 
-// 自由 export standard named hook constraint rule configurations
-// 🟢 THIS IS THE EXACT EXPORT LINE VITE WAS MISSING:
 export function useQuiz() {
   const context = useContext(QuizContext);
   if (!context) {
-    throw new Error("useQuiz must be wrapped within a clear structural QuizProvider element block.");
+    throw new Error("useQuiz must be used within QuizProvider.");
   }
   return context;
 }

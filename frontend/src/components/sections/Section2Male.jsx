@@ -268,8 +268,8 @@ export default function Section2Male({ onComplete, onBack }) {
 
             <div className="grid grid-cols-1 gap-3">
               {[
-                { id: "mother", label: "Mother's side" },
-                { id: "father", label: "Father's side" },
+                { id: "mother", label: "Mother's side(Uncle,Grandfather)" },
+                { id: "father", label: "Father's side(Uncle,Grandfather)" },
                 { id: "both", label: "Both sides" },
                 { id: "none", label: "None" }
               ].map((opt) => (

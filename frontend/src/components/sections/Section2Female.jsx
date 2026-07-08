@@ -3,17 +3,17 @@ import { useQuiz } from "../../context/QuizContext";
 
 // Question 1: Female hair loss options with reference image paths
 const FEMALE_SHEDDING_OPTIONS = [
-  { id: "minimal", label: "Minimal shedding", desc: "~20 strands", img: "/stages/female_minimal.png" },
-  { id: "noticeable", label: "Noticeable hair fall", desc: "clumps in drain", img: "/stages/female_noticeable.png" },
-  { id: "heavy", label: "Heavy shedding", desc: "100+ strands daily", img: "/stages/female_heavy.png" }
+  { id: "minimal", label: "Minimal shedding", desc: "~20 strands", img: "/strands/less.png" },
+  { id: "noticeable", label: "Noticeable hair fall", desc: "clumps in drain", img: "/strands/minimum.png" },
+  { id: "heavy", label: "Heavy shedding", desc: "100+ strands daily", img: "/strands/large.png" }
 ];
 
 // Question 2: Female pattern stage options
 const FEMALE_STAGE_OPTIONS = [
-  { id: "1", label: "Stage 1", desc: "Early or unnoticeable shifts", img: "/stages/female_stage1.png" },
-  { id: "2", label: "Stage 2", desc: "Noticeable widening at partition line", img: "/stages/female_stage2.png" },
-  { id: "3", label: "Stage 3", desc: "Advanced structural crown exposure", img: "/stages/female_stage3.png" },
-  { id: "overall-thinning", label: "Overall Thinning", desc: "Diffuse loss across entire scalp", img: "/stages/female_overall_thinning.png" },
+  { id: "1", label: "Stage 1", desc: "Early or unnoticeable shifts", img: "/stagesf/stage1.png" },
+  { id: "2", label: "Stage 2", desc: "Noticeable widening at partition line", img: "/stagesf/stage2.png" },
+  { id: "3", label: "Stage 3", desc: "Advanced structural crown exposure", img: "/stagesf/stage3.png" },
+  { id: "overall-thinning", label: "Overall Thinning", desc: "Diffuse loss across entire scalp", img: "/stagesf/stage4.png" },
   { id: "patchy-bald", label: "Patchy Bald", desc: "Localized focal alopecia areas", img: "/stages/female_patchy.png" }
 ];
 
@@ -21,7 +21,6 @@ export default function Section2Female({ onComplete, onBack }) {
   const { state, updateHairHealth } = useQuiz();
   const [subStep, setSubStep] = useState(0); 
   const [errors, setErrors] = useState(null);
-  
   const [localForm, setLocalForm] = useState({
     shedding_amount: state?.hairHealth?.shedding_amount || "",
     hair_fall_zone: state?.hairHealth?.hair_fall_zone || "",
@@ -273,8 +272,8 @@ export default function Section2Female({ onComplete, onBack }) {
 
             <div className="grid grid-cols-1 gap-3">
               {[
-                { id: "mother", label: "Mother's side family members" },
-                { id: "father", label: "Father's side family members" },
+                { id: "mother", label: "Mother's side (Mother,Grandmother,Father,Grandfather)" },
+                { id: "father", label: "Father's side (Mother,Grandmother,Father,Grandfather)" },
                 { id: "both", label: "Both sides of the family tree" },
                 { id: "none", label: "No family history recorded" }
               ].map((opt) => (

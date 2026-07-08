@@ -3,19 +3,19 @@ import { useQuiz } from "../../context/QuizContext";
 
 // Male guideline configuration
 const MALE_GUIDES = [
-  { type: "front", label: "1. Front Area", desc: "Capture your full front hairline clearly from a direct forward perspective.", img: "/stages/front_guide.png" },
-  { type: "top", label: "2. Top Area", desc: "Tilt your head downward to expose your complete crown area view.", img: "/stages/top_guide.png" }
+  { type: "front", label: "1. Front Area", desc: "Capture your full front hairline clearly from a direct forward perspective.", img: "/stages/front.png" },
+  { type: "top", label: "2. Top Area", desc: "Tilt your head downward to expose your complete crown area view.", img: "/stages/top.png" }
 ];
 
 // Female guideline configuration
 const FEMALE_GUIDES = [
-  { type: "front", label: "1. Front View", desc: "Expose your front hairline clearly from a direct forward profile angle.", img: "/stages/female_front_guide.png" },
-  { type: "side", label: "2. Side View", desc: "Turn slightly to capture the lateral profile thickness over your ear arches.", img: "/stages/female_side_guide.png" },
-  { type: "back", label: "3. Back View", desc: "Tilt your crown forward or look down to capture vertex or posterior partition fields.", img: "/stages/female_back_guide.png" }
+  { type: "front", label: "1. Front View", desc: "Expose your front hairline clearly from a direct forward profile angle.", img: "/guild/front.png" },
+  { type: "side", label: "2. Side View", desc: "Turn slightly to capture the lateral profile thickness over your ear arches.", img: "/guild/side.png" },
+  { type: "back", label: "3. Back View", desc: "Tilt your crown forward or look down to capture vertex or posterior partition fields.", img: "/guild/back.png" }
 ];
 
 export default function Section4ScalpAssessment({ onComplete, onBack }) {
-  const { state, setScalpImages, setScalpAnalysis, updateSectionStep } = useQuiz();
+  const { state, setScalpImages, setScalpAnalysis, setLoading, updateSectionStep } = useQuiz();
   
   const isFemale = state?.aboutMe?.gender === "female";
   const guideOptions = isFemale ? FEMALE_GUIDES : MALE_GUIDES;
@@ -139,54 +139,55 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     await runAnalysis();
   };
 
-  const runAnalysis = async () => {
-    // 1. Start the loading UI
-    setStep("analyzing");
-    setError(null);
-    
-    // 2. 🟢 SAFETY TIMEOUT: Force-exit the loader after 25 seconds if the API stalls
-    const timeoutId = setTimeout(() => {
-      setError("Analysis is taking longer than expected. Please check your connection and try again.");
-      setStep("upload");
-    }, 25000);
+ const runAnalysis = async () => {
+  setStep("analyzing");
+  setError(null);
+  if (setLoading) setLoading(true);
 
-    try {
-      const { analyzeScalp } = await import("../../api/quizApi");
+  const timeoutId = setTimeout(() => {
+    setError("Analysis is taking longer than expected. Please check your connection and try again.");
+    setStep("upload");
+    if (setLoading) setLoading(false);
+  }, 120000);
 
-      const imagePayloads = isFemale ? [
-        { type: "front", label: "front", dataUrl: images.front },
-        { type: "side", label: "side", dataUrl: images.side },
-        { type: "back", label: "back", dataUrl: images.back }
-      ] : [
-        { type: "front", label: "front", dataUrl: images.front },
-        { type: "top", label: "top", dataUrl: images.top }
-      ];
+  try {
+    const { analyzeScalp } = await import("../../api/quizApi");
 
-      const aiResponse = await analyzeScalp({
-        gender: state?.aboutMe?.gender || "male",
-        selfReportedStage: isFemale ? (state?.hairHealth?.hair_fall_zone || "1") : (state?.hairHealth?.norwood_stage || "1"),
-        images: imagePayloads
-      });
+    const imagePayloads = isFemale
+      ? [
+          { type: "front", label: "front", dataUrl: images.front },
+          { type: "side", label: "side", dataUrl: images.side },
+          { type: "back", label: "back", dataUrl: images.back },
+        ]
+      : [
+          { type: "front", label: "front", dataUrl: images.front },
+          { type: "top", label: "top", dataUrl: images.top },
+        ];
 
-      // 3. Success: Clear timeout and proceed
-      clearTimeout(timeoutId);
+    const aiResponse = await analyzeScalp({
+      gender: state?.aboutMe?.gender || "male",
+      selfReportedStage: isFemale
+        ? state?.hairHealth?.hair_fall_zone || "1"
+        : state?.hairHealth?.norwood_stage || "1",
+      images: imagePayloads,
+    });
 
-      if (aiResponse.error) throw new Error(aiResponse.error);
+    clearTimeout(timeoutId);
 
-      if (setScalpAnalysis) setScalpAnalysis(aiResponse);
-      if (setScalpImages) setScalpImages(imagePayloads);
-      
-      if (onComplete) onComplete(aiResponse);
+    if (aiResponse.error) throw new Error(aiResponse.error);
 
-    } catch (err) {
-      // 4. Failure: Clear timeout and reset UI state
-      clearTimeout(timeoutId);
-      
-      console.error("AI diagnostics pipeline failed:", err);
-      setError("AI analysis failed: " + (err.message || "Server unreachable. Please try again."));
-      setStep("upload"); // 🟢 User is returned to upload screen instead of being trapped
-    }
-  };
+    setScalpAnalysis(aiResponse);
+    setScalpImages(imagePayloads);
+    if (setLoading) setLoading(false);
+    if (onComplete) onComplete(aiResponse);
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (setLoading) setLoading(false);
+    console.error("AI diagnostics pipeline failed:", err);
+    setError("AI analysis failed: " + (err.message || "Server unreachable. Please try again."));
+    setStep("upload");
+  }
+};
 
   const handleBackNavigation = () => {
     if (step === "upload") {
