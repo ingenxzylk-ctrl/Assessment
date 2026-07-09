@@ -1,13 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-async function handleResponse(res) {
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error || "Something went wrong. Please try again.");
-  }
-  return data;
-}
-
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -31,7 +23,20 @@ export async function analyzeScalp({ gender, selfReportedStage, images }) {
       images,
     }),
   });
-  return handleResponse(res);
+
+  const data = await res.json();
+
+  if (res.status === 422 && data.imageRejected) {
+    const err = new Error(data.error || "Invalid scalp image.");
+    err.imageRejected = true;
+    throw err;
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || "Something went wrong. Please try again.");
+  }
+
+  return data;
 }
 
 export async function generateResult({ aboutMe, hairHealth, internalHealth, scalpAnalysis }) {
@@ -40,5 +45,10 @@ export async function generateResult({ aboutMe, hairHealth, internalHealth, scal
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ aboutMe, hairHealth, internalHealth, scalpAnalysis }),
   });
-  return handleResponse(res);
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Something went wrong. Please try again.");
+  }
+  return data;
 }

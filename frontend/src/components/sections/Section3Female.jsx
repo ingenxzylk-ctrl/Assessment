@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
+import { useSectionStep } from "../../hooks/useSectionStep";
 
 const STEPS = [
   "iron_level",
@@ -27,7 +28,7 @@ const STEP_TITLES = {
 
 export default function Section3Female({ onComplete, onBack }) {
   const { state, updateInternalHealth } = useQuiz();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useSectionStep("section3Female", STEPS.length - 1, 0);
   const [errors, setErrors] = useState({});
 
   const [localForm, setLocalForm] = useState({

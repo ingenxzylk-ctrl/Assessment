@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useQuiz } from "../../context/QuizContext";
+import { useSectionStep } from "../../hooks/useSectionStep";
 
 // Male guideline configuration
 const MALE_GUIDES = [
@@ -8,41 +9,59 @@ const MALE_GUIDES = [
 ];
 
 // Female guideline configuration
+// Female guideline configuration
 const FEMALE_GUIDES = [
-  { type: "front", label: "1. Front View", desc: "Expose your front hairline clearly from a direct forward profile angle.", img: "/guild/front.png" },
-  { type: "side", label: "2. Side View", desc: "Turn slightly to capture the lateral profile thickness over your ear arches.", img: "/guild/side.png" },
-  { type: "back", label: "3. Back View", desc: "Tilt your crown forward or look down to capture vertex or posterior partition fields.", img: "/guild/back.png" }
+  {
+    type: "front",
+    label: "1. Front View",
+    desc: "Face the camera directly. Pull hair back if needed so your front hairline and forehead area are visible.",
+    img: "/stages/female_front_guide.png",
+  },
+  {
+    type: "side",
+    label: "2. Side View (Ponytail)",
+    desc: "Put hair in a ponytail. Turn your head to show your side profile — ear, temple, and side scalp area should be visible.",
+    img: "/stages/female_side_guide.png",
+  },
+  {
+    type: "back",
+    label: "3. Back View (Ponytail to Side)",
+    desc: "Keep hair in a ponytail and sweep it to one side (over your shoulder). Tilt head slightly so the crown and back part-line are visible.",
+    img: "/stages/female_back_guide.png",
+  },
 ];
 
+function buildImagesFromSaved(savedImages = []) {
+  const map = { front: null, top: null, side: null, back: null };
+  savedImages.forEach((img) => {
+    if (img?.type && img?.dataUrl) {
+      map[img.type] = img.dataUrl;
+    }
+  });
+  return map;
+}
+
 export default function Section4ScalpAssessment({ onComplete, onBack }) {
-  const { state, setScalpImages, setScalpAnalysis, setLoading, updateSectionStep } = useQuiz();
+  const { state, setScalpImages, setScalpAnalysis, setLoading } = useQuiz();
   
   const isFemale = state?.aboutMe?.gender === "female";
   const guideOptions = isFemale ? FEMALE_GUIDES : MALE_GUIDES;
 
-  const [step, setStep] = useState("guide");
+ const [step, setStep] = useSectionStep("section4Scalp", "upload", "guide");
   const [error, setError] = useState(null);
   const [useCamera, setUseCamera] = useState(false);
   const [activeCaptureType, setActiveCaptureType] = useState(""); 
 
-  // Initial state tracking object definition
-  const [images, setImages] = useState({
-    front: null,
-    top: null,
-    side: null,
-    back: null,
-  });
+  const [images, setImages] = useState(() =>
+    buildImagesFromSaved(state?.scalpImages)
+  );
   
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
 
   // Sync section step securely with the context wrapper
-  useEffect(() => {
-    if (updateSectionStep && state?.sectionSteps?.section4Scalp !== step) {
-      updateSectionStep("section4Scalp", step);
-    }
-  }, [step, state?.sectionSteps?.section4Scalp, updateSectionStep]);
+  
 
   // Handle native camera streaming initialization
   useEffect(() => {
@@ -153,40 +172,47 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   try {
     const { analyzeScalp } = await import("../../api/quizApi");
 
-    const imagePayloads = isFemale
-      ? [
-          { type: "front", label: "front", dataUrl: images.front },
-          { type: "side", label: "side", dataUrl: images.side },
-          { type: "back", label: "back", dataUrl: images.back },
-        ]
-      : [
-          { type: "front", label: "front", dataUrl: images.front },
-          { type: "top", label: "top", dataUrl: images.top },
-        ];
+       const imagePayloads = isFemale
+  ? [
+      { type: "front", label: "front", dataUrl: images.front },
+      { type: "side", label: "side (ponytail profile)", dataUrl: images.side },
+      { type: "back", label: "back (ponytail swept aside)", dataUrl: images.back },
+    ]
+  : [
+      { type: "front", label: "front", dataUrl: images.front },
+      { type: "top", label: "top", dataUrl: images.top },
+    ];
 
-    const aiResponse = await analyzeScalp({
-      gender: state?.aboutMe?.gender || "male",
-      selfReportedStage: isFemale
-        ? state?.hairHealth?.hair_fall_zone || "1"
-        : state?.hairHealth?.norwood_stage || "1",
-      images: imagePayloads,
-    });
+      const aiResponse = await analyzeScalp({
+        gender: state?.aboutMe?.gender || "male",
+        selfReportedStage: isFemale
+          ? state?.hairHealth?.hair_fall_zone || "1"
+          : state?.hairHealth?.norwood_stage || "1",
+        images: imagePayloads,
+      });
 
-    clearTimeout(timeoutId);
-
-    if (aiResponse.error) throw new Error(aiResponse.error);
+      if (aiResponse.error || aiResponse.imageRejected) {
+        throw new Error(aiResponse.rejectionReason || aiResponse.error || "Invalid image.");
+      }
 
     setScalpAnalysis(aiResponse);
     setScalpImages(imagePayloads);
     if (setLoading) setLoading(false);
     if (onComplete) onComplete(aiResponse);
-  } catch (err) {
-    clearTimeout(timeoutId);
-    if (setLoading) setLoading(false);
-    console.error("AI diagnostics pipeline failed:", err);
-    setError("AI analysis failed: " + (err.message || "Server unreachable. Please try again."));
-    setStep("upload");
-  }
+       } catch (err) {
+      clearTimeout(timeoutId);
+      if (setLoading) setLoading(false);
+      console.error("AI diagnostics pipeline failed:", err);
+
+      if (err.imageRejected) {
+        setError(
+          `⚠️ ${err.message} Only upload photos of your own hair. Ponytail photos are accepted.`
+        );
+      } else {
+        setError("AI analysis failed: " + (err.message || "Server unreachable. Please try again."));
+      }
+      setStep("upload");
+    }
 };
 
   const handleBackNavigation = () => {
@@ -329,7 +355,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
                 <>
                   {/* Slot 2: Side View (Female only) */}
                   <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between">
-                    <span className="text-xs font-bold text-gray-700 uppercase">Side View</span>
+                    <span className="text-xs font-bold text-gray-700 uppercase">Side (Ponytail)</span>
                     {images.side ? (
                       <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
                         <img src={images.side} alt="Side preview" className="w-full h-full object-contain" />
@@ -345,7 +371,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
                   {/* Slot 3: Back View (Female only - centered dynamically on a brand new row on mobile) */}
                   <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between col-span-2 sm:col-span-1 max-w-xs mx-auto sm:max-w-none w-full">
-                    <span className="text-xs font-bold text-gray-700 uppercase">Back View</span>
+                    <span className="text-xs font-bold text-gray-700 uppercase">Back (Ponytail Aside)</span>
                     {images.back ? (
                       <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
                         <img src={images.back} alt="Back preview" className="w-full h-full object-contain" />

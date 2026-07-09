@@ -1,88 +1,153 @@
 /**
- * ✅ Generates a strictly tailored clinical combo pack based on Stage, Gender, and Dandruff profile.
- * @param {string} gender - "male" | "female"
- * @param {string|number} stage - The calculated hair fall pattern stage
- * @param {boolean} hasDandruff - Dandruff surface indication flag
- * @param {Array<string>} rootCauses - Contextual physiological stressors from quiz responses
+ * Zylk Health Product Bundles
+ *
+ * Bundle 1 — Male stage 2–5, no dandruff
+ * Bundle 2 — Male stage 2–5, with dandruff
+ * Bundle 3 — Stage 1 (men/female) + overall thinning
+ * Bundle 4 — Female stage 2–3
  */
-export const getCustomBundle = (gender, stage, hasDandruff, rootCauses = []) => {
+
+export const HAIR_HEALTH_MIX_ID = "prod-hair-health-mix";
+
+export const HAIR_HEALTH_MIX = {
+  id: HAIR_HEALTH_MIX_ID,
+  name: "Hair Health Mix",
+  subtitle: "Daily supplement blend for root nourishment",
+  price: 1200,
+  removable: true,
+};
+
+const BUNDLE_DEFINITIONS = {
+  1: {
+    bundleNumber: 1,
+    originalPrice: 3999,
+    bundlePrice: 2999,
+    priceWithoutMix: 1799,
+    items: [
+      { id: "prod-minox-5", name: "Minoxidil 5%", subtitle: "Topical growth solution", price: 850 },
+      { id: "prod-rosemary-oil", name: "Rosemary Oil", subtitle: "Follicle stimulation oil", price: 599 },
+      { id: "prod-detox-shampoo", name: "Detox Shampoo", subtitle: "Scalp cleansing shampoo", price: 350 },
+      { id: "prod-dermaroller", name: "Dermaroller", subtitle: "0.5mm scalp micro-needling roller", price: 350 },
+      { id: "prod-massager", name: "Scalp Massager", subtitle: "Silicone scalp massager brush", price: 250 },
+      { id: "prod-tea-tree-conditioner", name: "Tea Tree Conditioner", subtitle: "Scalp soothing conditioner", price: 350 },
+      HAIR_HEALTH_MIX,
+    ],
+  },
+
+  2: {
+    bundleNumber: 2,
+    originalPrice: 3999,
+    bundlePrice: 2999,
+    priceWithoutMix: 1799,
+    items: [
+      { id: "prod-minox-5", name: "Minoxidil 5%", subtitle: "Topical growth solution", price: 850 },
+      { id: "prod-progro-oil", name: "ProGro Oil", subtitle: "Anti-dandruff nourishing oil", price: 599 },
+      { id: "prod-tea-tree-mist", name: "Tea Tree Mist", subtitle: "Scalp refresh mist", price: 399 },
+      { id: "prod-antidandruff-shampoo", name: "Antidandruff Shampoo", subtitle: "Clinical dandruff control shampoo", price: 350 },
+      { id: "prod-massager", name: "Scalp Massager", subtitle: "Silicone scalp massager brush", price: 250 },
+      HAIR_HEALTH_MIX,
+    ],
+  },
+
+  3: {
+    bundleNumber: 3,
+    originalPrice: 3599,
+    bundlePrice: 2999,
+    priceWithoutMix: 1399,
+    items: [
+      { id: "prod-rosemary-oil", name: "Rosemary Oil", subtitle: "Natural follicle stimulation oil", price: 599 },
+      { id: "prod-rosemary-mist", name: "Rosemary Mist", subtitle: "Lightweight scalp mist", price: 399 },
+      { id: "prod-detox-shampoo", name: "Detox Shampoo", subtitle: "Scalp cleansing shampoo", price: 350 },
+      { id: "prod-dermaroller", name: "Dermaroller", subtitle: "0.5mm scalp micro-needling roller", price: 350 },
+      { id: "prod-massager", name: "Scalp Massager", subtitle: "Silicone scalp massager brush", price: 250 },
+      { id: "prod-tea-tree-conditioner", name: "Tea Tree Conditioner", subtitle: "Scalp soothing conditioner", price: 350 },
+      HAIR_HEALTH_MIX,
+    ],
+  },
+
+  4: {
+    bundleNumber: 4,
+    originalPrice: 3799,
+    bundlePrice: 2999,
+    priceWithoutMix: 1699,
+    items: [
+      { id: "prod-minox-2", name: "Minoxidil 2%", subtitle: "Gentle female formula growth solution", price: 750 },
+      { id: "prod-rosemary-oil", name: "Rosemary Oil", subtitle: "Follicle stimulation oil", price: 599 },
+      { id: "prod-detox-shampoo", name: "Detox Shampoo", subtitle: "Scalp cleansing shampoo", price: 350 },
+      { id: "prod-dermaroller", name: "Dermaroller", subtitle: "0.5mm scalp micro-needling roller", price: 350 },
+      { id: "prod-massager", name: "Scalp Massager", subtitle: "Silicone scalp massager brush", price: 250 },
+      { id: "prod-tea-tree-conditioner", name: "Tea Tree Conditioner", subtitle: "Scalp soothing conditioner", price: 350 },
+      HAIR_HEALTH_MIX,
+    ],
+  },
+};
+
+export function getBundleDisplayTitle(bundleNumber, gender, stage) {
+  const stageStr = String(stage);
   const isMale = gender === "male";
-  const stageString = String(stage);
-  const isStage1 = stageString === "1";
+  const isFemale = gender === "female";
 
-  // 1. Primary Growth Compound Routing Logic (Stage 1 uses Rosemary; Stage 2+ uses Minoxidil variants)
-  let growthTreatmentItem = {};
-  if (isStage1) {
-    growthTreatmentItem = {
-      id: "prod-rosemary-concentrate",
-      name: "Premium Rosemary Follicle Growth Concentrate",
-      subtitle: "Natural Root Revitalizer & Anti-Thinning Serum (Replaces Minoxidil for Stage 1 Maintenance)",
-      price: 699
-    };
-  } else {
-    growthTreatmentItem = isMale
-      ? {
-          id: "prod-minox-male-rx",
-          name: "Rx: 5% Minoxidil + 0.1% Finasteride Topical Solution",
-          subtitle: "Dual-Action Synergistic Hairline Restoration Fluid (Prescribed for Stages 2-5)",
-          price: 850
-        }
-      : {
-          id: "prod-minox-female-rx",
-          name: "Rx: 2% Minoxidil Topical Solution",
-          subtitle: "Gentle Hair Density Activator Optimized for Women (Prescribed for Stages 2-3)",
-          price: 750
-        };
+  if (bundleNumber === 3) {
+    if (stageStr === "overall-thinning") return "Overall Thinning Product";
+    if (isMale) return "Stage 1 Men Product";
+    if (isFemale) return "Stage 1 Female Product";
+    return "Stage 1 Product";
   }
 
-  // 2. ProGro Oil Base Customization Rule
-  const oilItem = hasDandruff
-    ? {
-        id: "prod-oil-mct-dandruff",
-        name: "Custom ProGro Oil (Anti-Dandruff MCT Base)",
-        subtitle: "MCT Oil Base enriched with Tea Tree + Rosemary + Peppermint Oil (Formulated for Dandruff Presence)",
-        price: 599
-      }
-    : {
-        id: "prod-oil-jojoba-clear",
-        name: "Custom ProGro Oil (Nourishing Jojoba Base)",
-        subtitle: "Pure Jojoba Base blended with Rosemary + Peppermint Oil (Formulated for Absence of Dandruff)",
-        price: 599
-      };
+  if (bundleNumber === 4) return "Stage 2-3 Female Product";
+  if (bundleNumber === 1) return "Stage 2-5 Men Product";
+  if (bundleNumber === 2) return "Stage 2-5 Men Product (Dandruff)";
 
-  // 3. Supplement Mix Customization Rule
-  let supplementName = `Customized Advanced ${isMale ? "Male" : "Female"} Hair Vitality Complex`;
-  let supplementSubtitle = "";
+  return `Bundle ${bundleNumber} Product`;
+}
 
-  if (rootCauses.length > 0) {
-    supplementSubtitle = `Daily capsules optimized with Protein, Amino Acids, Collagen, Vitamin D3, and Adaptogens targeting: ${rootCauses.join(" + ")}`;
-  } else {
-    supplementName = `Advanced Hair Supplement Mix`;
-    supplementSubtitle = "Premium balanced mix of essential Proteins, Amino Acids, Collagen, and Vitamin D3 for holistic root optimization";
+export function resolveBundleNumber(gender, stage, hasDandruff) {
+  const stageStr = String(stage);
+  const isMale = gender === "male";
+  const isFemale = gender === "female";
+
+  if (isMale && ["6", "7"].includes(stageStr)) return null;
+  if (isFemale && stageStr === "patchy-bald") return null;
+
+  if (stageStr === "1" || stageStr === "overall-thinning") return 3;
+  if (isFemale && ["2", "3"].includes(stageStr)) return 4;
+  if (isMale && ["2", "3", "4", "5"].includes(stageStr)) {
+    return hasDandruff ? 2 : 1;
   }
 
-  const supplementItem = {
-    id: `prod-supplements-${gender}-${isStage1 ? "stage1" : "remedy"}`,
-    name: supplementName,
-    subtitle: supplementSubtitle,
-    price: 800
-  };
+  return null;
+}
 
-  // 4. Build Complete Pack Inventory
-  const itemsList = [
-    growthTreatmentItem,
-    { id: "prod-derma", name: "Scalp Micro-Needling Derma Roller (0.5mm)", subtitle: "Follicle Cluster Micro-Channel Activator", price: 350 },
-    { id: "prod-shampoo", name: "Clinical Anti-Dandruff Clarifying Shampoo", subtitle: "pH-Balanced Botanical Scalp Cleanser", price: 350 },
-    { id: "prod-massager", name: "Ergonomic Silicone Scalp Massager Brush", subtitle: "Micro-Circulation Deep Tissue Stimulator", price: 250 },
-    oilItem,
-    supplementItem
-  ];
+export function getRecommendedBundle(gender, stage, hasDandruff = false) {
+  const bundleNumber = resolveBundleNumber(gender, stage, hasDandruff);
+  if (!bundleNumber) return null;
+
+  const def = BUNDLE_DEFINITIONS[bundleNumber];
+  const bundleTitle = getBundleDisplayTitle(bundleNumber, gender, stage);
 
   return {
-    bundleId: `combo-pack-complete-${gender}-stage${stageString}`,
-    bundleTitle: `Complete Customized ${isMale ? "Male" : "Female"} Hair Recovery System`,
-    originalPrice: 3999,
-    bundlePrice: 2999, // Fixed Offer Price
-    items: itemsList
+    bundleNumber,
+    bundleId: `zylk-bundle-${bundleNumber}-${gender}-stage-${String(stage)}`,
+    bundleTitle,
+    originalPrice: def.originalPrice,
+    bundlePrice: def.bundlePrice,
+    priceWithoutMix: def.priceWithoutMix,
+    items: def.items.map((item) => ({ ...item })),
   };
-};
+}
+
+export function getBundleWithHealthMix(gender, stage, hasDandruff = false, includeHealthMix = true) {
+  const bundle = getRecommendedBundle(gender, stage, hasDandruff);
+  if (!bundle) return null;
+
+  if (includeHealthMix) return bundle;
+
+  return {
+    ...bundle,
+    items: bundle.items.filter((item) => item.id !== HAIR_HEALTH_MIX_ID),
+    bundlePrice: bundle.priceWithoutMix,
+  };
+}
+
+// Backward compatibility
+export const getCustomBundle = getRecommendedBundle;

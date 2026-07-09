@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
+import { useSectionStep } from "../../hooks/useSectionStep";
 
 const STEPS = ["name", "contact", "age", "gender"];
 
@@ -18,7 +19,7 @@ const COUNTRY_CODES = [
 
 export default function Section1AboutMe({ onComplete, onBack }) {
   const { state, updateAboutMe } = useQuiz(); 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useSectionStep("section1AboutMe", STEPS.length - 1, 0);
   const [errors, setErrors] = useState({});
   
   const [localForm, setLocalForm] = useState({
@@ -79,8 +80,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   };
 
   return (
-    <div className="max-w-xl mx-auto mt-6 px-4">
-      <div className="bg-white rounded-[32px] p-8 md:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 transition-all duration-300">
+    <div className="max-w-xl mx-auto mt-6 px-4 w-full box-border">
+  <div className="bg-white rounded-[32px] p-5 sm:p-8 md:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 transition-all duration-300 w-full max-w-full overflow-hidden">
         
         <div className="mb-6">
           <span className="text-xs font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-3 py-1 rounded-full">
@@ -113,50 +114,69 @@ export default function Section1AboutMe({ onComplete, onBack }) {
             </div>
           )}
 
-          {/* STEP 1: CONTACT METHODS */}
+                    {/* STEP 1: CONTACT METHODS */}
           {step === 1 && (
-            <div className="space-y-5">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-gray-700">WhatsApp Number</label>
-                <div className="flex gap-3">
-                  <select
-                    value={localForm.countryCode}
-                    onChange={(e) => handleChange({ countryCode: e.target.value })}
-                    className="h-14 px-3 border border-gray-200 rounded-2xl bg-white text-gray-900 focus:outline-none focus:border-[#064e3b] text-base font-medium"
-                  >
-                    {COUNTRY_CODES.map((c) => (
-                      <option key={c.code} value={c.code}>{c.flag} {c.code}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="tel"
-                    value={localForm.whatsapp}
-                    onChange={(e) => handleChange({ whatsapp: e.target.value.replace(/\D/g, "") })}
-                    placeholder="Phone number"
-                    className={`flex-1 h-14 px-4 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-base ${
-                      errors.whatsapp ? "border-red-500" : "border-gray-200"
-                    }`}
-                  />
-                </div>
-                {errors.whatsapp && <p className="text-sm text-red-500 font-medium">{errors.whatsapp}</p>}
+            <div className="space-y-5 w-full min-w-0">
+              <div className="flex flex-col gap-2 w-full min-w-0">
+                <label className="text-sm font-semibold text-gray-700">
+                  WhatsApp Number
+                </label>
+
+                {/* Mobile-friendly: stacked on small screens, side-by-side on sm+ */}
+                <div className="flex gap-2 w-full min-w-0 max-w-full">
+  <select
+    value={localForm.countryCode}
+    onChange={(e) => handleChange({ countryCode: e.target.value })}
+    className="h-14 w-[5.5rem] shrink-0 px-2 border border-gray-200 rounded-2xl bg-white text-gray-900 focus:outline-none focus:border-[#064e3b] text-sm font-medium"
+  >
+    {COUNTRY_CODES.map((c) => (
+      <option key={c.code} value={c.code}>
+        {c.flag} {c.code}
+      </option>
+    ))}
+  </select>
+
+  <input
+    type="tel"
+    inputMode="numeric"
+    autoComplete="tel"
+    value={localForm.whatsapp}
+    onChange={(e) =>
+      handleChange({ whatsapp: e.target.value.replace(/\D/g, "") })
+    }
+    placeholder="Phone number"
+    className={`flex-1 min-w-0 basis-0 h-14 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-base ${
+      errors.whatsapp ? "border-red-500" : "border-gray-200"
+    }`}
+  />
+</div>
+
+                {errors.whatsapp && (
+                  <p className="text-sm text-red-500 font-medium">{errors.whatsapp}</p>
+                )}
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-gray-700">Email Address</label>
+              <div className="flex flex-col gap-2 w-full min-w-0">
+                <label className="text-sm font-semibold text-gray-700">
+                  Email Address
+                </label>
                 <input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   value={localForm.email}
                   onChange={(e) => handleChange({ email: e.target.value })}
                   placeholder="name@example.com"
-                  className={`w-full h-14 px-4 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-base ${
+                  className={`w-full min-w-0 h-14 px-4 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-base ${
                     errors.email ? "border-red-500" : "border-gray-200"
                   }`}
                 />
-                {errors.email && <p className="text-sm text-red-500 font-medium">{errors.email}</p>}
+                {errors.email && (
+                  <p className="text-sm text-red-500 font-medium">{errors.email}</p>
+                )}
               </div>
             </div>
           )}
-
           {/* STEP 2: AGE INTERVAL SELECTORS */}
           {step === 2 && (
             <div className="grid grid-cols-1 gap-3">
@@ -197,7 +217,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                       : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  <span className="text-xl">{g === "male" ? "👨" : "👩"}</span>
+                  
                   <span className="capitalize">{g}</span>
                 </button>
               ))}

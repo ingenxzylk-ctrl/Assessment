@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
+import { useSectionStep } from "../../hooks/useSectionStep";
 
 const STEPS = [
   "sleep_cycle",
@@ -25,7 +26,7 @@ const STEP_TITLES = {
 
 export default function Section3InternalHealthMale({ onComplete, onBack }) {
   const { state, updateInternalHealth } = useQuiz();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useSectionStep("section3Male", STEPS.length - 1, 0);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [otherCondition, setOtherCondition] = useState("");
   const [errors, setErrors] = useState({});

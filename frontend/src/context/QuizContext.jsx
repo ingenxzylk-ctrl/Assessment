@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from "react";
+
+import { createContext, useContext, useState, useCallback } from "react";
 
 const QuizContext = createContext();
 
@@ -26,8 +27,14 @@ const INITIAL_STATE = {
   scalpAnalysis: null,
   scalpImages: [],
   sectionSteps: {
-    section4Scalp: "consent",
+    section1AboutMe: 0,
+    section2Male: 0,
+    section2Female: 0,
+    section3Male: 0,
+    section3Female: 0,
+    section4Scalp: "guide",
   },
+  navDirection: "forward",
   isLoading: false,
   error: null,
 };
@@ -36,15 +43,27 @@ export function QuizProvider({ children }) {
   const [state, setState] = useState(INITIAL_STATE);
 
   const nextStep = () => {
-    setState((prev) => ({ ...prev, step: prev.step + 1 }));
+    setState((prev) => ({
+      ...prev,
+      step: prev.step + 1,
+      navDirection: "forward",
+    }));
   };
 
   const prevStep = () => {
-    setState((prev) => ({ ...prev, step: Math.max(0, prev.step - 1) }));
+    setState((prev) => ({
+      ...prev,
+      step: Math.max(0, prev.step - 1),
+      navDirection: "backward",
+    }));
   };
 
-  const goToStep = (targetStep) => {
-    setState((prev) => ({ ...prev, step: targetStep }));
+  const goToStep = (targetStep, direction = "forward") => {
+    setState((prev) => ({
+      ...prev,
+      step: targetStep,
+      navDirection: direction,
+    }));
   };
 
   const updateAboutMe = (data) => {
@@ -96,16 +115,20 @@ export function QuizProvider({ children }) {
     setState(INITIAL_STATE);
   };
 
-  const updateSectionStep = (section, targetStep) => {
-    setState((prev) => ({
-      ...prev,
-      sectionSteps: {
-        ...prev.sectionSteps,
-        [section]: targetStep,
-      },
-    }));
-  };
-
+   const updateSectionStep = useCallback((section, targetStep) => {
+    setState((prev) => {
+      if (prev.sectionSteps[section] === targetStep) {
+        return prev; // no change → no re-render
+      }
+      return {
+        ...prev,
+        sectionSteps: {
+          ...prev.sectionSteps,
+          [section]: targetStep,
+        },
+      };
+    });
+  }, []);
   return (
     <QuizContext.Provider
       value={{

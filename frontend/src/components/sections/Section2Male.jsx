@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
+import { useSectionStep } from "../../hooks/useSectionStep";
 
 const HAIR_STAGES = [
   { id: "1", title: "Stage 1", desc: "No visible recession.", img: "/stages/Stage1.png" },
@@ -25,7 +26,7 @@ const HAIR_ZONES = [
 
 export default function Section2Male({ onComplete, onBack }) {
   const { state, updateHairHealth } = useQuiz();
-  const [subStep, setSubStep] = useState(0); 
+  const [subStep, setSubStep] = useSectionStep("section2Male", 5, 0);
   const [errors, setErrors] = useState(null);
   
   const [localForm, setLocalForm] = useState({
