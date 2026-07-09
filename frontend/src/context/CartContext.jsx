@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { getWooProductId } from "../config/bundles";
 
 const CartContext = createContext();
 
@@ -23,7 +24,7 @@ export function CartProvider({ children }) {
       }
       return [...prev, { ...product, quantity: 1 }];
     });
-    setIsCartOpen(true); // Auto-open drawer when adding an item
+    setIsCartOpen(true);
   };
 
   const removeFromCart = (productId) => {
@@ -42,6 +43,22 @@ export function CartProvider({ children }) {
     );
   };
 
+  const toggleHealthMix = (productId, includeHealthMix) => {
+    setCartItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== productId) return item;
+        const bundleNumber = item.bundleNumber;
+        const price = includeHealthMix ? item.priceWithMix : item.priceWithoutMix;
+        return {
+          ...item,
+          includeHealthMix,
+          price,
+          wooProductId: getWooProductId(bundleNumber, includeHealthMix),
+        };
+      })
+    );
+  };
+
   const clearCart = () => setCartItems([]);
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -56,6 +73,7 @@ export function CartProvider({ children }) {
         addToCart,
         removeFromCart,
         updateQuantity,
+        toggleHealthMix,
         clearCart,
         cartTotal,
         cartCount,

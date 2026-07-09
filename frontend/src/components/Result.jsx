@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuiz } from "../context/QuizContext";
 import { useCart } from "../context/CartContext";
-import { getCustomBundle } from "../data/products";
+import { getRecommendedBundle } from "../data/products";
+import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import AssessmentPDFTemplate from "./sections/AssessmentPDFTemplate"; 
 
@@ -21,8 +22,9 @@ const AVATAR_FALLBACK_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.o
 export default function Result() {
   const { state, resetQuiz, prevStep, setLoading, setError } = useQuiz();
   const { addToCart } = useCart(); 
-  const [showRoutinePanel, setShowRoutinePanel] = useState(false); 
+  const [showRoutinePanel, setShowRoutinePanel] = useState(false);
   const [activeTab, setActiveTab] = useState("genetic");
+  const [includeHealthMix, setIncludeHealthMix] = useState(true);
 
   // 1. Gather variables safely
   const rawAnalysis = state?.scalpAnalysis || {};
@@ -76,8 +78,8 @@ export default function Result() {
   if (stateDumpString.includes("hormone") || stateDumpString.includes("pcos") || stateDumpString.includes("thyroid")) rootCauses.push("Hormone Balancing");
 
   // Generate treatment bundle configurations
-  const recommendedBundle = !requiresDoctorConsultation 
-    ? getCustomBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauses) 
+  const recommendedBundle = !requiresDoctorConsultation
+    ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauses, includeHealthMix)
     : null;
 
   // 🟢 Explicit flag for "the AI never returned a stage" — used to show an
@@ -403,13 +405,28 @@ export default function Result() {
           {/* BASKET TRANSACTION FOOTER */}
           <div className="pt-4 border-t border-gray-100 space-y-4 w-full !text-left block">
             {!requiresDoctorConsultation && recommendedBundle && (
-              <div className="flex justify-between items-center text-sm font-bold px-1 w-full !text-left">
-                <span className="text-gray-500 !text-left">Total Bundle Value</span>
-                <div className="text-right">
-                  <span className="text-xs text-gray-400 line-through mr-1.5 font-medium">₹{recommendedBundle.originalPrice}</span>
-                  <span className="text-xl font-black text-gray-900">₹{recommendedBundle.bundlePrice}</span>
+              <>
+                <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeHealthMix}
+                    onChange={(e) => setIncludeHealthMix(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-gray-800">Include Hair Health Mix</p>
+                    <p className="text-xs text-gray-500">Nutrition shake + supplement blend</p>
+                  </div>
+                </label>
+
+                <div className="flex justify-between items-center text-sm font-bold px-1 w-full !text-left">
+                  <span className="text-gray-500 !text-left">Total Bundle Value</span>
+                  <div className="text-right">
+                    <span className="text-xs text-gray-400 line-through mr-1.5 font-medium">₹{recommendedBundle.originalPrice}</span>
+                    <span className="text-xl font-black text-gray-900">₹{recommendedBundle.price}</span>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <button 
@@ -418,11 +435,19 @@ export default function Result() {
                 if (requiresDoctorConsultation) {
                   alert("Connecting with our authorized clinical specialist network panel...");
                 } else if (recommendedBundle) {
+                  const { bundleNumber } = recommendedBundle;
                   addToCart({
                     id: recommendedBundle.bundleId,
-                    name: recommendedBundle.bundleTitle,
-                    price: recommendedBundle.bundlePrice,
-                    subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber} Configuration)`
+                    name: getBundleDisplayName(bundleNumber, gender, aiPredictedStageNumber),
+                    price: recommendedBundle.price,
+                    priceWithMix: recommendedBundle.bundlePrice,
+                    priceWithoutMix: recommendedBundle.priceWithoutMix,
+                    bundleNumber,
+                    includeHealthMix,
+                    wooProductId: getWooProductId(bundleNumber, includeHealthMix),
+                    wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
+                    wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
+                    subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber} Configuration)`,
                   });
                   alert("Your customized combo routine pack has been added to the cart!");
                 }
