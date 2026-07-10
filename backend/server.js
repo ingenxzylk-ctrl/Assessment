@@ -22,5 +22,8 @@ app.use(express.json({ limit: "50mb" })); // Handles large image strings without
 app.use("/api", quizRouter);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Hair & Scalp Quiz backend running securely on http://localhost:${PORT}`);
+  console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/api/health`);
+  console.log(`Model: ${process.env.OPENAI_MODEL || "gpt-4o"}`);
+  console.log(`API key loaded: ${process.env.OPENAI_API_KEY ? "yes" : "NO — add OPENAI_API_KEY to .env"}`);
 });

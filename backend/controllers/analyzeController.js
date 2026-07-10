@@ -1,13 +1,12 @@
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 
 const MODEL_CANDIDATES = [
-  process.env.GEMINI_MODEL,
-  "gemini-2.5-flash",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
+  process.env.OPENAI_MODEL,
+  "gpt-4o",
+  "gpt-4o-mini",
 ].filter(Boolean);
 
-const GEMINI_RETRIES = Number(process.env.GEMINI_RETRIES) || 1;
+const OPENAI_RETRIES = Number(process.env.OPENAI_RETRIES) || 2;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -17,59 +16,58 @@ const isRetryable = (err) => {
   return code === 429 || code === 503 || msg.includes("timed out") || msg.includes("ECONNRESET");
 };
 
-const formatGeminiError = (error) => {
+const formatOpenAIError = (error) => {
   const msg = String(error?.message || error || "");
 
-  if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
-    return "Invalid GEMINI_API_KEY. Get a new key from https://aistudio.google.com/apikey and add it to backend/.env";
+  if (msg.includes("Incorrect API key") || msg.includes("invalid_api_key")) {
+    return "Invalid OPENAI_API_KEY. Get a key from https://platform.openai.com/api-keys and add it to backend/.env";
   }
   if (msg.includes("fetch failed") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND")) {
-    return "Backend cannot reach Google Gemini API. Check your internet connection and restart the backend server.";
+    return "Backend cannot reach OpenAI API. Check your internet connection and restart the backend server.";
   }
-  if (msg.includes("not found") || msg.includes("NOT_FOUND") || msg.includes("is not supported")) {
-    return `Gemini model not available. Set GEMINI_MODEL=gemini-2.5-flash in backend/.env and restart.`;
+  if (msg.includes("model") && (msg.includes("not found") || msg.includes("does not exist"))) {
+    return "OpenAI model not available. Set OPENAI_MODEL=gpt-4o in backend/.env and restart.";
   }
-  if (msg.includes("quota") || msg.includes("429")) {
-    return "Gemini API quota exceeded. Wait a few minutes or check billing at Google AI Studio.";
+  if (msg.includes("quota") || msg.includes("429") || msg.includes("rate limit")) {
+    return "OpenAI API quota/rate limit exceeded. Wait a few minutes or check billing at platform.openai.com.";
   }
 
   return msg || "Diagnostics failed.";
 };
 
-const toInlineImagePart = (input) => {
+const toDataUrl = (input) => {
   if (!input) return null;
-  if (input.inlineData?.data) return input;
-
-  let dataUrl = "";
-  let mimeType = "image/jpeg";
 
   if (typeof input === "string") {
-    if (input.startsWith("data:")) dataUrl = input;
-    else return { inlineData: { mimeType, data: input.trim() } };
-  } else if (typeof input === "object") {
-    if (input.dataUrl) dataUrl = input.dataUrl;
-    else if (input.previewUrl) dataUrl = input.previewUrl;
-    else if (input.base64Data) {
-      mimeType = input.mediaType || input.mimeType || "image/jpeg";
-      return { inlineData: { mimeType, data: String(input.base64Data).trim() } };
+    if (input.startsWith("data:")) return input;
+    return `data:image/jpeg;base64,${input.trim()}`;
+  }
+
+  if (typeof input === "object") {
+    if (input.dataUrl) return input.dataUrl;
+    if (input.previewUrl) return input.previewUrl;
+    if (input.base64Data) {
+      const mime = input.mediaType || input.mimeType || "image/jpeg";
+      return `data:${mime};base64,${String(input.base64Data).trim()}`;
     }
   }
 
-  if (!dataUrl.startsWith("data:")) return null;
-  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (!match) return null;
-
-  return { inlineData: { mimeType: match[1], data: match[2].trim() } };
+  return null;
 };
 
-const callGemini = async (ai, model, payload, retries = GEMINI_RETRIES) => {
+const callOpenAI = async (client, model, messages, retries = OPENAI_RETRIES) => {
   let lastError;
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      return await ai.models.generateContent({ ...payload, model });
+      return await client.chat.completions.create({
+        model,
+        messages,
+        temperature: 0.1,
+        response_format: { type: "json_object" },
+      });
     } catch (err) {
       lastError = err;
-      console.error(`Gemini call failed (model=${model}, attempt=${attempt + 1}):`, err?.message || err);
+      console.error(`OpenAI call failed (model=${model}, attempt=${attempt + 1}):`, err?.message || err);
       if (!isRetryable(err) || attempt === retries - 1) throw err;
       await delay(2000 * (attempt + 1));
     }
@@ -77,12 +75,12 @@ const callGemini = async (ai, model, payload, retries = GEMINI_RETRIES) => {
   throw lastError;
 };
 
-const callGeminiWithFallback = async (ai, payload) => {
+const callOpenAIWithFallback = async (client, messages) => {
   let lastError;
   for (const model of MODEL_CANDIDATES) {
     try {
-      console.log(`Trying Gemini model: ${model}`);
-      const response = await callGemini(ai, model, payload);
+      console.log(`Trying OpenAI model: ${model}`);
+      const response = await callOpenAI(client, model, messages);
       return { response, model };
     } catch (err) {
       lastError = err;
@@ -237,16 +235,35 @@ const parseLabeledImages = (images) => {
   }));
 };
 
+const buildOpenAIMessages = (gender, selfReportedStage, labeledImages) => {
+  const content = [
+    { type: "text", text: buildAnalysisPrompt(gender, selfReportedStage) },
+  ];
+
+  for (const img of labeledImages) {
+    const dataUrl = toDataUrl(img.dataUrl);
+    if (!dataUrl) continue;
+
+    content.push({ type: "text", text: `\n[${String(img.type).toUpperCase()} VIEW]` });
+    content.push({
+      type: "image_url",
+      image_url: { url: dataUrl, detail: "low" },
+    });
+  }
+
+  return [{ role: "user", content }];
+};
+
 export const analyzeScalp = async (req, res) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === "your_key_from_https://aistudio.google.com/apikey") {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey || apiKey === "your_key_from_https://platform.openai.com/api-keys") {
       return res.status(500).json({
-        error: "GEMINI_API_KEY is missing or still a placeholder. Add your real key to backend/.env and restart the server.",
+        error: "OPENAI_API_KEY is missing or still a placeholder. Add your real key to backend/.env and restart the server.",
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const client = new OpenAI({ apiKey });
     const { gender, selfReportedStage, images } = req.body;
     const userGender = String(gender || "male").toLowerCase();
 
@@ -262,43 +279,30 @@ export const analyzeScalp = async (req, res) => {
       });
     }
 
-    const analysisParts = [{ text: buildAnalysisPrompt(userGender, selfReportedStage) }];
+    const messages = buildOpenAIMessages(userGender, selfReportedStage, labeledImages);
+    const imageCount = messages[0].content.filter((p) => p.type === "image_url").length;
 
-    for (const img of labeledImages) {
-      const part = toInlineImagePart(img.dataUrl);
-      if (part) {
-        analysisParts.push({ text: `\n[${String(img.type).toUpperCase()} VIEW]` });
-        analysisParts.push(part);
-      }
-    }
-
-    if (analysisParts.length < 2) {
+    if (imageCount === 0) {
       return res.status(400).json({ error: "Could not read image data. Please re-upload your photos." });
     }
 
-    console.log(`Analyzing ${labeledImages.length} image(s)...`);
+    console.log(`Analyzing ${imageCount} image(s) with OpenAI...`);
     const startTime = Date.now();
 
-    const { response, model } = await callGeminiWithFallback(ai, {
-      contents: [{ role: "user", parts: analysisParts }],
-      config: {
-        temperature: 0.1,
-        responseMimeType: "application/json",
-      },
-    });
+    const { response, model } = await callOpenAIWithFallback(client, messages);
 
-    console.log(`Gemini (${model}) responded in ${Date.now() - startTime}ms`);
+    console.log(`OpenAI (${model}) responded in ${Date.now() - startTime}ms`);
 
-    const responseText = response?.text?.trim();
+    const responseText = response?.choices?.[0]?.message?.content?.trim();
     if (!responseText) {
-      throw new Error("Gemini returned an empty response. Check image quality or API quota.");
+      throw new Error("OpenAI returned an empty response. Check image quality or API quota.");
     }
 
     let parsed;
     try {
       parsed = JSON.parse(responseText);
     } catch {
-      throw new Error("Gemini returned invalid JSON. Please try again.");
+      throw new Error("OpenAI returned invalid JSON. Please try again.");
     }
 
     if (parsed.valid === false || parsed.imageRejected === true) {
@@ -325,6 +329,7 @@ export const analyzeScalp = async (req, res) => {
       gender: userGender,
       analysisComplete: true,
       model,
+      provider: "openai",
     };
 
     if (!result.aiPredictedStage) {
@@ -335,7 +340,7 @@ export const analyzeScalp = async (req, res) => {
   } catch (error) {
     console.error("analyzeScalp error:", error);
     return res.status(500).json({
-      error: formatGeminiError(error),
+      error: formatOpenAIError(error),
       aiPredictedStage: null,
       analysisComplete: false,
     });

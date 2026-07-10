@@ -9,11 +9,12 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@google/genai": "^2.10.0",
+    "openai": "^4.104.0",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.2",
     "multer": "^1.4.5-lts.1",
+    "razorpay": "^2.9.6",
     "undici": "^8.7.0"
   },
   "devDependencies": {
@@ -21,9 +22,5 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "allowScripts": {
-    "@google/genai@2.10.0": true,
-    "protobufjs@7.6.4": true
-  }
+  "license": "ISC"
 }
