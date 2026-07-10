@@ -181,6 +181,10 @@ export default function Result() {
 
   const aiPredictedStageNumber = rawAnalysis.aiPredictedStage;
   const analysisMissing = !aiPredictedStageNumber;
+  const stageDiscrepancy = Boolean(rawAnalysis.stageDiscrepancy);
+  const reportedStage = isFemale
+    ? state?.hairHealth?.hair_fall_zone
+    : state?.hairHealth?.norwood_stage;
 
   const extractImageUrl = (img) => {
     if (!img) return null;
@@ -341,6 +345,30 @@ export default function Result() {
                 />
               </div>
             </div>
+
+            {analysisMissing && (
+              <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800">
+                <p className="font-bold">AI scalp analysis incomplete.</p>
+                <p className="text-xs text-red-600 mt-1">Please retake the scalp scan to get your photo-based stage.</p>
+                <button
+                  type="button"
+                  onClick={() => { if (prevStep) prevStep(); else window.history.back(); }}
+                  className="mt-2 text-xs font-bold uppercase tracking-wider bg-red-600 text-white px-3 py-1.5 rounded-full cursor-pointer"
+                >
+                  Retake Scalp Scan
+                </button>
+              </div>
+            )}
+
+            {stageDiscrepancy && !analysisMissing && (
+              <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-900">
+                <p className="font-bold">Photo-based assessment used</p>
+                <p className="text-xs text-blue-700 mt-1">
+                  Your quiz answer was Stage {reportedStage || "—"}, but your uploaded photos indicate Stage {aiPredictedStageNumber}.
+                  Results are based on what we see in your images, not the quiz.
+                </p>
+              </div>
+            )}
 
             {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && (
               <div className="mt-4 bg-[#5a6b2e] rounded-full px-4 py-2 flex items-center justify-between text-white text-sm">

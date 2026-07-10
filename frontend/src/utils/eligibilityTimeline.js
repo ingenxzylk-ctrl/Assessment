@@ -60,15 +60,15 @@ const maleNorwoodStage = (aiStage, hairHealth = {}) => {
 };
 
 const femaleWideningCategory = (aiStage, hairHealth = {}) => {
-  const zone = String(hairHealth.hair_fall_zone || "").toLowerCase();
+  // Prefer photo-based AI stage; fall back to quiz self-report only if AI missing
   const ai = String(aiStage || "").toLowerCase();
+  const zone = String(hairHealth.hair_fall_zone || "").toLowerCase();
+  const stage = ai || zone;
 
-  if (zone === "overall-thinning" || ai === "overall-thinning") return "hair-thinning";
-  if (zone === "patchy-bald" || ai === "patchy-bald") return "coin-patches";
-
-  if (zone === "1" || ai === "1") return "medium-widening";
-  if (zone === "2" || ai === "2") return "medium-widening";
-  if (zone === "3" || ai === "3") return "advanced-widening";
+  if (stage === "overall-thinning") return "hair-thinning";
+  if (stage === "patchy-bald") return "coin-patches";
+  if (stage === "1" || stage === "2") return "medium-widening";
+  if (stage === "3") return "advanced-widening";
 
   return "medium-widening";
 };
