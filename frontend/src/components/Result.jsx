@@ -229,11 +229,16 @@ export default function Result() {
         ...formatted,
         id: prod.id,
         subtitle: prod.subtitle || null,
-        isOptional: isHealthMix && !includeHealthMix,
+        isHealthMix,
       };
     })
     .filter(Boolean);
 
+  const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
+  const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
+  const healthMixDelta = recommendedBundle
+    ? Math.max(0, (recommendedBundle.bundlePrice || 0) - (recommendedBundle.priceWithoutMix || 0))
+    : 0;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
 
@@ -456,7 +461,7 @@ export default function Result() {
           </div>
         )}
 
-        {!requiresDoctorConsultation && kitProducts.length > 0 && (
+        {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
           <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
             <div>
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">
@@ -473,7 +478,7 @@ export default function Result() {
             </div>
 
             <div className="space-y-3">
-              {kitProducts.map((product, index) => (
+              {coreKitProducts.map((product, index) => (
                 <div
                   key={product.id || index}
                   className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
@@ -498,17 +503,60 @@ export default function Result() {
                       )}
                     </div>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border ${
-                      product.isOptional
-                        ? "text-amber-800 bg-amber-50 border-amber-100"
-                        : "text-emerald-800 bg-emerald-50 border-emerald-100/40"
-                    }`}
-                  >
-                    {product.isOptional ? "Optional" : "Included"}
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border text-emerald-800 bg-emerald-50 border-emerald-100/40">
+                    Included
                   </span>
                 </div>
               ))}
+
+              {healthMixProduct && (
+                <div
+                  className={`p-4 border rounded-2xl transition-all flex items-center justify-between gap-4 group ${
+                    includeHealthMix
+                      ? "border-[#064e3b]/30 bg-[#f4f6f0] shadow-[0_2px_12px_rgba(0,0,0,0.01)]"
+                      : "border-dashed border-gray-200 bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center flex-1 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                      <ProductImage
+                        src={healthMixProduct.imgUrl}
+                        fallbacks={healthMixProduct.imgFallbacks}
+                        alt={healthMixProduct.shortName}
+                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                          includeHealthMix ? "" : "opacity-60"
+                        }`}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
+                        {healthMixProduct.shortName}
+                      </h3>
+                      {healthMixProduct.subtitle && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                          {healthMixProduct.subtitle}
+                        </p>
+                      )}
+                      <p className="text-xs font-semibold text-[#064e3b] mt-1">
+                        {includeHealthMix
+                          ? `Included · −₹${healthMixDelta} if removed`
+                          : `Add for +₹${healthMixDelta}`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIncludeHealthMix(!includeHealthMix)}
+                    className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${
+                      includeHealthMix
+                        ? "text-emerald-800 bg-emerald-50 border-emerald-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                        : "text-white bg-[#064e3b] border-[#064e3b] hover:bg-[#043427]"
+                    }`}
+                  >
+                    {includeHealthMix ? "Remove" : "Add"}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
@@ -712,7 +760,15 @@ export default function Result() {
                     onChange={(e) => setIncludeHealthMix(e.target.checked)}
                     className="rounded border-gray-300 w-3.5 h-3.5"
                   />
-                  <span className="text-[10px] text-gray-500">Include Hair Health Mix</span>
+                  <span className="text-[10px] text-gray-500">
+                    Include Hair Health Mix
+                    {healthMixDelta > 0 && (
+                      <span className="font-semibold text-[#064e3b]">
+                        {" "}
+                        ({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                      </span>
+                    )}
+                  </span>
                 </label>
               </div>
               <button
