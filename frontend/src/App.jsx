@@ -110,7 +110,7 @@ function QuizFlow() {
             }} 
             className="text-sm font-semibold text-gray-700 hover:text-[#064e3b] transition-colors hidden sm:inline-block cursor-pointer"
           >
-           
+            {step === 0 ? "Start Assessment →" : "Restart Quiz ↺"}
           </button>
         </div>
       </header>

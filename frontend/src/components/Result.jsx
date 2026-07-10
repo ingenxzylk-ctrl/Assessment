@@ -169,11 +169,10 @@ export default function Result() {
   const { addToCart, cartCount, setIsCartOpen } = useCart();
 
   const [activeCause, setActiveCause] = useState(null);
-  
+  const [includeHealthMix, setIncludeHealthMix] = useState(true);
   const [coachCallOptIn, setCoachCallOptIn] = useState(false);
   const [faqOpen, setFaqOpen] = useState(false);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
-  
 
   const rawAnalysis = state?.scalpAnalysis || {};
   const gender = state?.aboutMe?.gender || "male";
@@ -216,7 +215,9 @@ export default function Result() {
   if (stateDump.includes("diet") || stateDump.includes("nutrition")) rootCauseTags.push("Nutrient Sync");
   if (stateDump.includes("hormone") || stateDump.includes("pcos") || stateDump.includes("thyroid")) rootCauseTags.push("Hormone Balancing");
 
- 
+  const recommendedBundle = !requiresDoctorConsultation
+    ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, includeHealthMix)
+    : null;
 
   const eligibilityTimeline = getEligibilityTimeline(state, aiPredictedStageNumber);
   const resultMonths = eligibilityTimeline.months || 8;
@@ -233,27 +234,21 @@ export default function Result() {
     return `Stage ${aiPredictedStageNumber} Of Male Pattern Hair Fall`;
   };
 
-   const [includeHealthMix, setIncludeHealthMix] = useState(true);
-
-const recommendedBundle = !requiresDoctorConsultation
-  ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, includeHealthMix)
-  : null;
-
-const kitProducts = (recommendedBundle?.items ?? [])
-  .map((prod) => {
-    const formatted = formatBundleProduct(prod, isFemale);
-    if (!formatted) return null;
-    const isHealthMix =
-      prod.id === "zylk-hair-health-mix" ||
-      String(prod.id || "").startsWith("prod-supplements");
-    return {
-      ...formatted,
-      id: prod.id,
-      subtitle: prod.subtitle || null,
-      isHealthMix,
-    };
-  })
-  .filter(Boolean);
+  const kitProducts = (recommendedBundle?.items ?? [])
+    .map((prod) => {
+      const formatted = formatBundleProduct(prod, isFemale);
+      if (!formatted) return null;
+      const isHealthMix =
+        prod.id === "zylk-hair-health-mix" ||
+        String(prod.id || "").startsWith("prod-supplements");
+      return {
+        ...formatted,
+        id: prod.id,
+        subtitle: prod.subtitle || null,
+        isHealthMix,
+      };
+    })
+    .filter(Boolean);
 
   const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
@@ -294,7 +289,24 @@ const kitProducts = (recommendedBundle?.items ?? [])
 
   return (
     <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36">
-      
+      <header className="sticky top-0 z-40 bg-[#2b2b2b] px-4 py-3 flex items-center justify-between shadow-md">
+        <span className="text-white text-xl font-bold tracking-tight">Zylk<span className="text-[#b8d86e]">.</span></span>
+        <button
+          type="button"
+          onClick={() => setIsCartOpen(true)}
+          className="relative text-white p-1 cursor-pointer"
+          aria-label="Open cart"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          {cartCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
+              {cartCount}
+            </span>
+          )}
+        </button>
+      </header>
 
       <div className="max-w-lg mx-auto px-3 pt-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -311,7 +323,37 @@ const kitProducts = (recommendedBundle?.items ?? [])
                 <p className="text-sm text-gray-500 mt-1">You Are Currently On</p>
                 <p className="text-base font-bold text-gray-900 leading-snug mt-0.5">{getStageTitle()}</p>
 
-                            {analysisMissing && (
+                {!analysisMissing && (
+                  <div className="mt-3">
+                    {eligibilityTimeline.needsTransplant ? (
+                      <>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Recommended Next Step</p>
+                        <p className="text-lg font-black text-amber-700">Hair Transplant Consultation</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Start Seeing Results In</p>
+                        <p className="text-2xl font-black text-gray-900">{eligibilityTimeline.label}</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-[#064e3b]/20 shrink-0 bg-gray-50">
+                <img
+                  src={displayUserPhoto || AVATAR_FALLBACK}
+                  alt="Your scalp capture"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = AVATAR_FALLBACK;
+                  }}
+                />
+              </div>
+            </div>
+
+            {analysisMissing && (
               <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-800">
                 <p className="font-bold">AI scalp analysis incomplete.</p>
                 <p className="text-xs text-red-600 mt-1">Please retake the scalp scan to get your photo-based stage.</p>
@@ -334,20 +376,6 @@ const kitProducts = (recommendedBundle?.items ?? [])
                 </p>
               </div>
             )}
-              </div>
-
-              <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-[#064e3b]/20 shrink-0 bg-gray-50">
-                <img
-                  src={displayUserPhoto || AVATAR_FALLBACK}
-                  alt="Your scalp capture"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = AVATAR_FALLBACK;
-                  }}
-                />
-              </div>
-            </div>
 
             {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && (
               <div className="mt-4 bg-[#5a6b2e] rounded-full px-4 py-2 flex items-center justify-between text-white text-sm">
@@ -472,7 +500,7 @@ const kitProducts = (recommendedBundle?.items ?? [])
           </div>
         )}
 
-                {!requiresDoctorConsultation && kitProducts.length > 0 && (
+                {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
           <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
             <div>
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">
@@ -569,23 +597,6 @@ const kitProducts = (recommendedBundle?.items ?? [])
     </div>
   )}
 </div>
-<span className="text-2xl font-black text-gray-900">₹{recommendedBundle.price}</span>
-<label className="flex items-center gap-2 mt-1 cursor-pointer">
-  <input
-    type="checkbox"
-    checked={includeHealthMix}
-    onChange={(e) => setIncludeHealthMix(e.target.checked)}
-    className="rounded border-gray-300 w-3.5 h-3.5"
-  />
-  <span className="text-[10px] text-gray-500">
-    Include Hair Health Mix
-    {healthMixDelta > 0 && (
-      <span className="font-semibold text-[#064e3b]">
-        {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
-      </span>
-    )}
-  </span>
-</label>
 
             <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
               <span>🌿</span>
@@ -787,7 +798,14 @@ const kitProducts = (recommendedBundle?.items ?? [])
                     onChange={(e) => setIncludeHealthMix(e.target.checked)}
                     className="rounded border-gray-300 w-3.5 h-3.5"
                   />
-                  <span className="text-[10px] text-gray-500">Include Hair Health Mix</span>
+                  <span className="text-[10px] text-gray-500">
+                    Include Hair Health Mix
+                    {healthMixDelta > 0 && (
+                      <span className="font-semibold text-[#064e3b]">
+                        {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                      </span>
+                    )}
+                  </span>
                 </label>
               </div>
               <button
