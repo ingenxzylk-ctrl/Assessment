@@ -35,8 +35,17 @@ export const BUNDLE_CONFIG = {
     priceWithoutMix: 2299,
     originalPrice: 3799,
   },
+  99: {
+    label: "₹1 Test Bundle",
+    wooProductId: 9999, // Replace with your real WooCommerce test product ID
+    wooProductIdNoMix: 9999,
+    priceWithMix: 1,
+    priceWithoutMix: 1,
+    originalPrice: 1,
+  },
 };
 
+export const TEST_BUNDLE_NUMBER = 99;
 export const HAIR_HEALTH_MIX_ID = "hair-health-mix";
 
 export function getBundleDisplayName(bundleNumber, gender, stage) {
@@ -74,4 +83,21 @@ export function resolveBundleNumber(gender, stage, hasDandruff) {
   if (isMale && ["2", "3", "4", "5"].includes(stageStr)) return hasDandruff ? 2 : 1;
 
   return 3;
+}
+
+/** ₹1 bundle for testing cart → WooCommerce checkout. Replace wooProductId 9999 with a real product. */
+export function getTestBundle() {
+  const config = BUNDLE_CONFIG[TEST_BUNDLE_NUMBER];
+  return {
+    id: "bundle-test-1rupee",
+    bundleId: "bundle-test-1rupee",
+    name: config.label,
+    price: config.priceWithMix,
+    priceWithMix: config.priceWithMix,
+    priceWithoutMix: config.priceWithoutMix,
+    bundleNumber: TEST_BUNDLE_NUMBER,
+    isTestBundle: true,
+    wooProductId: config.wooProductId,
+    subtitle: "Test checkout flow",
+  };
 }
