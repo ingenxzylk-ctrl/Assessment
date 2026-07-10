@@ -172,23 +172,31 @@ const parseGeminiResponseWithRepair = async (ai, model, rawText) => {
 
 const buildAnalysisPrompt = (gender) => {
   if (gender === "female") {
-    return `You are an expert trichologist. Classify hair loss ONLY from what you SEE in the uploaded photos.
+    return `You are an expert trichologist. Classify female pattern hair loss ONLY from the patient's uploaded scalp photos.
 
-Images may be real scalp photos OR clinical reference diagrams — classify the PATTERN shown.
+Do NOT treat quiz answers, captions, or reference charts as ground truth. Classify only what is visible in the photos.
 
 WORKFLOW:
 1. FRONT photo → part-line width, frontal density
 2. SIDE photo → temple/side density
 3. BACK photo → crown density, patchy vs diffuse
-4. Fill observations with what you actually see (severe findings for advanced stages)
-5. Set aiPredictedStage from visual evidence — do NOT default to stage 1
+4. Fill observations with what you actually see
+5. Set aiPredictedStage so it is CONSISTENT with those observations — never default to stage 1 when thinning is visible
 
 Ludwig scale:
-- 1: Normal part, full crown
-- 2: Widened part OR reduced crown volume
-- 3: Marked crown thinning / very wide part
-- overall-thinning: diffuse thinning
-- patchy-bald: focal bald patches
+- 1: Normal/narrow part, full crown
+- 2: Clearly widened part OR reduced crown volume
+- 3: Marked crown thinning / very wide part / sparse frontal density
+- overall-thinning: diffuse thinning across scalp without a classic Ludwig part pattern
+- patchy-bald: focal bald patches (alopecia-like)
+
+CONSISTENCY RULES:
+- partLineWidth=very_wide OR crownDensity=sparse → aiPredictedStage must be "3" (or patchy-bald if patches)
+- partLineWidth=widened OR crownDensity=reduced → at least "2"
+- pattern=patchy → aiPredictedStage must be "patchy-bald"
+- Never output stage "1" if any observation shows widened/very_wide/reduced/sparse/patchy
+
+PHOTO VALIDATION: reject animals/cartoons/objects only. Accept real human scalp/hair photos.
 
 CRITICAL: Output ONE raw JSON object only. No markdown. No code fences.
 
@@ -210,36 +218,37 @@ CRITICAL: Output ONE raw JSON object only. No markdown. No code fences.
 }`;
   }
 
-  return `You are an expert trichologist. Classify male pattern hair loss (Norwood) ONLY from what you SEE in the photos.
+  return `You are an expert trichologist. Classify male pattern hair loss (Norwood) ONLY from the patient's uploaded scalp photos.
 
-Images may be real scalp photos OR Norwood reference diagrams — classify the PATTERN shown in the image.
+Do NOT treat quiz answers, captions, or Norwood reference charts as ground truth. Classify only what is visible in the photos.
 
 WORKFLOW:
 1. FRONT view → temple recession (left/right), hairline shape
 2. TOP/CROWN view → crown baldness, visible scalp extent
 3. Bridge between front and crown → full / thinning / absent
-4. Fill observations honestly — if baldness is advanced, use severe/extensive/absent values
-5. aiPredictedStage MUST match visible baldness. NEVER default to 1 if significant loss is visible.
+4. Fill observations honestly — advanced baldness must use severe/extensive/absent values
+5. aiPredictedStage MUST match observations. NEVER default to "1" when significant loss is visible.
 
-Norwood scale — classify accurately including advanced stages:
+Norwood scale:
 - 1: Full hairline, no recession, full crown
 - 2: Minor temple recession only, crown full
 - 3: Clear M-shape temples, crown still relatively full
 - 4: Temple recession + visible crown thinning starting
-- 5: Large front + crown bald areas, thin bridge between them
-- 6: Bridge of hair largely GONE between front and crown; horseshoe pattern forming; extensive top baldness
-- 7: Only narrow band of hair on sides/back; top completely bald (horseshoe)
+- 5: Large front + crown bald areas, thin bridge still present
+- 6: Bridge largely GONE; horseshoe forming; extensive top baldness
+- 7: Narrow band on sides/back only; top completely bald
 - overall-thinning: diffuse thinning without classic Norwood pattern
 
-STAGE 6 SIGNS (look carefully):
-- Large bald zone on top/crown
-- Front hairline severely receded
-- Little or no hair connecting front to sides (bridge absent)
-→ aiPredictedStage MUST be "6" or "7", NOT "1"
+CONSISTENCY RULES (mandatory):
+- midscalpBridge=absent OR (visibleScalp=extensive AND frontalHairline=receding_severe) → aiPredictedStage "6" or "7"
+- crownThinning=severe AND temple recession moderate/severe with thin bridge → at least "5"
+- temple recession moderate+ with crown mild → at least "4"
+- clear M-shape temples, crown full → "3"
+- Never output "1" or "2" if crownThinning is moderate/severe OR visibleScalp is partial/extensive OR bridge is thinning/absent
 
-STAGE 7 SIGNS: horseshoe pattern only, top fully bald → aiPredictedStage MUST be "7"
+STAGE 7: horseshoe only / top fully bald → "7"
 
-PHOTO VALIDATION: reject animals/cartoons/objects only.
+PHOTO VALIDATION: reject animals/cartoons/objects only. Accept real human scalp/hair photos.
 
 CRITICAL: Output ONE raw JSON object only. No markdown. No code fences.
 
@@ -276,27 +285,23 @@ const maxTempleRecession = (front = {}) =>
 const hasCompleteMaleObservations = (observations = {}) => {
   const front = observations.frontView || {};
   const top = observations.topView || {};
-  return Boolean(
+  const hasFront = Boolean(
     front.templeRecessionLeft ||
     front.templeRecessionRight ||
-    front.frontalHairline ||
-    top.crownThinning ||
-    top.visibleScalp ||
-    observations.midscalpBridge
+    front.frontalHairline
   );
+  const hasTop = Boolean(top.crownThinning || top.visibleScalp || observations.midscalpBridge);
+  // Require both angles so partial Gemini output cannot drive stage alone
+  return hasFront && hasTop;
 };
 
 const hasCompleteFemaleObservations = (observations = {}) => {
   const front = observations.frontView || {};
   const back = observations.backView || {};
   const side = observations.sideView || {};
-  return Boolean(
-    front.partLineWidth ||
-    front.frontalDensity ||
-    back.crownDensity ||
-    back.pattern ||
-    side.templeDensity
-  );
+  const hasFront = Boolean(front.partLineWidth || front.frontalDensity);
+  const hasBackOrSide = Boolean(back.crownDensity || back.pattern || side.templeDensity);
+  return hasFront && hasBackOrSide;
 };
 
 const computeMaleNorwoodFromObservations = (observations = {}) => {
@@ -310,19 +315,33 @@ const computeMaleNorwoodFromObservations = (observations = {}) => {
   const temples = maxTempleRecession(front);
   const crown = level(top.crownThinning);
   const scalp = String(top.visibleScalp || "minimal").toLowerCase();
+  const severeHairline = hairline.includes("severe");
 
-  // Advanced stages first — don't under-classify
-  if (bridge === "absent" || hairline.includes("severe") || scalp === "extensive") {
-    if (temples >= 3 && crown >= 3) return "7";
+  // Stage 7: near-total top loss
+  if (
+    (bridge === "absent" && scalp === "extensive" && temples >= 3 && crown >= 3) ||
+    (scalp === "extensive" && crown >= 3 && temples >= 3 && severeHairline)
+  ) {
+    return "7";
+  }
+
+  // Stage 6: bridge gone OR extensive top + severe front — not severe hairline alone
+  if (
+    bridge === "absent" ||
+    (scalp === "extensive" && (severeHairline || temples >= 3 || crown >= 2)) ||
+    (severeHairline && crown >= 2 && scalp !== "minimal")
+  ) {
     return "6";
   }
 
   if (temples >= 3 && crown >= 2) return "5";
   if (temples >= 2 && crown >= 2) return "5";
+  if (bridge === "thinning" && (temples >= 2 || crown >= 2)) return "5";
   if (temples >= 2 && crown === 1) return "4";
-  if (temples >= 2 && crown === 0) return "3";
-  if (temples <= 1 && crown === 0) return temples === 0 ? "1" : "2";
   if (crown >= 1 && temples >= 1) return "4";
+  if (severeHairline && crown === 0) return "3";
+  if (temples >= 2 && crown === 0) return "3";
+  if (temples <= 1 && crown === 0) return temples === 0 && !hairline.includes("receding") ? "1" : "2";
 
   return "3";
 };
@@ -386,9 +405,10 @@ const normalizeMaleStage = (stage) => {
 };
 
 /**
- * Trust AI visual stage as primary. Rule-based stage only used when observations
- * are complete AND can gently correct 1-stage over-estimation — never downgrade
- * stage 6/7 to stage 1.
+ * Reconcile AI stage with observation-based stage.
+ * - Prefer AI when observations are incomplete
+ * - Never let a low AI stage override clear advanced observation evidence
+ * - Never let incomplete rule-based logic downgrade AI stages 5+
  */
 const reconcileStage = (aiStage, ruleStage, gender, observations, confidence = 0.85) => {
   const normalize = gender === "female" ? normalizeFemaleStage : normalizeMaleStage;
@@ -400,11 +420,22 @@ const reconcileStage = (aiStage, ruleStage, gender, observations, confidence = 0
       ? hasCompleteFemaleObservations(observations)
       : hasCompleteMaleObservations(observations);
 
-  // No observations → trust AI only (fixes stage 6 → 1 bug)
   if (!ai) return rule;
   if (!rule || !obsComplete) return ai;
-
   if (ai === rule) return ai;
+
+  // Non-numeric special stages
+  if (rule === "patchy-bald" || ai === "patchy-bald") {
+    return rule === "patchy-bald" ? rule : ai;
+  }
+  if (rule === "overall-thinning" || ai === "overall-thinning") {
+    // Prefer overall-thinning only when both agree or AI says so with no higher numeric rule
+    const ruleNum = parseInt(rule, 10);
+    const aiNum = parseInt(ai, 10);
+    if (!Number.isNaN(ruleNum) && ruleNum >= 3) return rule;
+    if (!Number.isNaN(aiNum) && aiNum >= 3) return ai;
+    return ai === "overall-thinning" ? ai : rule;
+  }
 
   const aiNum = parseInt(ai, 10);
   const ruleNum = parseInt(rule, 10);
@@ -412,22 +443,30 @@ const reconcileStage = (aiStage, ruleStage, gender, observations, confidence = 0
   if (!Number.isNaN(aiNum) && !Number.isNaN(ruleNum)) {
     const gap = Math.abs(aiNum - ruleNum);
 
-    // AI sees advanced loss — always trust AI for stages 5+
+    // Advanced AI finding always wins
     if (aiNum >= 5) return ai;
 
-    // Large downgrade (e.g. AI 6, rule 1) — trust AI, rule-based failed
-    if (aiNum > ruleNum && gap >= 2) return ai;
+    // Advanced observation finding must not be under-classified by a low AI stage
+    // e.g. AI="1", rule="6" from bridge absent / extensive scalp
+    if (ruleNum >= 5 && ruleNum > aiNum) return rule;
 
-    // Small gap: trust higher-confidence source; slight nudge down only if AI over by 1
-    if (gap === 1 && aiNum > ruleNum && confidence < 0.7) {
-      return rule;
-    }
+    // Large disagreement: prefer the higher (more severe) evidence-backed stage
+    if (gap >= 2) return aiNum > ruleNum ? ai : rule;
+
+    // AI over by 1 with low confidence → gentle nudge down
+    if (gap === 1 && aiNum > ruleNum && confidence < 0.7) return rule;
+
+    // AI under by 1 with complete observations → prefer observation stage
+    if (gap === 1 && ruleNum > aiNum) return rule;
 
     return ai;
   }
 
   return ai;
 };
+
+const normalizeStageForGender = (stage, gender) =>
+  gender === "female" ? normalizeFemaleStage(stage) : normalizeMaleStage(stage);
 
 const stagesDiffer = (a, b) => {
   if (!a || !b) return false;
@@ -530,10 +569,8 @@ export const analyzeScalp = async (req, res) => {
         : computeMaleNorwoodFromObservations(observations);
 
     const rawAiStage =
-      normalizeFemaleStage(parsed.aiPredictedStage) ||
-      normalizeMaleStage(parsed.aiPredictedStage) ||
-      normalizeFemaleStage(parsed.finalStage) ||
-      normalizeMaleStage(parsed.finalStage);
+      normalizeStageForGender(parsed.aiPredictedStage, userGender) ||
+      normalizeStageForGender(parsed.finalStage, userGender);
 
     const confidence = typeof parsed.aiConfidence === "number" ? parsed.aiConfidence : 0.85;
 
@@ -545,10 +582,7 @@ export const analyzeScalp = async (req, res) => {
       confidence
     );
 
-    const normalizedSelfReported =
-      userGender === "female"
-        ? normalizeFemaleStage(selfReportedStage)
-        : normalizeMaleStage(selfReportedStage);
+    const normalizedSelfReported = normalizeStageForGender(selfReportedStage, userGender);
 
     const stageNum = parseInt(aiPredictedStage, 10);
     const requiresDoctor =
@@ -576,10 +610,15 @@ export const analyzeScalp = async (req, res) => {
     };
 
     console.log("Stage result:", {
+      gender: userGender,
       rawAiStage,
       ruleBasedStage,
       final: aiPredictedStage,
-      observationsComplete: hasCompleteMaleObservations(observations),
+      confidence,
+      observationsComplete:
+        userGender === "female"
+          ? hasCompleteFemaleObservations(observations)
+          : hasCompleteMaleObservations(observations),
     });
 
     if (!result.aiPredictedStage) {
