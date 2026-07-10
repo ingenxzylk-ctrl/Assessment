@@ -37,6 +37,7 @@ export default function Result() {
     ? (state?.hairHealth?.hair_fall_zone || "1") 
     : (state?.hairHealth?.norwood_stage || "1");
   const aiPredictedStageNumber = rawAnalysis.aiPredictedStage;
+  const stageDiscrepancy = Boolean(rawAnalysis.stageDiscrepancy);
 
   // 🟢 DEBUG: log exactly what stage data made it into Result.jsx.
   // Check DevTools console when this page loads — this tells you whether
@@ -240,6 +241,15 @@ export default function Result() {
               >
                 Retake Scalp Scan
               </button>
+            </div>
+          )}
+
+          {stageDiscrepancy && !analysisMissing && (
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-sm text-blue-900 font-medium leading-relaxed !text-left w-full block">
+              📸 <span className="font-bold">Photo-based assessment used.</span>
+              <p className="text-xs text-blue-700 mt-1.5 !text-left">
+                Your quiz answer was Stage {reportedStage}, but your uploaded photos indicate Stage {aiPredictedStageNumber}. Results are based on what we see in your images, not the quiz.
+              </p>
             </div>
           )}
 

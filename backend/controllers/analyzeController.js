@@ -1,234 +1,330 @@
 import { GoogleGenAI } from "@google/genai";
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 90_000;
-const GEMINI_RETRIES = Number(process.env.GEMINI_RETRIES) || 3;
+const MODEL_CANDIDATES = [
+  process.env.GEMINI_MODEL,
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+].filter(Boolean);
+
+const GEMINI_RETRIES = Number(process.env.GEMINI_RETRIES) || 1;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const withTimeout = (promise, ms, label = "Gemini request") =>
-  Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(
-        () => reject(new Error(`${label} timed out after ${ms / 1000}s`)),
-        ms
-      )
-    ),
-  ]);
+const isRetryable = (err) => {
+  const code = err?.status || err?.code;
+  const msg = String(err?.message || "");
+  return code === 429 || code === 503 || msg.includes("timed out") || msg.includes("ECONNRESET");
+};
 
-const isTimeoutError = (err) =>
-  err?.message?.includes("timed out") ||
-  err?.name === "AbortError" ||
-  err?.code === "UND_ERR_HEADERS_TIMEOUT";
+const formatGeminiError = (error) => {
+  const msg = String(error?.message || error || "");
 
-const isRetryableError = (err) =>
-  err?.status === 503 || err?.status === 429 || isTimeoutError(err);
-
-const extractResponseText = (response) => {
-  if (response?.text) return response.text;
-  const parts = response?.candidates?.[0]?.content?.parts;
-  if (Array.isArray(parts)) {
-    return parts.map((p) => p.text || "").join("").trim();
+  if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
+    return "Invalid GEMINI_API_KEY. Get a new key from https://aistudio.google.com/apikey and add it to backend/.env";
   }
-  return "";
+  if (msg.includes("fetch failed") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND")) {
+    return "Backend cannot reach Google Gemini API. Check your internet connection and restart the backend server.";
+  }
+  if (msg.includes("not found") || msg.includes("NOT_FOUND") || msg.includes("is not supported")) {
+    return `Gemini model not available. Set GEMINI_MODEL=gemini-2.5-flash in backend/.env and restart.`;
+  }
+  if (msg.includes("quota") || msg.includes("429")) {
+    return "Gemini API quota exceeded. Wait a few minutes or check billing at Google AI Studio.";
+  }
+
+  return msg || "Diagnostics failed.";
 };
 
-const formatGeminiPart = (base64DataUrl) => {
-  const parts = base64DataUrl.split("base64,");
-  const mimeTypeMatch = parts[0].match(/data:(image\/\w+);/);
-  return {
-    inlineData: {
-      mimeType: mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg",
-      data: parts[1].trim(),
-    },
-  };
+const toInlineImagePart = (input) => {
+  if (!input) return null;
+  if (input.inlineData?.data) return input;
+
+  let dataUrl = "";
+  let mimeType = "image/jpeg";
+
+  if (typeof input === "string") {
+    if (input.startsWith("data:")) dataUrl = input;
+    else return { inlineData: { mimeType, data: input.trim() } };
+  } else if (typeof input === "object") {
+    if (input.dataUrl) dataUrl = input.dataUrl;
+    else if (input.previewUrl) dataUrl = input.previewUrl;
+    else if (input.base64Data) {
+      mimeType = input.mediaType || input.mimeType || "image/jpeg";
+      return { inlineData: { mimeType, data: String(input.base64Data).trim() } };
+    }
+  }
+
+  if (!dataUrl.startsWith("data:")) return null;
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) return null;
+
+  return { inlineData: { mimeType: match[1], data: match[2].trim() } };
 };
 
-const buildSystemPrompt = (userGender, selfReportedStage) => {
-  if (userGender === "female") {
-    return `You are a professional Trichologist. Analyze the provided images for a female patient.
+const callGemini = async (ai, model, payload, retries = GEMINI_RETRIES) => {
+  let lastError;
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await ai.models.generateContent({ ...payload, model });
+    } catch (err) {
+      lastError = err;
+      console.error(`Gemini call failed (model=${model}, attempt=${attempt + 1}):`, err?.message || err);
+      if (!isRetryable(err) || attempt === retries - 1) throw err;
+      await delay(2000 * (attempt + 1));
+    }
+  }
+  throw lastError;
+};
 
-Self-reported pattern (reference only): ${selfReportedStage || "unknown"}
+const callGeminiWithFallback = async (ai, payload) => {
+  let lastError;
+  for (const model of MODEL_CANDIDATES) {
+    try {
+      console.log(`Trying Gemini model: ${model}`);
+      const response = await callGemini(ai, model, payload);
+      return { response, model };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
+};
 
-Steps:
-1. EVIDENCE: Examine central part-line width and crown density.
-2. REASONING: Explain if thinning is diffuse or focal.
-3. STAGE: Assign ONE value from: 1, 2, 3, overall-thinning, patchy-bald
+const IMAGE_VALIDATION_RULES = `
+PHOTO VALIDATION (check first):
+- ACCEPT: real human head/hair, ponytail side profiles, ponytail over shoulder
+- REJECT ONLY: animals, cartoons, memes, random objects
 
-Return strictly valid JSON with these exact keys:
+If rejecting: {"valid": false, "imageRejected": true, "error": "reason", "aiPredictedStage": null}
+If valid: set "valid": true and complete full analysis.
+`;
+
+const CLASSIFICATION_RULES = `
+STAGE CLASSIFICATION — CRITICAL RULES:
+1. aiPredictedStage MUST come ONLY from what you SEE in the photos (hairline, temples, crown, part-line, density).
+2. NEVER copy the user's quiz answer into aiPredictedStage. The quiz may be wrong.
+3. If photos show Stage 3 but the quiz says Stage 5, aiPredictedStage MUST be "3".
+4. In aiReasoning, cite specific visible features (temple recession depth, crown thinning, bridge width).
+5. aiConfidence: 0.9+ when photos are clear; 0.7–0.85 when partially obscured.
+`;
+
+const MALE_NORWOOD_GUIDE = `
+Norwood (male) — classify from photos:
+- 1: No recession
+- 2: Slight temple recession
+- 3: Deep M-shaped temples, frontal recession
+- 4: Stage 3 + visible crown thinning
+- 5: Larger front/crown bald areas, thin bridge between them
+- 6: Bridge mostly gone
+- 7: Horseshoe pattern only
+- overall-thinning: diffuse thinning without classic Norwood pattern
+`;
+
+const FEMALE_LUDWIG_GUIDE = `
+Ludwig (female) — classify from photos:
+- 1: Minimal widening of central part
+- 2: Noticeable part widening, reduced crown volume
+- 3: Obvious diffuse thinning on crown/top
+- overall-thinning: diffuse thinning across scalp
+- patchy-bald: focal bald patches (alopecia)
+`;
+
+const buildAnalysisPrompt = (gender, selfReportedStage) => {
+  const quizNote = selfReportedStage
+    ? `User quiz answer (DO NOT use for aiPredictedStage — photos override quiz): ${selfReportedStage}`
+    : "User quiz answer: not provided";
+
+  if (gender === "female") {
+    return `You are a professional trichologist analyzing female pattern hair loss (Ludwig scale).
+
+${IMAGE_VALIDATION_RULES}
+${CLASSIFICATION_RULES}
+${FEMALE_LUDWIG_GUIDE}
+
+3 photos: FRONT, SIDE (ponytail profile), BACK (ponytail aside).
+${quizNote}
+
+Return ONLY JSON:
 {
+  "valid": true,
+  "imageRejected": false,
+  "error": "",
   "finalStage": "string",
   "stageDescription": "string",
   "aiPredictedStage": "1|2|3|overall-thinning|patchy-bald",
-  "aiConfidence": 0.0,
+  "aiConfidence": 0.85,
   "aiReasoning": "string",
   "requiresDoctorConsultation": false
 }`;
   }
 
-  return `You are a professional Trichologist. Analyze the provided images for a male patient (Norwood scale).
+  return `You are a professional trichologist analyzing male pattern hair loss (Norwood scale).
 
-Self-reported stage (reference only): ${selfReportedStage || "unknown"}
+${IMAGE_VALIDATION_RULES}
+${CLASSIFICATION_RULES}
+${MALE_NORWOOD_GUIDE}
 
-Steps:
-1. EVIDENCE: Examine temple recession and vertex thinning.
-2. REASONING: Explain the hair loss pattern.
-3. STAGE: Assign ONE value from: 1, 2, 3, 4, 5, 6, 7, overall-thinning
+Photos: front hairline + top/crown.
+${quizNote}
 
-Return strictly valid JSON with these exact keys:
+Return ONLY JSON:
 {
+  "valid": true,
+  "imageRejected": false,
+  "error": "",
   "finalStage": "string",
   "stageDescription": "string",
   "aiPredictedStage": "1|2|3|4|5|6|7|overall-thinning",
-  "aiConfidence": 0.0,
+  "aiConfidence": 0.85,
   "aiReasoning": "string",
   "requiresDoctorConsultation": false
 }`;
 };
 
-const callGeminiWithRetry = async (ai, payload, retries = GEMINI_RETRIES) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const request = ai.models.generateContent({
-        ...payload,
-        config: {
-          ...payload.config,
-          httpOptions: {
-            timeout: GEMINI_TIMEOUT_MS,
-            headers: {},
-            ...payload.config?.httpOptions,
-          },
-        },
-      });
+const extractNumericStage = (value) => {
+  const s = String(value || "").toLowerCase().trim();
+  const direct = s.match(/^(\d)$/);
+  if (direct) return direct[1];
+  const labeled = s.match(/(?:norwood|ludwig|stage)\s*(\d)/);
+  if (labeled) return labeled[1];
+  return null;
+};
 
-      return await withTimeout(
-        request,
-        GEMINI_TIMEOUT_MS + 5_000,
-        "Gemini generateContent"
-      );
-    } catch (err) {
-      if (isRetryableError(err) && i < retries - 1) {
-        const waitTime = Math.pow(2, i) * 2_000;
-        console.log(
-          `⚠️ Gemini issue (${err.status || err.message}). Retrying in ${waitTime}ms... (attempt ${i + 1}/${retries})`
-        );
-        await delay(waitTime);
-        continue;
-      }
+const normalizeFemaleStage = (stage) => {
+  const valid = ["1", "2", "3", "overall-thinning", "patchy-bald"];
+  const s = String(stage || "").toLowerCase().trim();
+  if (valid.includes(s)) return s;
+  if (["i", "stage 1", "stage1", "ludwig 1"].includes(s)) return "1";
+  if (["ii", "stage 2", "stage2", "ludwig 2"].includes(s)) return "2";
+  if (["iii", "stage 3", "stage3", "ludwig 3"].includes(s)) return "3";
+  if (s.includes("overall") || s.includes("diffuse")) return "overall-thinning";
+  if (s.includes("patchy") || s.includes("alopecia")) return "patchy-bald";
+  const numeric = extractNumericStage(stage);
+  if (numeric && ["1", "2", "3"].includes(numeric)) return numeric;
+  return null;
+};
 
-      console.error(
-        `❌ Gemini call failed on attempt ${i + 1}/${retries}:`,
-        err.message || err
-      );
-      throw err;
-    }
-  }
+const normalizeMaleStage = (stage) => {
+  const valid = ["1", "2", "3", "4", "5", "6", "7", "overall-thinning"];
+  const s = String(stage || "").toLowerCase().trim();
+  if (valid.includes(s)) return s;
+  if (s.includes("overall") || s.includes("diffuse")) return "overall-thinning";
+  const numeric = extractNumericStage(stage);
+  if (numeric && valid.includes(numeric)) return numeric;
+  return null;
+};
+
+const resolveVisualStage = (parsed, gender) => {
+  const normalize = gender === "female" ? normalizeFemaleStage : normalizeMaleStage;
+  const fromAi = normalize(parsed.aiPredictedStage);
+  const fromFinal = normalize(parsed.finalStage);
+  return fromAi || fromFinal || null;
+};
+
+const stagesDiffer = (a, b) => {
+  if (!a || !b) return false;
+  return String(a).toLowerCase() !== String(b).toLowerCase();
+};
+
+const parseLabeledImages = (images) => {
+  if (!Array.isArray(images) || images.length === 0) return [];
+
+  return images.map((img, index) => ({
+    type: img.type || img.label || `image_${index + 1}`,
+    label: img.label || img.type || `image_${index + 1}`,
+    dataUrl: img.dataUrl || img.previewUrl || img,
+  }));
 };
 
 export const analyzeScalp = async (req, res) => {
-  console.log("====================================");
-  console.log("📥 INCOMING REAL-TIME AI SCALP SCAN DATA STREAM");
-
   try {
-    const API_KEY = process.env.GEMINI_API_KEY;
-    if (!API_KEY) throw new Error("GEMINI_API_KEY is missing.");
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === "your_key_from_https://aistudio.google.com/apikey") {
+      return res.status(500).json({
+        error: "GEMINI_API_KEY is missing or still a placeholder. Add your real key to backend/.env and restart the server.",
+      });
+    }
 
-    console.log(
-      `🔑 GEMINI_API_KEY loaded: ${API_KEY.slice(0, 6)}... (length ${API_KEY.length})`
-    );
-
-    const ai = new GoogleGenAI({
-      apiKey: API_KEY,
-      httpOptions: {
-        timeout: GEMINI_TIMEOUT_MS,
-        headers: {},
-      },
-    });
-
-    const { images, frontImage, topImage, gender, selfReportedStage } = req.body;
+    const ai = new GoogleGenAI({ apiKey });
+    const { gender, selfReportedStage, images } = req.body;
     const userGender = String(gender || "male").toLowerCase();
 
-    let inputImagesPool = [];
-    if (Array.isArray(images) && images.length > 0) {
-      inputImagesPool = images;
-    } else {
-      if (frontImage) inputImagesPool.push({ type: "front", dataUrl: frontImage });
-      if (topImage) inputImagesPool.push({ type: "top", dataUrl: topImage });
+    const labeledImages = parseLabeledImages(images);
+
+    if (labeledImages.length === 0) {
+      return res.status(400).json({ error: "Valid scalp image(s) are required." });
     }
 
-    if (inputImagesPool.length === 0) {
-      return res.status(400).json({ error: "Scalp photographs are required." });
+    if (userGender === "female" && labeledImages.length < 3) {
+      return res.status(400).json({
+        error: "Female assessment requires 3 images: front, side (ponytail), and back.",
+      });
     }
 
-    const formattedGeminiImageParts = inputImagesPool.map((img) =>
-      formatGeminiPart(img.dataUrl || img)
-    );
+    const analysisParts = [{ text: buildAnalysisPrompt(userGender, selfReportedStage) }];
 
-    const approxKB = Math.round(
-      formattedGeminiImageParts.reduce(
-        (sum, p) => sum + p.inlineData.data.length,
-        0
-      ) / 1024
-    );
+    for (const img of labeledImages) {
+      const part = toInlineImagePart(img.dataUrl);
+      if (part) {
+        analysisParts.push({ text: `\n[${String(img.type).toUpperCase()} VIEW]` });
+        analysisParts.push(part);
+      }
+    }
 
-    console.log(
-      `🧠 DEBUG: Dispatching ${formattedGeminiImageParts.length} images to Gemini (~${approxKB} KB base64 payload).`
-    );
+    if (analysisParts.length < 2) {
+      return res.status(400).json({ error: "Could not read image data. Please re-upload your photos." });
+    }
 
-    const systemPrompt = buildSystemPrompt(userGender, selfReportedStage);
+    console.log(`Analyzing ${labeledImages.length} image(s)...`);
+    const startTime = Date.now();
 
-    console.log(
-      `🧠 DISPATCHING TO ${GEMINI_MODEL} (Gender: ${userGender}, timeout: ${GEMINI_TIMEOUT_MS / 1000}s)...`
-    );
-
-    const response = await callGeminiWithRetry(ai, {
-      model: GEMINI_MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: systemPrompt }, ...formattedGeminiImageParts],
-        },
-      ],
+    const { response, model } = await callGeminiWithFallback(ai, {
+      contents: [{ role: "user", parts: analysisParts }],
       config: {
+        temperature: 0.1,
         responseMimeType: "application/json",
-        temperature: 0.2,
       },
     });
 
-    const responseText = extractResponseText(response);
-    console.log("🎯 RAW RESPONSE RECEIVED:", responseText);
+    console.log(`Gemini (${model}) responded in ${Date.now() - startTime}ms`);
 
+    const responseText = response?.text?.trim();
     if (!responseText) {
-      throw new Error("Gemini returned an empty response.");
+      throw new Error("Gemini returned an empty response. Check image quality or API quota.");
     }
 
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("AI response did not contain valid JSON structure.");
+    let parsed;
+    try {
+      parsed = JSON.parse(responseText);
+    } catch {
+      throw new Error("Gemini returned invalid JSON. Please try again.");
     }
 
-    const cleanJson = jsonMatch[0]
-      .replace(/,\s*([\]}])/g, "$1")
-      .replace(/\\n/g, " ")
-      .replace(/\s+/g, " ");
+    if (parsed.valid === false || parsed.imageRejected === true) {
+      return res.status(422).json({
+        error: parsed.error || parsed.reason || "Please upload photos of your own scalp/hair.",
+        imageRejected: true,
+      });
+    }
 
-    const parsedResult = JSON.parse(cleanJson);
+    const aiPredictedStage = resolveVisualStage(parsed, userGender);
+    const normalizedSelfReported = userGender === "female"
+      ? normalizeFemaleStage(selfReportedStage)
+      : normalizeMaleStage(selfReportedStage);
 
     const result = {
-      finalStage: parsedResult.finalStage || parsedResult.aiPredictedStage || selfReportedStage,
-      stageDescription: parsedResult.stageDescription || "",
-      aiPredictedStage: parsedResult.aiPredictedStage || parsedResult.finalStage || null,
-      aiConfidence:
-        typeof parsedResult.aiConfidence === "number"
-          ? parsedResult.aiConfidence
-          : null,
-      aiReasoning: parsedResult.aiReasoning || "",
-      requiresDoctorConsultation: Boolean(parsedResult.requiresDoctorConsultation),
-      selfReportedStage: selfReportedStage || null,
+      finalStage: parsed.finalStage || aiPredictedStage,
+      stageDescription: parsed.stageDescription || "",
+      aiPredictedStage,
+      aiConfidence: typeof parsed.aiConfidence === "number" ? parsed.aiConfidence : 0.85,
+      aiReasoning: parsed.aiReasoning || "",
+      requiresDoctorConsultation: Boolean(parsed.requiresDoctorConsultation),
+      selfReportedStage: normalizedSelfReported || selfReportedStage || null,
+      stageDiscrepancy: stagesDiffer(aiPredictedStage, normalizedSelfReported),
       gender: userGender,
       analysisComplete: true,
-      model: GEMINI_MODEL,
+      model,
     };
 
     if (!result.aiPredictedStage) {
@@ -237,9 +333,9 @@ export const analyzeScalp = async (req, res) => {
 
     return res.status(200).json(result);
   } catch (error) {
-    console.error("❌ BACKEND PIPELINE EXCEPTION:", error);
+    console.error("analyzeScalp error:", error);
     return res.status(500).json({
-      error: error.message || "Diagnostics failed.",
+      error: formatGeminiError(error),
       aiPredictedStage: null,
       analysisComplete: false,
     });

@@ -1,9 +1,17 @@
 export const generateResult = async (req, res) => {
   try {
-    const { aboutMe, hairHealth, internalHealth } = req.body;
+    const { aboutMe, hairHealth, scalpAnalysis } = req.body;
     const gender = aboutMe?.gender || "male";
 
-    // 🟢 DYNAMIC LOGIC ENGINE: Routes data based on gender-specific profile mapping
+    // Prefer AI photo analysis over quiz self-report when available
+    if (scalpAnalysis?.aiPredictedStage) {
+      return res.status(200).json({
+        ...scalpAnalysis,
+        analysisComplete: true,
+      });
+    }
+
+    // Fallback when AI analysis was not run (legacy path)
     let diagnosticProfile = {};
 
     if (gender === "female") {
