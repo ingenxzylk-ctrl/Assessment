@@ -1,61 +1,64 @@
+
 /**
- * Single source of truth for bundle names, prices, and WooCommerce product IDs.
+ * Bundle config — prices from Zylk Health product sheet
  */
 export const BUNDLE_CONFIG = {
   1: {
-    label: "Stage 2-5 Men (No Dandruff)",
-    wooProductId: 8319 ,
-    wooProductIdNoMix: 8307  ,
+    label: "Bundle 1 — Male Stage 2–5 (No Dandruff)",
+    pdfBundle: "Bundle-1",
+    wooProductId: 8319,
+    wooProductIdNoMix: 8307,
     priceWithMix: 2999,
     priceWithoutMix: 1799,
-    originalPrice: 3999,
+    originalPrice: 3623,
   },
   2: {
-    label: "Stage 2-5 Men (Dandruff)",
-    wooProductId: 8311  ,
-    wooProductIdNoMix: 8323  ,
+    label: "Bundle 2 — Male Stage 2–5 (Dandruff)",
+    pdfBundle: "Bundle-2",
+    wooProductId: 8311,
+    wooProductIdNoMix: 8323,
     priceWithMix: 2999,
     priceWithoutMix: 1799,
-    originalPrice: 3999,
+    originalPrice: 3624,
   },
   3: {
-    label: "Stage 1 / Overall Thinning",
-    wooProductId: 8315  ,
-    wooProductIdNoMix: 8325  ,
+    label: "Bundle 5 — Stage 1 / Overall Thinning",
+    pdfBundle: "Bundle-5",
+    wooProductId: 8315,
+    wooProductIdNoMix: 8325,
     priceWithMix: 2999,
     priceWithoutMix: 1399,
-    originalPrice: 3499,
+    originalPrice: 3273,
   },
   4: {
-    label: "Stage 2-3 Female",
-    wooProductId: 8317  ,
-    wooProductIdNoMix: 8327  ,
+    label: "Bundle 7 — Female Stage 2–3",
+    pdfBundle: "Bundle-7",
+    wooProductId: 8317,
+    wooProductIdNoMix: 8327,
     priceWithMix: 2999,
     priceWithoutMix: 1699,
-    originalPrice: 3799,
+    originalPrice: 3523,
   },
-  99: {
+    99: {
     label: "₹1 Test Bundle",
-    wooProductId: 8329  ,        // ← replace with your real ₹1 WooCommerce product ID
-    wooProductIdNoMix: 8329 ,
+    wooProductId: 9999, // Replace with your real WooCommerce test product ID
+    wooProductIdNoMix: 9999,
     priceWithMix: 1,
     priceWithoutMix: 1,
     originalPrice: 1,
   },
 };
 
-export const HAIR_HEALTH_MIX_ID = "hair-health-mix";
 export const TEST_BUNDLE_NUMBER = 99;
+export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
 
 export function getBundleDisplayName(bundleNumber, gender, stage) {
-  if (bundleNumber === TEST_BUNDLE_NUMBER) return "₹1 Test Bundle";
-
   const stageStr = String(stage ?? "");
-  if (bundleNumber === 1) return "Stage 2-5 Men Product";
-  if (bundleNumber === 2) return "Stage 2-5 Men Product (Dandruff)";
-  if (bundleNumber === 4) return "Stage 2-3 Female Product";
-  if (stageStr === "overall-thinning") return "Overall Thinning Product";
-  return gender === "female" ? "Stage 1 Female Product" : "Stage 1 Men Product";
+  if (bundleNumber === 1) return "Stage 2–5 Men Bundle";
+  if (bundleNumber === 2) return "Stage 2–5 Men Bundle (Dandruff)";
+  if (bundleNumber === 4) return "Stage 2–3 Female Bundle";
+  if (stageStr === "overall-thinning") return "Overall Thinning Bundle";
+  return gender === "female" ? "Stage 1 Female Bundle" : "Stage 1 Men Bundle";
 }
 
 export function getWooProductId(bundleNumber, includeHealthMix = true) {
@@ -85,24 +88,18 @@ export function resolveBundleNumber(gender, stage, hasDandruff) {
 
   return 3;
 }
-
-/** ₹1 bundle — add to cart for checkout testing */
 export function getTestBundle() {
   const config = BUNDLE_CONFIG[TEST_BUNDLE_NUMBER];
   return {
     id: "bundle-test-1rupee",
     bundleId: "bundle-test-1rupee",
-    name: "₹1 Test Bundle",
-    price: 1,
+    name: config.label,
+    price: config.priceWithMix,
     priceWithMix: config.priceWithMix,
     priceWithoutMix: config.priceWithoutMix,
-    originalPrice: config.originalPrice,
     bundleNumber: TEST_BUNDLE_NUMBER,
-    includeHealthMix: true,
     isTestBundle: true,
     wooProductId: config.wooProductId,
-    wooProductIdWithMix: config.wooProductId,
-    wooProductIdNoMix: config.wooProductIdNoMix,
-    subtitle: "1 rupee bundle for cart & checkout testing",
+    subtitle: "Test checkout flow",
   };
 }
