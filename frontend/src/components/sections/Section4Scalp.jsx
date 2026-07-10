@@ -192,7 +192,8 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
       const imagePayloads = await Promise.all(
         rawPayloads.map(async (img) => ({
           ...img,
-          dataUrl: await compressImage(img.dataUrl, 1280, 0.88),
+          // Smaller uploads = fewer Gemini tokens / lower free-tier burn
+          dataUrl: await compressImage(img.dataUrl, 1024, 0.72),
         }))
       );
 
@@ -220,6 +221,16 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
         setError(
           `⚠️ ${err.message || "Invalid image."} Please upload photos of your own hair/scalp. Ponytail side photos are accepted.`
         );
+      } else if (err.code === "backend_unreachable") {
+        setError(
+          "Backend is not running. In a terminal run: cd backend && npm run dev — then try again."
+        );
+      } else if (err.quotaExceeded || err.code === "quota") {
+        setError(
+          "Gemini API quota exceeded. Wait for the free-tier reset, enable billing in Google AI Studio, or add another key as GEMINI_API_KEYS in backend/.env and restart the backend."
+        );
+      } else if (err.rateLimited || err.code === "rate_limit") {
+        setError("Gemini is rate-limiting requests. Wait about a minute, then try again.");
       } else {
         setError("AI analysis failed: " + (err.message || "Server unreachable. Please try again."));
       }
