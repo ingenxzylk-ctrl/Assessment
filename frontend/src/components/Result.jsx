@@ -4,7 +4,7 @@ import { useCart } from "../context/CartContext";
 import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
-import { formatBundleProduct, DEFAULT_PRODUCT_IMAGE } from "../utils/productImages";
+import { formatBundleProduct } from "../utils/productImages";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import AssessmentPDFTemplate from "./sections/AssessmentPDFTemplate"; 
 
@@ -20,6 +20,25 @@ const FACTOR_STYLES = {
 // doesn't exist in public/stages. Used as the ultimate fallback for the
 // user's capture avatar so the box is never left blank.
 const AVATAR_FALLBACK_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f3f4f6'/><circle cx='50' cy='38' r='18' fill='%23d1d5db'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23d1d5db'/></svg>";
+
+function ProductImage({ src, fallbacks = [], alt, className }) {
+  const [urlIndex, setUrlIndex] = useState(0);
+  const allUrls = [src, ...fallbacks].filter(Boolean);
+  const currentUrl = allUrls[urlIndex] || allUrls[allUrls.length - 1];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      className={className}
+      onError={() => {
+        if (urlIndex < allUrls.length - 1) {
+          setUrlIndex((prev) => prev + 1);
+        }
+      }}
+    />
+  );
+}
 
 export default function Result() {
   const { state, resetQuiz, prevStep, setLoading, setError } = useQuiz();
@@ -144,18 +163,6 @@ export default function Result() {
         { tag: "stress-related", label: "Stress Adaptation Metrics", description: "Fluctuating cortisol levels forcing root clusters prematurely into resting telogen phases." },
         { tag: "scalp-related", label: "Scalp Shield Environment", description: hasDandruff ? "Surface microbial activity disrupting lipid barrier consistency." : "Standard external cellular balance status." }
       ];
-
-  const handleProductImageError = (event) => {
-    const img = event.target;
-    if (!img.dataset.fallback) {
-      img.dataset.fallback = "1";
-      img.src = DEFAULT_PRODUCT_IMAGE;
-      return;
-    }
-    img.onerror = null;
-    img.src =
-      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23064e3b'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'/></svg>";
-  };
 
   const handleBackNavigation = () => {
     if (setLoading) setLoading(false);
@@ -404,12 +411,12 @@ export default function Result() {
                     className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex flex-row items-center justify-between gap-4 !text-left w-full block group"
                   >
                     <div className="flex flex-row items-center justify-start text-left flex-1 min-w-0">
-                      <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-xs shrink-0 overflow-hidden mr-4">
-                        <img 
-                          src={productDetails.imgUrl} 
+                      <div className="w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-xs shrink-0 overflow-hidden mr-4">
+                        <ProductImage
+                          src={productDetails.imgUrl}
+                          fallbacks={productDetails.imgFallbacks}
                           alt={productDetails.shortName}
                           className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
-                          onError={handleProductImageError}
                         />
                       </div>
 
