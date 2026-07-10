@@ -229,22 +229,29 @@ WORKFLOW:
 4. Fill observations honestly — advanced baldness must use severe/extensive/absent values
 5. aiPredictedStage MUST match observations. NEVER default to "1" when significant loss is visible.
 
-Norwood scale:
+Norwood scale — be conservative; do NOT over-stage:
 - 1: Full hairline, no recession, full crown
-- 2: Minor temple recession only, crown full
-- 3: Clear M-shape temples, crown still relatively full
-- 4: Temple recession + visible crown thinning starting
-- 5: Large front + crown bald areas, thin bridge still present
+- 2: MINOR temple recession ONLY (slight M start). Crown FULL. Bridge FULL. Most of hairline still intact.
+- 3: Clear deep M-shape temples. Crown still relatively FULL (no large bald patch on top).
+- 4: Temple recession PLUS visible crown thinning starting (both areas affected).
+- 5: LARGE bald areas at front AND crown, with only a THIN bridge of hair between them.
 - 6: Bridge largely GONE; horseshoe forming; extensive top baldness
 - 7: Narrow band on sides/back only; top completely bald
 - overall-thinning: diffuse thinning without classic Norwood pattern
 
+CRITICAL EARLY-STAGE RULES (avoid false stage 4/5):
+- If crown is full/none and only temples are mildly receded → MUST be "2" (not 3/4/5)
+- If crown thinning is absent/none and temples are moderate → "3" max
+- Stage "4" requires BOTH temple recession AND real crown thinning
+- Stage "5" requires LARGE front baldness AND LARGE crown baldness with thin bridge
+- Do NOT call stage 5 just because temples look recessed in a front selfie
+- Front-only photos without clear crown baldness should stay at 2–3
+
 CONSISTENCY RULES (mandatory):
-- midscalpBridge=absent OR (visibleScalp=extensive AND frontalHairline=receding_severe) → aiPredictedStage "6" or "7"
-- crownThinning=severe AND temple recession moderate/severe with thin bridge → at least "5"
-- temple recession moderate+ with crown mild → at least "4"
-- clear M-shape temples, crown full → "3"
-- Never output "1" or "2" if crownThinning is moderate/severe OR visibleScalp is partial/extensive OR bridge is thinning/absent
+- midscalpBridge=absent OR (visibleScalp=extensive AND frontalHairline=receding_severe) → "6" or "7"
+- crownThinning=severe AND temples moderate/severe AND bridge thinning → at least "5"
+- temples mild + crown none + bridge full/not_visible → "1" or "2"
+- Never output "4"/"5" if crownThinning is none and visibleScalp is minimal
 
 STAGE 7: horseshoe only / top fully bald → "7"
 
@@ -304,6 +311,33 @@ const hasCompleteFemaleObservations = (observations = {}) => {
   return hasFront && hasBackOrSide;
 };
 
+const hasStrongAdvancedEvidence = (observations = {}) => {
+  const front = observations.frontView || {};
+  const top = observations.topView || {};
+  const bridge = String(observations.midscalpBridge || "").toLowerCase();
+  const scalp = String(top.visibleScalp || "").toLowerCase();
+  const hairline = String(front.frontalHairline || "").toLowerCase();
+  const temples = maxTempleRecession(front);
+  const crown = level(top.crownThinning);
+
+  if (bridge === "absent") return true;
+  if (scalp === "extensive" && (crown >= 2 || hairline.includes("severe") || temples >= 3)) return true;
+  if (crown >= 3 && temples >= 3 && bridge === "thinning") return true;
+  return false;
+};
+
+const hasEarlyStageEvidence = (observations = {}) => {
+  const front = observations.frontView || {};
+  const top = observations.topView || {};
+  const bridge = String(observations.midscalpBridge || "not_visible").toLowerCase();
+  const scalp = String(top.visibleScalp || "minimal").toLowerCase();
+  const temples = maxTempleRecession(front);
+  const crown = level(top.crownThinning);
+
+  // Crown still full and bridge intact → early pattern (1–3)
+  return crown <= 1 && scalp !== "extensive" && bridge !== "absent" && temples <= 2;
+};
+
 const computeMaleNorwoodFromObservations = (observations = {}) => {
   if (!hasCompleteMaleObservations(observations)) return null;
 
@@ -325,23 +359,36 @@ const computeMaleNorwoodFromObservations = (observations = {}) => {
     return "7";
   }
 
-  // Stage 6: bridge gone OR extensive top + severe front — not severe hairline alone
+  // Stage 6: needs clear bridge loss / extensive top — not hairline alone
   if (
     bridge === "absent" ||
-    (scalp === "extensive" && (severeHairline || temples >= 3 || crown >= 2)) ||
-    (severeHairline && crown >= 2 && scalp !== "minimal")
+    (scalp === "extensive" && crown >= 2 && (severeHairline || temples >= 3))
   ) {
     return "6";
   }
 
-  if (temples >= 3 && crown >= 2) return "5";
-  if (temples >= 2 && crown >= 2) return "5";
-  if (bridge === "thinning" && (temples >= 2 || crown >= 2)) return "5";
-  if (temples >= 2 && crown === 1) return "4";
-  if (crown >= 1 && temples >= 1) return "4";
-  if (severeHairline && crown === 0) return "3";
+  // Stage 5: BOTH significant front AND crown loss with thinning bridge
+  if (
+    temples >= 3 && crown >= 2 && (bridge === "thinning" || scalp === "partial" || scalp === "extensive")
+  ) {
+    return "5";
+  }
+  if (temples >= 2 && crown >= 3 && bridge === "thinning") return "5";
+
+  // Stage 4: temples + real crown thinning (not crown alone from noise)
+  if (temples >= 2 && crown >= 2) return "4";
+  if (temples >= 2 && crown === 1 && (scalp === "partial" || bridge === "thinning")) return "4";
+
+  // Early stages — crown still full
+  if (crown === 0 && scalp === "minimal" && bridge !== "absent" && bridge !== "thinning") {
+    if (temples >= 2 || hairline.includes("moderate") || severeHairline) return "3";
+    if (temples === 1 || hairline.includes("mild") || hairline.includes("receding")) return "2";
+    return "1";
+  }
+
   if (temples >= 2 && crown === 0) return "3";
   if (temples <= 1 && crown === 0) return temples === 0 && !hairline.includes("receding") ? "1" : "2";
+  if (crown >= 1 && temples >= 1) return "4";
 
   return "3";
 };
@@ -405,31 +452,45 @@ const normalizeMaleStage = (stage) => {
 };
 
 /**
- * Reconcile AI stage with observation-based stage.
- * - Prefer AI when observations are incomplete
- * - Never let a low AI stage override clear advanced observation evidence
- * - Never let incomplete rule-based logic downgrade AI stages 5+
+ * Reconcile AI stage with observation-based stage + soft self-report prior.
+ * Prevents both under-classification (true stage 6→1) and over-classification (true stage 2→5).
  */
-const reconcileStage = (aiStage, ruleStage, gender, observations, confidence = 0.85) => {
+const reconcileStage = (
+  aiStage,
+  ruleStage,
+  gender,
+  observations,
+  confidence = 0.85,
+  selfReportedStage = null
+) => {
   const normalize = gender === "female" ? normalizeFemaleStage : normalizeMaleStage;
   const ai = normalize(aiStage);
   const rule = normalize(ruleStage);
+  const self = normalize(selfReportedStage);
 
   const obsComplete =
     gender === "female"
       ? hasCompleteFemaleObservations(observations)
       : hasCompleteMaleObservations(observations);
 
-  if (!ai) return rule;
-  if (!rule || !obsComplete) return ai;
+  if (!ai) return rule || self;
+  if (!rule || !obsComplete) {
+    // Soft-anchor: if AI jumps 3+ stages above self-report without complete obs, temper it
+    if (self && gender === "male") {
+      const aiNum = parseInt(ai, 10);
+      const selfNum = parseInt(self, 10);
+      if (!Number.isNaN(aiNum) && !Number.isNaN(selfNum) && aiNum - selfNum >= 3 && aiNum >= 4) {
+        return String(Math.min(aiNum, selfNum + 1));
+      }
+    }
+    return ai;
+  }
   if (ai === rule) return ai;
 
-  // Non-numeric special stages
   if (rule === "patchy-bald" || ai === "patchy-bald") {
     return rule === "patchy-bald" ? rule : ai;
   }
   if (rule === "overall-thinning" || ai === "overall-thinning") {
-    // Prefer overall-thinning only when both agree or AI says so with no higher numeric rule
     const ruleNum = parseInt(rule, 10);
     const aiNum = parseInt(ai, 10);
     if (!Number.isNaN(ruleNum) && ruleNum >= 3) return rule;
@@ -439,25 +500,68 @@ const reconcileStage = (aiStage, ruleStage, gender, observations, confidence = 0
 
   const aiNum = parseInt(ai, 10);
   const ruleNum = parseInt(rule, 10);
+  const selfNum = parseInt(self, 10);
+  const strongAdvanced = gender === "male" && hasStrongAdvancedEvidence(observations);
+  const earlyEvidence = gender === "male" && hasEarlyStageEvidence(observations);
 
   if (!Number.isNaN(aiNum) && !Number.isNaN(ruleNum)) {
     const gap = Math.abs(aiNum - ruleNum);
+    const higher = Math.max(aiNum, ruleNum);
+    const lower = Math.min(aiNum, ruleNum);
 
-    // Advanced AI finding always wins
-    if (aiNum >= 5) return ai;
+    // True advanced loss with strong visual evidence
+    if (strongAdvanced && higher >= 5) return String(higher);
 
-    // Advanced observation finding must not be under-classified by a low AI stage
-    // e.g. AI="1", rule="6" from bridge absent / extensive scalp
-    if (ruleNum >= 5 && ruleNum > aiNum) return rule;
+    // Early-stage photos (full/near-full crown, intact bridge):
+    // never allow 4/5/6/7 — this fixes stage-2 hairlines labeled as stage 5
+    if (earlyEvidence && !strongAdvanced) {
+      if (!Number.isNaN(selfNum) && selfNum <= 3) {
+        // Prefer self-report when it is early; clamp AI/rule noise
+        const photoHint = lower <= 3 ? lower : selfNum;
+        return String(Math.min(3, Math.max(1, Math.round((photoHint + selfNum) / 2))));
+      }
+      if (lower <= 3) return String(Math.max(1, lower));
+      if (ruleNum <= 3) return rule;
+      if (aiNum <= 3) return ai;
+      return "2";
+    }
 
-    // Large disagreement: prefer the higher (more severe) evidence-backed stage
-    if (gap >= 2) return aiNum > ruleNum ? ai : rule;
+    // One source says 5+ but the other says early (1–3) without strong advanced evidence
+    if (higher >= 5 && lower <= 3 && !strongAdvanced) {
+      if (!Number.isNaN(selfNum) && selfNum <= 3) return String(Math.max(lower, Math.min(selfNum, 3)));
+      return String(lower);
+    }
 
-    // AI over by 1 with low confidence → gentle nudge down
-    if (gap === 1 && aiNum > ruleNum && confidence < 0.7) return rule;
+    // Both advanced with strong evidence already handled; if both say 5+ without strong evidence, temper
+    if (aiNum >= 5 && ruleNum >= 5 && !strongAdvanced) {
+      if (!Number.isNaN(selfNum) && selfNum <= 3) return String(Math.min(3, Math.max(selfNum, 2)));
+      return "3";
+    }
 
-    // AI under by 1 with complete observations → prefer observation stage
-    if (gap === 1 && ruleNum > aiNum) return rule;
+    if (aiNum >= 5 && ruleNum >= 5) return String(higher);
+
+    // Large gap without strong advanced evidence → prefer lower (conservative)
+    if (gap >= 2 && !strongAdvanced) {
+      if (!Number.isNaN(selfNum)) {
+        // Pick the candidate closer to self-report
+        return Math.abs(aiNum - selfNum) <= Math.abs(ruleNum - selfNum) ? ai : rule;
+      }
+      return String(lower);
+    }
+
+    if (gap === 1 && aiNum > ruleNum && confidence < 0.75) return rule;
+    if (gap === 1 && ruleNum > aiNum && earlyEvidence) return ai;
+
+    // Soft prior: if self-report within 1 of lower candidate and higher is 4+, prefer lower
+    if (
+      !Number.isNaN(selfNum) &&
+      higher >= 4 &&
+      Math.abs(selfNum - lower) <= 1 &&
+      selfNum <= 3 &&
+      !strongAdvanced
+    ) {
+      return String(Math.max(lower, selfNum));
+    }
 
     return ai;
   }
@@ -573,16 +677,16 @@ export const analyzeScalp = async (req, res) => {
       normalizeStageForGender(parsed.finalStage, userGender);
 
     const confidence = typeof parsed.aiConfidence === "number" ? parsed.aiConfidence : 0.85;
+    const normalizedSelfReported = normalizeStageForGender(selfReportedStage, userGender);
 
     const aiPredictedStage = reconcileStage(
       rawAiStage,
       ruleBasedStage,
       userGender,
       observations,
-      confidence
+      confidence,
+      normalizedSelfReported || selfReportedStage
     );
-
-    const normalizedSelfReported = normalizeStageForGender(selfReportedStage, userGender);
 
     const stageNum = parseInt(aiPredictedStage, 10);
     const requiresDoctor =
