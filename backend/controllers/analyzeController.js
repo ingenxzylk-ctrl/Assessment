@@ -239,21 +239,27 @@ Norwood scale — be conservative; do NOT over-stage:
 - 7: Narrow band on sides/back only; top completely bald
 - overall-thinning: diffuse thinning without classic Norwood pattern
 
-CRITICAL EARLY-STAGE RULES (avoid false stage 4/5):
-- If crown is full/none and only temples are mildly receded → MUST be "2" (not 3/4/5)
-- If crown thinning is absent/none and temples are moderate → "3" max
+CRITICAL EARLY-STAGE RULES (avoid false stage 3/4/5):
+- Prefer the LOWER stage when unsure between 2 and 3
+- Stage 2: slight temple recession / soft M / adult hairline with minor corners — crown FULL
+- Stage 3: DEEP clear triangular temple recession (obvious M), still with full crown
+- Do NOT call stage 3 for mild or borderline temple recession
+- If only the front hairline looks slightly recessed and crown is full → "2"
+- If crown thinning is absent/none → never above "3"
 - Stage "4" requires BOTH temple recession AND real crown thinning
 - Stage "5" requires LARGE front baldness AND LARGE crown baldness with thin bridge
 - Do NOT call stage 5 just because temples look recessed in a front selfie
-- Front-only photos without clear crown baldness should stay at 2–3
+- Front-only photos without clear crown baldness should stay at 2 (or 3 only if deep M)
 
 CONSISTENCY RULES (mandatory):
 - midscalpBridge=absent OR (visibleScalp=extensive AND frontalHairline=receding_severe) → "6" or "7"
 - crownThinning=severe AND temples moderate/severe AND bridge thinning → at least "5"
-- temples mild + crown none + bridge full/not_visible → "1" or "2"
+- temples mild/none + crown none + bridge full → "1" or "2"
+- temples moderate on only one side OR hairline receding_mild/receding_moderate with full crown → "2" (not 3)
 - Never output "4"/"5" if crownThinning is none/mild and visibleScalp is minimal
 - crownThinning=mild with full bridge is NOT stage 4 — treat mild crown as noise
-- Front hairline recession alone (no crown bald patch) = stage 2 or 3 ONLY
+- Front hairline recession alone (no crown bald patch) = stage 2, or 3 only if deep bilateral M
+- When uncertain between "2" and "3", output "2"
 
 STAGE 7: horseshoe only / top fully bald → "7"
 
@@ -346,16 +352,55 @@ const hasEarlyStageEvidence = (observations = {}) => {
   return crown <= 1 && scalp === "minimal" && bridge !== "absent" && bridge !== "thinning";
 };
 
-/** Map temples-only when crown is still full — never returns 4+ */
+/** Map temples-only when crown is still full — never returns 4+.
+ * Conservative: Gemini often labels mild Stage-2 temples as "moderate".
+ * Stage 3 requires a clear deep bilateral M or severe recession.
+ */
 const stageFromTemplesOnly = (observations = {}) => {
   const front = observations.frontView || {};
   const hairline = String(front.frontalHairline || "").toLowerCase();
-  const temples = maxTempleRecession(front);
+  const left = level(front.templeRecessionLeft);
+  const right = level(front.templeRecessionRight);
+  const temples = Math.max(left, right);
+  const bilateralDeep = left >= 2 && right >= 2;
+  const severeHairline = hairline === "receding_severe" || hairline.includes("severe");
 
-  if (temples >= 2 || hairline.includes("moderate") || hairline.includes("severe")) return "3";
-  if (temples === 1 || hairline.includes("mild") || hairline.includes("receding")) return "2";
+  // Stage 3 only for clear deep M (not a single moderate label)
+  if (temples >= 3 || severeHairline || (bilateralDeep && temples >= 2 && hairline.includes("moderate"))) {
+    return "3";
+  }
+
+  // Mild / unilateral moderate / soft recession → Stage 2
+  if (
+    temples >= 1 ||
+    hairline.includes("receding_mild") ||
+    hairline.includes("receding_moderate") ||
+    hairline.includes("mild") ||
+    hairline.includes("receding")
+  ) {
+    return "2";
+  }
+
   if (temples === 0 && (hairline.includes("intact") || !hairline)) return "1";
   return "2";
+};
+
+/** Conservative early pick: prefer Stage 2 over 3 when signals disagree */
+const pickConservativeEarlyStage = (templeStage, aiStage, selfStage) => {
+  const nums = [templeStage, aiStage, selfStage]
+    .map((s) => parseInt(s, 10))
+    .filter((n) => !Number.isNaN(n) && n >= 1 && n <= 3);
+
+  if (nums.length === 0) return templeStage || "2";
+
+  // Prefer the lowest early stage (fixes Stage 2 → 3 over-calls)
+  const lowest = Math.min(...nums);
+
+  // If temples say 2, never escalate to 3 from AI/self alone
+  const templeNum = parseInt(templeStage, 10);
+  if (!Number.isNaN(templeNum) && templeNum <= 2) return String(templeNum);
+
+  return String(Math.min(3, lowest));
 };
 
 const computeMaleNorwoodFromObservations = (observations = {}) => {
@@ -500,24 +545,7 @@ const reconcileStage = (
   // Runs even when AI and rule agree on an inflated stage 4/5.
   if (gender === "male" && !hasClearCrownLoss(observations) && !hasStrongAdvancedEvidence(observations)) {
     const templeStage = stageFromTemplesOnly(observations);
-    const templeNum = parseInt(templeStage, 10);
-    const selfNumEarly = parseInt(self, 10);
-    const aiNumEarly = parseInt(ai, 10);
-
-    // Prefer temple mapping; if self-report is also early and within 1, keep temple stage
-    if (!Number.isNaN(selfNumEarly) && selfNumEarly <= 3) {
-      if (Math.abs(templeNum - selfNumEarly) <= 1) return templeStage;
-      // Self said 3, temples say 2 → trust temples (photo) for mild recession
-      if (templeNum <= selfNumEarly) return templeStage;
-      return String(Math.min(3, selfNumEarly + 1));
-    }
-
-    // If AI is early too, pick the more conservative of AI vs temples
-    if (!Number.isNaN(aiNumEarly) && aiNumEarly <= 3) {
-      return String(Math.min(templeNum, aiNumEarly));
-    }
-
-    return templeStage;
+    return pickConservativeEarlyStage(templeStage, ai, self);
   }
 
   if (!rule || !obsComplete) {
@@ -560,12 +588,7 @@ const reconcileStage = (
     // Early-stage photos (full crown): force temples-only, never 4+
     if (earlyEvidence && !strongAdvanced) {
       const templeStage = stageFromTemplesOnly(observations);
-      const templeNum = parseInt(templeStage, 10);
-      if (!Number.isNaN(selfNum) && selfNum <= 3) {
-        if (Math.abs(templeNum - selfNum) <= 1) return templeStage;
-        return templeNum <= selfNum ? templeStage : String(Math.min(3, selfNum));
-      }
-      return templeStage;
+      return pickConservativeEarlyStage(templeStage, ai, self);
     }
 
     // Cap stage 4 claims without clear crown loss
