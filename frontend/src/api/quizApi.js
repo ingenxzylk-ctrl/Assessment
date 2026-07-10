@@ -26,9 +26,11 @@ export async function analyzeScalp({ gender, selfReportedStage, images }) {
       }),
     });
   } catch {
-    throw new Error(
+    const err = new Error(
       "Cannot reach backend server. Make sure backend is running: cd backend && npm run dev"
     );
+    err.code = "backend_unreachable";
+    throw err;
   }
 
   let data = {};
@@ -41,11 +43,17 @@ export async function analyzeScalp({ gender, selfReportedStage, images }) {
   if (res.status === 422 && data.imageRejected) {
     const err = new Error(data.error || "Invalid scalp image.");
     err.imageRejected = true;
+    err.code = "image_rejected";
     throw err;
   }
 
   if (!res.ok) {
-    throw new Error(data.error || "Something went wrong. Please try again.");
+    const err = new Error(data.error || "Something went wrong. Please try again.");
+    err.code = data.code || (res.status === 429 ? "quota" : "analyze_failed");
+    err.quotaExceeded = Boolean(data.quotaExceeded) || err.code === "quota";
+    err.rateLimited = Boolean(data.rateLimited) || err.code === "rate_limit";
+    err.status = res.status;
+    throw err;
   }
 
   return data;
