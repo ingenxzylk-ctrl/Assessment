@@ -75,18 +75,6 @@ function ProductImage({ src, fallbacks = [], alt, className }) {
   );
 }
 
-function getProductPurpose(name = "") {
-  const n = name.toLowerCase();
-  if (n.includes("shampoo") || n.includes("cleanser") || n.includes("dandruff")) return "For Dandruff";
-  if (n.includes("minoxidil") || n.includes("rosemary") || n.includes("serum") || n.includes("growth")) return "For Hair Regrowth";
-  if (n.includes("oil") || n.includes("progro")) return "For Scalp Nourishment";
-  if (n.includes("supplement") || n.includes("health mix") || n.includes("vitality")) return "For Internal Health";
-  if (n.includes("derma") || n.includes("roller")) return "For Absorption";
-  if (n.includes("massager")) return "For Scalp Stimulation";
-  if (n.includes("conditioner")) return "For Scalp Care";
-  return "For Hair Health";
-}
-
 function buildRootCauses(state, hasDandruff, isFemale) {
   const dump = JSON.stringify(state || {}).toLowerCase();
   const causes = [];
@@ -234,11 +222,14 @@ export default function Result() {
     .map((prod) => {
       const formatted = formatBundleProduct(prod, isFemale);
       if (!formatted) return null;
+      const isHealthMix =
+        prod.id === "zylk-hair-health-mix" ||
+        String(prod.id || "").startsWith("prod-supplements");
       return {
         ...formatted,
-        purpose: getProductPurpose(prod.name),
-        subtitle: prod.subtitle || formatted.shortName,
-        price: prod.price,
+        id: prod.id,
+        subtitle: prod.subtitle || null,
+        isOptional: isHealthMix && !includeHealthMix,
       };
     })
     .filter(Boolean);
@@ -466,31 +457,61 @@ export default function Result() {
         )}
 
         {!requiresDoctorConsultation && kitProducts.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-900">Kit</h2>
+          <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                Start Your Journey With Just 1 Month Kit
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">
+                Personalized Zylk Health bundle for your stage
+              </p>
+              {recommendedBundle?.bundleTitle && (
+                <p className="text-sm font-bold text-[#064e3b] mt-2">
+                  {recommendedBundle.bundleTitle}
+                </p>
+              )}
             </div>
-            <div className="divide-y divide-gray-50">
+
+            <div className="space-y-3">
               {kitProducts.map((product, index) => (
-                <div key={index} className="flex items-center gap-3 px-4 py-3">
-                  <div className="w-14 h-14 rounded-lg bg-gray-50 border border-gray-100 shrink-0 overflow-hidden flex items-center justify-center">
-                    <ProductImage
-                      src={product.imgUrl}
-                      fallbacks={product.imgFallbacks}
-                      alt={product.shortName}
-                      className="w-full h-full object-contain p-1"
-                    />
+                <div
+                  key={product.id || index}
+                  className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
+                >
+                  <div className="flex items-center flex-1 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                      <ProductImage
+                        src={product.imgUrl}
+                        fallbacks={product.imgFallbacks}
+                        alt={product.shortName}
+                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
+                        {product.shortName}
+                      </h3>
+                      {product.subtitle && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                          {product.subtitle}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-900">{product.purpose}</p>
-                    <p className="text-xs text-gray-500 truncate">{product.subtitle}</p>
-                    <p className="text-sm font-bold text-gray-800 mt-0.5">₹{product.price}</p>
-                  </div>
-                  <span className="text-gray-300 text-lg">›</span>
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border ${
+                      product.isOptional
+                        ? "text-amber-800 bg-amber-50 border-amber-100"
+                        : "text-emerald-800 bg-emerald-50 border-emerald-100/40"
+                    }`}
+                  >
+                    {product.isOptional ? "Optional" : "Included"}
+                  </span>
                 </div>
               ))}
             </div>
-            <div className="mx-4 mb-4 mt-2 bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
+
+            <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
               <span>🌿</span>
               <span>Supplements &amp; Oil are 100% Ayurvedic with no side effects.</span>
             </div>
