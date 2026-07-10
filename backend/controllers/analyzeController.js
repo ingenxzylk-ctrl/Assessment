@@ -1,11 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 
 const MODEL_CANDIDATES = [
-  process.env.GEMINI_MODEL,
-  "gemini-2.5-flash",
-  "gemini-3.5-flash",
-  "gemini-2.0-flash",
-].filter(Boolean);
+  ...new Set(
+    [
+      process.env.GEMINI_MODEL,
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-3.5-flash",
+    ].filter(Boolean)
+  ),
+];
 
 const GEMINI_RETRIES = Number(process.env.GEMINI_RETRIES) || 2;
 
@@ -13,29 +17,130 @@ const SEVERITY = { none: 0, mild: 1, moderate: 2, severe: 3 };
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const isRetryable = (err) => {
-  const code = err?.status || err?.code;
-  const msg = String(err?.message || "");
-  return code === 429 || code === 503 || msg.includes("timed out") || msg.includes("ECONNRESET");
+/** Collect primary + optional failover keys from env (deduped, order preserved). */
+const getGeminiApiKeys = () => {
+  const keys = [
+    process.env.GEMINI_API_KEY,
+    ...(String(process.env.GEMINI_API_KEYS || "")
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean)),
+  ].filter(
+    (k) => k && k !== "your_key_from_https://aistudio.google.com/apikey"
+  );
+  return [...new Set(keys)];
 };
 
-const formatGeminiError = (error) => {
-  const msg = String(error?.message || error || "");
+const errorText = (error) =>
+  [
+    error?.message,
+    error?.status,
+    error?.code,
+    error?.error?.message,
+    typeof error === "string" ? error : "",
+    (() => {
+      try {
+        return JSON.stringify(error);
+      } catch {
+        return "";
+      }
+    })(),
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
-    return "Invalid GEMINI_API_KEY. Get a new key from https://aistudio.google.com/apikey and add it to backend/.env";
-  }
-  if (msg.includes("fetch failed") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND")) {
-    return "Backend cannot reach Google Gemini API. Check your internet connection and restart the backend server.";
-  }
-  if (msg.includes("not found") || msg.includes("NOT_FOUND") || msg.includes("is not supported")) {
-    return "Gemini model not available. Set GEMINI_MODEL=gemini-2.5-flash in backend/.env and restart.";
-  }
-  if (msg.includes("quota") || msg.includes("429")) {
-    return "Gemini API quota exceeded. Wait a few minutes or check billing at Google AI Studio.";
+/**
+ * Classify Gemini failures so we do not burn remaining quota with retries/model cascades.
+ * - quota: hard daily/project limit — do not retry same key
+ * - rate_limit: short burst limit — brief backoff retry OK
+ */
+const classifyGeminiError = (error) => {
+  const msg = errorText(error);
+  const lower = msg.toLowerCase();
+  const code = Number(error?.status || error?.code) || null;
+
+  if (
+    lower.includes("api key not valid") ||
+    lower.includes("api_key_invalid") ||
+    lower.includes("permission_denied") ||
+    code === 401 ||
+    code === 403
+  ) {
+    return {
+      type: "auth",
+      httpStatus: 401,
+      message:
+        "Invalid GEMINI_API_KEY. Get a new key from https://aistudio.google.com/apikey and add it to backend/.env",
+    };
   }
 
-  return msg || "Diagnostics failed.";
+  if (lower.includes("fetch failed") || lower.includes("econnrefused") || lower.includes("enotfound")) {
+    return {
+      type: "network",
+      httpStatus: 503,
+      message:
+        "Backend cannot reach Google Gemini API. Check your internet connection and restart the backend server.",
+    };
+  }
+
+  if (
+    lower.includes("not found") ||
+    lower.includes("not_found") ||
+    lower.includes("is not supported")
+  ) {
+    return {
+      type: "model",
+      httpStatus: 502,
+      message:
+        "Gemini model not available. Set GEMINI_MODEL=gemini-2.5-flash in backend/.env and restart.",
+    };
+  }
+
+  const quotaHard =
+    lower.includes("resource_exhausted") ||
+    lower.includes("exceeded your current quota") ||
+    lower.includes("quota exceeded") ||
+    lower.includes("billing") ||
+    lower.includes("insufficient_quota") ||
+    (lower.includes("quota") && !lower.includes("rate"));
+
+  if (quotaHard || (code === 429 && lower.includes("quota"))) {
+    return {
+      type: "quota",
+      httpStatus: 429,
+      message:
+        "Gemini API quota exceeded for this API key. Wait for the free-tier reset, enable billing in Google AI Studio, or add another key as GEMINI_API_KEYS in backend/.env and restart.",
+    };
+  }
+
+  if (code === 429 || lower.includes("rate limit") || lower.includes("too many requests")) {
+    return {
+      type: "rate_limit",
+      httpStatus: 429,
+      message:
+        "Gemini is rate-limiting requests right now. Wait about a minute and try again.",
+    };
+  }
+
+  if (code === 503 || lower.includes("unavailable") || lower.includes("timed out") || lower.includes("econnreset")) {
+    return {
+      type: "transient",
+      httpStatus: 503,
+      message: "Gemini is temporarily unavailable. Please try again in a moment.",
+    };
+  }
+
+  return {
+    type: "unknown",
+    httpStatus: 500,
+    message: String(error?.message || error || "Diagnostics failed."),
+  };
+};
+
+const isRetryable = (err) => {
+  const kind = classifyGeminiError(err).type;
+  // Never retry hard quota / auth — retries only worsen free-tier exhaustion
+  return kind === "rate_limit" || kind === "transient";
 };
 
 const toInlineImagePart = (input) => {
@@ -71,25 +176,64 @@ const callGemini = async (ai, model, payload, retries = GEMINI_RETRIES) => {
       return await ai.models.generateContent({ ...payload, model });
     } catch (err) {
       lastError = err;
-      console.error(`Gemini call failed (model=${model}, attempt=${attempt + 1}):`, err?.message || err);
+      const kind = classifyGeminiError(err).type;
+      console.error(
+        `Gemini call failed (model=${model}, attempt=${attempt + 1}, kind=${kind}):`,
+        err?.message || err
+      );
       if (!isRetryable(err) || attempt === retries - 1) throw err;
-      await delay(2000 * (attempt + 1));
+      // Longer backoff for rate limits so free-tier RPM recovers
+      await delay(kind === "rate_limit" ? 4000 * (attempt + 1) : 2000 * (attempt + 1));
     }
   }
   throw lastError;
 };
 
-const callGeminiWithFallback = async (ai, payload) => {
+/**
+ * Try models, then failover API keys.
+ * On hard quota/auth for a key, skip remaining models for that key and move to the next key.
+ */
+const callGeminiWithFallback = async (payload) => {
+  const apiKeys = getGeminiApiKeys();
+  if (apiKeys.length === 0) {
+    const err = new Error(
+      "GEMINI_API_KEY is missing or still a placeholder. Add your real key to backend/.env and restart the server."
+    );
+    err.status = 401;
+    throw err;
+  }
+
   let lastError;
-  for (const model of MODEL_CANDIDATES) {
-    try {
-      console.log(`Trying Gemini model: ${model}`);
-      const response = await callGemini(ai, model, payload);
-      return { response, model };
-    } catch (err) {
-      lastError = err;
+  for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
+    const apiKey = apiKeys[keyIndex];
+    const ai = new GoogleGenAI({ apiKey });
+    const keyLabel = `key#${keyIndex + 1}`;
+
+    for (const model of MODEL_CANDIDATES) {
+      try {
+        console.log(`Trying Gemini model: ${model} (${keyLabel})`);
+        const response = await callGemini(ai, model, payload);
+        return { response, model, ai, apiKeyIndex: keyIndex };
+      } catch (err) {
+        lastError = err;
+        const kind = classifyGeminiError(err).type;
+
+        // Hard quota/auth on this key → do not burn more models on the same key
+        if (kind === "quota" || kind === "auth") {
+          console.warn(
+            `Gemini ${kind} on ${keyLabel}; ${
+              keyIndex < apiKeys.length - 1 ? "trying next API key..." : "no more keys."
+            }`
+          );
+          break;
+        }
+
+        // Model unavailable → try next model on same key
+        if (kind === "model") continue;
+      }
     }
   }
+
   throw lastError;
 };
 
@@ -761,14 +905,17 @@ const buildGeminiParts = (gender, labeledImages) => {
 
 export const analyzeScalp = async (req, res) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === "your_key_from_https://aistudio.google.com/apikey") {
+    const apiKeys = getGeminiApiKeys();
+    if (apiKeys.length === 0) {
       return res.status(500).json({
-        error: "GEMINI_API_KEY is missing or still a placeholder. Add your real key to backend/.env and restart the server.",
+        error:
+          "GEMINI_API_KEY is missing or still a placeholder. Add your real key to backend/.env and restart the server.",
+        code: "missing_api_key",
+        aiPredictedStage: null,
+        analysisComplete: false,
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
     const { gender, selfReportedStage, images } = req.body;
     const userGender = String(gender || "male").toLowerCase();
 
@@ -791,10 +938,10 @@ export const analyzeScalp = async (req, res) => {
       return res.status(400).json({ error: "Could not read image data. Please re-upload your photos." });
     }
 
-    console.log(`Analyzing ${imageCount} image(s) with Gemini...`);
+    console.log(`Analyzing ${imageCount} image(s) with Gemini (${apiKeys.length} API key(s) configured)...`);
     const startTime = Date.now();
 
-    const { response, model } = await callGeminiWithFallback(ai, {
+    const { response, model, ai } = await callGeminiWithFallback({
       contents: [{ role: "user", parts: analysisParts }],
       config: {
         temperature: 0,
@@ -906,8 +1053,12 @@ export const analyzeScalp = async (req, res) => {
     return res.status(200).json(result);
   } catch (error) {
     console.error("analyzeScalp error:", error);
-    return res.status(500).json({
-      error: formatGeminiError(error),
+    const classified = classifyGeminiError(error);
+    return res.status(classified.httpStatus).json({
+      error: classified.message,
+      code: classified.type,
+      quotaExceeded: classified.type === "quota",
+      rateLimited: classified.type === "rate_limit",
       aiPredictedStage: null,
       analysisComplete: false,
     });
