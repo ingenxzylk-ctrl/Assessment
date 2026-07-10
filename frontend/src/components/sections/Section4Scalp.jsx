@@ -1,32 +1,40 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
+import { compressImage } from "../../utils/compressImage";
 
-// Male guideline configuration
 const MALE_GUIDES = [
-  { type: "front", label: "1. Front Area", desc: "Capture your full front hairline clearly from a direct forward perspective.", img: "/stages/front.png" },
-  { type: "top", label: "2. Top Area", desc: "Tilt your head downward to expose your complete crown area view.", img: "/stages/top.png" }
+  {
+    type: "front",
+    label: "1. Front Area",
+    desc: "Capture your full front hairline clearly from a direct forward perspective.",
+    img: "/stages/front.png",
+  },
+  {
+    type: "top",
+    label: "2. Top Area",
+    desc: "Tilt your head downward to expose your complete crown area view.",
+    img: "/stages/top.png",
+  },
 ];
 
-// Female guideline configuration
-// Female guideline configuration
 const FEMALE_GUIDES = [
   {
     type: "front",
     label: "1. Front View",
-    desc: "Face the camera directly. Pull hair back if needed so your front hairline and forehead area are visible.",
+    desc: "Face the camera directly. Pull hair back so your front hairline is visible.",
     img: "/stages/female_front_guide.png",
   },
   {
     type: "side",
     label: "2. Side View (Ponytail)",
-    desc: "Put hair in a ponytail. Turn your head to show your side profile — ear, temple, and side scalp area should be visible.",
+    desc: "Put hair in a ponytail. Turn head to show side profile — ear, temple, and side scalp visible.",
     img: "/stages/female_side_guide.png",
   },
   {
     type: "back",
-    label: "3. Back View (Ponytail to Side)",
-    desc: "Keep hair in a ponytail and sweep it to one side (over your shoulder). Tilt head slightly so the crown and back part-line are visible.",
+    label: "3. Back View (Ponytail Aside)",
+    desc: "Keep ponytail and sweep it over one shoulder to the side. Tilt head so crown and back part-line show.",
     img: "/stages/female_back_guide.png",
   },
 ];
@@ -34,39 +42,33 @@ const FEMALE_GUIDES = [
 function buildImagesFromSaved(savedImages = []) {
   const map = { front: null, top: null, side: null, back: null };
   savedImages.forEach((img) => {
-    if (img?.type && img?.dataUrl) {
-      map[img.type] = img.dataUrl;
-    }
+    if (img?.type && img?.dataUrl) map[img.type] = img.dataUrl;
   });
   return map;
 }
 
 export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const { state, setScalpImages, setScalpAnalysis, setLoading } = useQuiz();
-  
+
   const isFemale = state?.aboutMe?.gender === "female";
   const guideOptions = isFemale ? FEMALE_GUIDES : MALE_GUIDES;
 
- const [step, setStep] = useSectionStep("section4Scalp", "upload", "guide");
+  const [step, setStep] = useSectionStep("section4Scalp", "upload", "guide");
   const [error, setError] = useState(null);
   const [useCamera, setUseCamera] = useState(false);
-  const [activeCaptureType, setActiveCaptureType] = useState(""); 
+  const [activeCaptureType, setActiveCaptureType] = useState("");
+  const [analysisStatus, setAnalysisStatus] = useState("Preparing images...");
 
-  const [images, setImages] = useState(() =>
-    buildImagesFromSaved(state?.scalpImages)
-  );
-  
+  const [images, setImages] = useState(() => buildImagesFromSaved(state?.scalpImages));
+
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Sync section step securely with the context wrapper
-  
-
-  // Handle native camera streaming initialization
   useEffect(() => {
     if (useCamera) {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 480, height: 640 } })
+      navigator.mediaDevices
+        .getUserMedia({ video: { facingMode: "user", width: 480, height: 640 } })
         .then((stream) => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
@@ -81,49 +83,52 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
     return () => {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
   }, [useCamera]);
 
-  const handleFileUpload = useCallback(async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setError(null);
+  const handleFileUpload = useCallback(
+    async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setError(null);
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result;
-      
-      let targetType = activeCaptureType;
-      if (!targetType) {
-        if (!images.front) targetType = "front";
-        else if (isFemale && !images.side) targetType = "side";
-        else if (isFemale && !images.back) targetType = "back";
-        else if (!isFemale && !images.top) targetType = "top";
-      }
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result;
 
-      if (targetType) {
-        setImages((prev) => ({ ...prev, [targetType]: dataUrl }));
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  }, [images, activeCaptureType, isFemale]);
+        let targetType = activeCaptureType;
+        if (!targetType) {
+          if (!images.front) targetType = "front";
+          else if (isFemale && !images.side) targetType = "side";
+          else if (isFemale && !images.back) targetType = "back";
+          else if (!isFemale && !images.top) targetType = "top";
+        }
+
+        if (targetType) {
+          setImages((prev) => ({ ...prev, [targetType]: dataUrl }));
+        }
+      };
+      reader.readAsDataURL(file);
+      e.target.value = "";
+    },
+    [images, activeCaptureType, isFemale]
+  );
 
   const captureFromCamera = useCallback(async () => {
     if (!videoRef.current) return;
-    
+
     const canvas = document.createElement("canvas");
     canvas.width = videoRef.current.videoWidth || 480;
     canvas.height = videoRef.current.videoHeight || 640;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-    
+
     const screenshot = canvas.toDataURL("image/jpeg");
-    
+
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
     }
 
     let target = activeCaptureType;
@@ -147,7 +152,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
   const handleTriggerAnalysis = async () => {
     if (isFemale && (!images.front || !images.side || !images.back)) {
-      setError("Please provide Front, Side, and Back images to proceed.");
+      setError("Please provide Front, Side (ponytail), and Back (ponytail aside) images.");
       return;
     }
     if (!isFemale && (!images.front || !images.top)) {
@@ -158,31 +163,41 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     await runAnalysis();
   };
 
- const runAnalysis = async () => {
-  setStep("analyzing");
-  setError(null);
-  if (setLoading) setLoading(true);
+  const runAnalysis = async () => {
+    setStep("analyzing");
+    setError(null);
+    setAnalysisStatus("Compressing photos...");
+    if (setLoading) setLoading(true);
 
-  const timeoutId = setTimeout(() => {
-    setError("Analysis is taking longer than expected. Please check your connection and try again.");
-    setStep("upload");
-    if (setLoading) setLoading(false);
-  }, 120000);
+    const timeoutId = setTimeout(() => {
+      setError("Analysis is taking longer than expected. Please check your connection and try again.");
+      setStep("upload");
+      if (setLoading) setLoading(false);
+    }, 180000);
 
-  try {
-    const { analyzeScalp } = await import("../../api/quizApi");
+    try {
+      const { analyzeScalp } = await import("../../api/quizApi");
 
-       const imagePayloads = isFemale
-  ? [
-      { type: "front", label: "front", dataUrl: images.front },
-      { type: "side", label: "side (ponytail profile)", dataUrl: images.side },
-      { type: "back", label: "back (ponytail swept aside)", dataUrl: images.back },
-    ]
-  : [
-      { type: "front", label: "front", dataUrl: images.front },
-      { type: "top", label: "top", dataUrl: images.top },
-    ];
+      const rawPayloads = isFemale
+        ? [
+            { type: "front", label: "front", dataUrl: images.front },
+            { type: "side", label: "side", dataUrl: images.side },
+            { type: "back", label: "back", dataUrl: images.back },
+          ]
+        : [
+            { type: "front", label: "front", dataUrl: images.front },
+            { type: "top", label: "top", dataUrl: images.top },
+          ];
 
+      setAnalysisStatus("Compressing photos for faster upload...");
+      const imagePayloads = await Promise.all(
+        rawPayloads.map(async (img) => ({
+          ...img,
+          dataUrl: await compressImage(img.dataUrl, 800, 0.75),
+        }))
+      );
+
+      setAnalysisStatus("Uploading & running AI analysis (20–60 sec)...");
       const aiResponse = await analyzeScalp({
         gender: state?.aboutMe?.gender || "male",
         selfReportedStage: isFemale
@@ -191,29 +206,27 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
         images: imagePayloads,
       });
 
-      if (aiResponse.error || aiResponse.imageRejected) {
-        throw new Error(aiResponse.rejectionReason || aiResponse.error || "Invalid image.");
-      }
+      clearTimeout(timeoutId);
 
-    setScalpAnalysis(aiResponse);
-    setScalpImages(imagePayloads);
-    if (setLoading) setLoading(false);
-    if (onComplete) onComplete(aiResponse);
-       } catch (err) {
+      setScalpAnalysis(aiResponse);
+      setScalpImages(imagePayloads);
+      if (setLoading) setLoading(false);
+      if (onComplete) onComplete(aiResponse);
+    } catch (err) {
       clearTimeout(timeoutId);
       if (setLoading) setLoading(false);
       console.error("AI diagnostics pipeline failed:", err);
 
       if (err.imageRejected) {
         setError(
-          `⚠️ ${err.message} Only upload photos of your own hair. Ponytail photos are accepted.`
+          `⚠️ ${err.message || "Invalid image."} Please upload photos of your own hair/scalp. Ponytail side photos are accepted.`
         );
       } else {
         setError("AI analysis failed: " + (err.message || "Server unreachable. Please try again."));
       }
       setStep("upload");
     }
-};
+  };
 
   const handleBackNavigation = () => {
     if (step === "upload") {
@@ -225,7 +238,6 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     }
   };
 
-  // SCREEN 1: PHOTO GUIDELINES
   if (step === "guide") {
     return (
       <div className={`mx-auto mt-6 px-4 ${isFemale ? "max-w-4xl" : "max-w-xl"}`}>
@@ -236,15 +248,22 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             </span>
             <h2 className="text-[28px] font-bold text-gray-900 mt-4 leading-tight">Photo Guidelines</h2>
             <p className="text-gray-500 mt-2 text-base">
-              You will need to upload or take a snapshot of {isFemale ? "three specific views" : "two distinct views"}.
+              {isFemale
+                ? "Upload 3 photos: front, ponytail side profile, and ponytail swept aside."
+                : "Upload 2 photos: front hairline and top/crown view."}
             </p>
           </div>
 
-          {/* 🟢 FIXED: Mobile layout shifts to a balanced 2-column stack, aligning 3rd card on its own row */}
+          {isFemale && (
+            <div className="mb-6 p-4 bg-[#f4f6f0] border border-[#064e3b]/10 rounded-2xl text-sm text-[#064e3b]">
+              <strong>Ponytail method:</strong> Side view = ponytail + turn head sideways. Back view = ponytail pulled over one shoulder to expose crown/part-line.
+            </div>
+          )}
+
           <div className={`grid gap-4 mb-8 ${isFemale ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
             {guideOptions.map((opt, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className={`rounded-2xl border border-gray-200 bg-white p-4 text-center flex flex-col items-center justify-between shadow-2xs ${
                   isFemale && index === 2 ? "col-span-2 sm:col-span-1 max-w-xs mx-auto sm:max-w-none w-full" : ""
                 }`}
@@ -253,12 +272,13 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
                   <span className="text-xl block mb-1">📸</span>
                   <p className="text-sm font-bold text-gray-900 uppercase tracking-wide">{opt.label}</p>
                   <div className="w-full h-44 my-3 rounded-xl flex items-center justify-center bg-white relative p-1">
-                    <img 
-                      src={opt.img} 
+                    <img
+                      src={opt.img}
                       alt={opt.label}
-                      className="w-full h-full object-contain rounded-xl" 
+                      className="w-full h-full object-contain rounded-xl"
                       onError={(e) => {
-                        e.target.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80";
+                        e.target.src =
+                          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80";
                       }}
                     />
                   </div>
@@ -269,10 +289,18 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           </div>
 
           <div className="flex gap-4 max-w-md mx-auto">
-            <button type="button" onClick={handleBackNavigation} className="flex-1 h-14 border border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-base cursor-pointer">
+            <button
+              type="button"
+              onClick={handleBackNavigation}
+              className="flex-1 h-14 border border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-base cursor-pointer"
+            >
               Back
             </button>
-            <button type="button" onClick={() => setStep("upload")} className="flex-[2] h-14 bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all shadow-sm text-base cursor-pointer">
+            <button
+              type="button"
+              onClick={() => setStep("upload")}
+              className="flex-[2] h-14 bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all shadow-sm text-base cursor-pointer"
+            >
               Got It — Open Scanner
             </button>
           </div>
@@ -281,7 +309,6 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     );
   }
 
-  // SCREEN 2: LOADING / SPINNER
   if (step === "analyzing") {
     return (
       <div className="max-w-xl mx-auto mt-6 px-4">
@@ -292,15 +319,19 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             <div className="absolute inset-0 flex items-center justify-center text-2xl">🔬</div>
           </div>
           <div>
-            <h3 className="font-bold text-xl text-gray-900">Processing Scalp Metrics</h3>
-            <p className="text-sm text-gray-500 mt-2 leading-relaxed">Our computer vision system is calculating density variations and mapping root coverage fields via Gemini AI...</p>
+            <h3 className="font-bold text-xl text-gray-900">Analyzing Your Scalp Photos</h3>
+            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+              {analysisStatus}
+            </p>
+            <p className="text-xs text-gray-400 mt-3">
+              This usually takes 20–60 seconds. Please don't close the page.
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
-  // SCREEN 3: MEDIA VIEW / CAMERA SELECTION DASHBOARD
   return (
     <div className={`mx-auto mt-6 px-4 ${isFemale ? "max-w-3xl" : "max-w-xl"}`}>
       <div className="bg-white rounded-[32px] p-8 md:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100">
@@ -318,6 +349,12 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           </div>
         )}
 
+        {isFemale && (
+          <p className="text-[11px] text-gray-500 text-center leading-relaxed px-2 mb-4">
+            Side = ponytail profile. Back = ponytail swept to one side showing crown/part-line.
+          </p>
+        )}
+
         {useCamera ? (
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-[3/4] max-w-sm mx-auto shadow-md mb-6">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
@@ -332,19 +369,29 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           </div>
         ) : (
           <div>
-            {/* 🟢 FIXED: Mobile grid container scales nicely on portrait frames */}
             <div className={`grid gap-4 mb-6 ${isFemale ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
-              
-              {/* Slot 1: Front View (Universal) */}
               <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between">
                 <span className="text-xs font-bold text-gray-700 uppercase">Front View</span>
                 {images.front ? (
                   <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
                     <img src={images.front} alt="Front preview" className="w-full h-full object-contain" />
-                    <button type="button" onClick={() => removeImage("front")} className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer">✕</button>
+                    <button
+                      type="button"
+                      onClick={() => removeImage("front")}
+                      className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => { setActiveCaptureType("front"); fileInputRef.current?.click(); }} className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveCaptureType("front");
+                      fileInputRef.current?.click();
+                    }}
+                    className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50"
+                  >
                     <span className="text-lg opacity-40">📸</span>
                     <span className="text-[10px] text-gray-400 font-semibold px-1">Add Front</span>
                   </button>
@@ -353,32 +400,56 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
               {isFemale ? (
                 <>
-                  {/* Slot 2: Side View (Female only) */}
                   <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between">
                     <span className="text-xs font-bold text-gray-700 uppercase">Side (Ponytail)</span>
                     {images.side ? (
                       <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
                         <img src={images.side} alt="Side preview" className="w-full h-full object-contain" />
-                        <button type="button" onClick={() => removeImage("side")} className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer">✕</button>
+                        <button
+                          type="button"
+                          onClick={() => removeImage("side")}
+                          className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer"
+                        >
+                          ✕
+                        </button>
                       </div>
                     ) : (
-                      <button type="button" onClick={() => { setActiveCaptureType("side"); fileInputRef.current?.click(); }} className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveCaptureType("side");
+                          fileInputRef.current?.click();
+                        }}
+                        className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50"
+                      >
                         <span className="text-lg opacity-40">📸</span>
                         <span className="text-[10px] text-gray-400 font-semibold px-1">Add Side</span>
                       </button>
                     )}
                   </div>
 
-                  {/* Slot 3: Back View (Female only - centered dynamically on a brand new row on mobile) */}
                   <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between col-span-2 sm:col-span-1 max-w-xs mx-auto sm:max-w-none w-full">
                     <span className="text-xs font-bold text-gray-700 uppercase">Back (Ponytail Aside)</span>
                     {images.back ? (
                       <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
                         <img src={images.back} alt="Back preview" className="w-full h-full object-contain" />
-                        <button type="button" onClick={() => removeImage("back")} className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer">✕</button>
+                        <button
+                          type="button"
+                          onClick={() => removeImage("back")}
+                          className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer"
+                        >
+                          ✕
+                        </button>
                       </div>
                     ) : (
-                      <button type="button" onClick={() => { setActiveCaptureType("back"); fileInputRef.current?.click(); }} className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveCaptureType("back");
+                          fileInputRef.current?.click();
+                        }}
+                        className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50"
+                      >
                         <span className="text-lg opacity-40">📸</span>
                         <span className="text-[10px] text-gray-400 font-semibold px-1">Add Back</span>
                       </button>
@@ -386,30 +457,49 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
                   </div>
                 </>
               ) : (
-                /* Slot 2: Top View (Male only) */
                 <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between">
                   <span className="text-xs font-bold text-gray-700 uppercase">Top View</span>
                   {images.top ? (
                     <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
                       <img src={images.top} alt="Top preview" className="w-full h-full object-contain" />
-                      <button type="button" onClick={() => removeImage("top")} className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer">✕</button>
+                      <button
+                        type="button"
+                        onClick={() => removeImage("top")}
+                        className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer"
+                      >
+                        ✕
+                      </button>
                     </div>
                   ) : (
-                    <button type="button" onClick={() => { setActiveCaptureType("top"); fileInputRef.current?.click(); }} className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveCaptureType("top");
+                        fileInputRef.current?.click();
+                      }}
+                      className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50"
+                    >
                       <span className="text-lg opacity-40">📸</span>
                       <span className="text-[10px] text-gray-400 font-semibold px-1">Add Top</span>
                     </button>
                   )}
                 </div>
               )}
-
             </div>
 
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-            
-            {((isFemale && (!images.front || !images.side || !images.back)) || (!isFemale && (!images.front || !images.top))) && (
+
+            {((isFemale && (!images.front || !images.side || !images.back)) ||
+              (!isFemale && (!images.front || !images.top))) && (
               <div className="flex gap-4 justify-center mb-6">
-                <button type="button" onClick={() => { setActiveCaptureType(""); setUseCamera(true); }} className="h-12 px-5 bg-gray-800 text-white font-semibold rounded-full hover:bg-gray-900 transition-all text-sm shadow-sm cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCaptureType("");
+                    setUseCamera(true);
+                  }}
+                  className="h-12 px-5 bg-gray-800 text-white font-semibold rounded-full hover:bg-gray-900 transition-all text-sm shadow-sm cursor-pointer"
+                >
                   Use Live Camera Feed
                 </button>
               </div>
@@ -418,19 +508,22 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
         )}
 
         <div className="pt-4 border-t border-gray-100 flex items-center gap-4 w-full">
-          <button type="button" onClick={handleBackNavigation} className="flex-1 h-14 border border-gray-200 text-gray-600 rounded-full font-semibold hover:bg-gray-50 transition-colors text-base cursor-pointer">
+          <button
+            type="button"
+            onClick={handleBackNavigation}
+            className="flex-1 h-14 border border-gray-200 text-gray-600 rounded-full font-semibold hover:bg-gray-50 transition-colors text-base cursor-pointer"
+          >
             Back
           </button>
-          <button 
-            type="button" 
-            disabled={isFemale ? (!images.front || !images.side || !images.back) : (!images.front || !images.top)}
-            onClick={handleTriggerAnalysis} 
+          <button
+            type="button"
+            disabled={isFemale ? !images.front || !images.side || !images.back : !images.front || !images.top}
+            onClick={handleTriggerAnalysis}
             className="flex-[2] h-14 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-base disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             Proceed to AI Analysis
           </button>
         </div>
-
       </div>
     </div>
   );

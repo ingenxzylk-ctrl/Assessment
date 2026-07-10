@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { HAIR_HEALTH_MIX_ID } from "../data/products";
+import { getWooProductId } from "../config/bundles";
 
 const CartContext = createContext();
 
@@ -19,19 +19,10 @@ export function CartProvider({ children }) {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
         return prev.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [
-        ...prev,
-        {
-          ...product,
-          quantity: 1,
-          includeHealthMix: product.includeHealthMix ?? true,
-        },
-      ];
+      return [...prev, { ...product, quantity: 1 }];
     });
     setIsCartOpen(true);
   };
@@ -52,20 +43,24 @@ export function CartProvider({ children }) {
     );
   };
 
+  /** Toggle Health Mix → changes price AND WordPress product ID */
   const toggleHealthMix = (productId) => {
     setCartItems((prev) =>
       prev.map((item) => {
         if (item.id !== productId) return item;
 
         const includeHealthMix = !item.includeHealthMix;
-        const newPrice = includeHealthMix
-          ? item.priceWithMix ?? item.price
-          : item.priceWithoutMix ?? item.price;
+        const newPrice = includeHealthMix ? item.priceWithMix : item.priceWithoutMix;
+        const newWooId = getWooProductId(item.bundleNumber, includeHealthMix);
 
         return {
           ...item,
           includeHealthMix,
           price: newPrice,
+          wooProductId: newWooId,
+          subtitle: includeHealthMix
+            ? `Bundle ${item.bundleNumber} • With Health Mix`
+            : `Bundle ${item.bundleNumber} • Without Health Mix`,
         };
       })
     );
@@ -73,10 +68,7 @@ export function CartProvider({ children }) {
 
   const clearCart = () => setCartItems([]);
 
-  const cartTotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -92,7 +84,6 @@ export function CartProvider({ children }) {
         clearCart,
         cartTotal,
         cartCount,
-        HAIR_HEALTH_MIX_ID,
       }}
     >
       {children}

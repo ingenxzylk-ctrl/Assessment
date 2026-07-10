@@ -14,17 +14,29 @@ export function fileToBase64(file) {
 }
 
 export async function analyzeScalp({ gender, selfReportedStage, images }) {
-  const res = await fetch(`${API_URL}/analyze`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      gender,
-      selfReportedStage: String(selfReportedStage),
-      images,
-    }),
-  });
+  let res;
+  try {
+    res = await fetch(`${API_URL}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gender,
+        selfReportedStage: String(selfReportedStage),
+        images,
+      }),
+    });
+  } catch {
+    throw new Error(
+      "Cannot reach backend server. Make sure backend is running: cd backend && npm run dev"
+    );
+  }
 
-  const data = await res.json();
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error("Backend returned an invalid response. Check backend terminal for errors.");
+  }
 
   if (res.status === 422 && data.imageRejected) {
     const err = new Error(data.error || "Invalid scalp image.");
@@ -38,7 +50,6 @@ export async function analyzeScalp({ gender, selfReportedStage, images }) {
 
   return data;
 }
-
 export async function generateResult({ aboutMe, hairHealth, internalHealth, scalpAnalysis }) {
   const res = await fetch(`${API_URL}/result`, {
     method: "POST",

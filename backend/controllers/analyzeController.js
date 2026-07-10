@@ -1,7 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
-const GEMINI_RETRIES = Number(process.env.GEMINI_RETRIES) || 2;
+const MODEL_CANDIDATES = [
+  process.env.GEMINI_MODEL,
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+].filter(Boolean);
+
+const GEMINI_RETRIES = Number(process.env.GEMINI_RETRIES) || 1;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -9,6 +15,25 @@ const isRetryable = (err) => {
   const code = err?.status || err?.code;
   const msg = String(err?.message || "");
   return code === 429 || code === 503 || msg.includes("timed out") || msg.includes("ECONNRESET");
+};
+
+const formatGeminiError = (error) => {
+  const msg = String(error?.message || error || "");
+
+  if (msg.includes("API key not valid") || msg.includes("API_KEY_INVALID")) {
+    return "Invalid GEMINI_API_KEY. Get a new key from https://aistudio.google.com/apikey and add it to backend/.env";
+  }
+  if (msg.includes("fetch failed") || msg.includes("ECONNREFUSED") || msg.includes("ENOTFOUND")) {
+    return "Backend cannot reach Google Gemini API. Check your internet connection and restart the backend server.";
+  }
+  if (msg.includes("not found") || msg.includes("NOT_FOUND") || msg.includes("is not supported")) {
+    return "Gemini model not available. Set GEMINI_MODEL=gemini-2.5-flash in backend/.env and restart.";
+  }
+  if (msg.includes("quota") || msg.includes("429")) {
+    return "Gemini API quota exceeded. Wait a few minutes or check billing at Google AI Studio.";
+  }
+
+  return msg || "Diagnostics failed.";
 };
 
 const toInlineImagePart = (input) => {
@@ -37,13 +62,14 @@ const toInlineImagePart = (input) => {
   return { inlineData: { mimeType: match[1], data: match[2].trim() } };
 };
 
-const callGemini = async (ai, payload, retries = GEMINI_RETRIES) => {
+const callGemini = async (ai, model, payload, retries = GEMINI_RETRIES) => {
   let lastError;
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      return await ai.models.generateContent(payload);
+      return await ai.models.generateContent({ ...payload, model });
     } catch (err) {
       lastError = err;
+      console.error(`Gemini call failed (model=${model}, attempt=${attempt + 1}):`, err?.message || err);
       if (!isRetryable(err) || attempt === retries - 1) throw err;
       await delay(2000 * (attempt + 1));
     }
@@ -51,60 +77,43 @@ const callGemini = async (ai, payload, retries = GEMINI_RETRIES) => {
   throw lastError;
 };
 
-/** Only rejects animals/objects — NOT ponytail angles */
-const validateHumanPhotos = async (ai, labeledImages) => {
-  const parts = [
-    {
-      text: `Check if ALL images show a real human person's head, face, or hair.
-
-ALWAYS ACCEPT:
-- Ponytail side profile photos
-- Ponytail swept over shoulder
-- Any human hair/scalp photo at any angle
-
-ONLY REJECT if clearly an animal, cartoon, meme, or object with NO human head.
-
-Do NOT reject because crown or part-line is not visible.
-
-Return ONLY JSON: {"valid": true} or {"valid": false, "reason": "..."}`,
-    },
-  ];
-
-  for (const img of labeledImages) {
-    const part = toInlineImagePart(img.dataUrl || img);
-    if (part) {
-      parts.push({ text: `[Slot: ${img.type}]` });
-      parts.push(part);
+const callGeminiWithFallback = async (ai, payload) => {
+  let lastError;
+  for (const model of MODEL_CANDIDATES) {
+    try {
+      console.log(`Trying Gemini model: ${model}`);
+      const response = await callGemini(ai, model, payload);
+      return { response, model };
+    } catch (err) {
+      lastError = err;
     }
   }
-
-  const response = await callGemini(ai, {
-    model: GEMINI_MODEL,
-    contents: [{ role: "user", parts }],
-    config: { temperature: 0, responseMimeType: "application/json" },
-  });
-
-  try {
-    const parsed = JSON.parse(response?.text?.trim() || "{}");
-    return { valid: parsed.valid !== false, reason: parsed.reason || "" };
-  } catch {
-    return { valid: true };
-  }
+  throw lastError;
 };
+
+const IMAGE_VALIDATION_RULES = `
+PHOTO VALIDATION (check first):
+- ACCEPT: real human head/hair, ponytail side profiles, ponytail over shoulder
+- REJECT ONLY: animals, cartoons, memes, random objects
+
+If rejecting: {"valid": false, "imageRejected": true, "error": "reason", "aiPredictedStage": null}
+If valid: set "valid": true and complete full analysis.
+`;
 
 const buildAnalysisPrompt = (gender, selfReportedStage) => {
   if (gender === "female") {
-    return `You are a trichologist analyzing female hair loss (Ludwig scale).
+    return `You are a professional trichologist analyzing female pattern hair loss (Ludwig scale).
 
-3 photos provided:
-1. FRONT — hairline
-2. SIDE — ponytail side profile (VALID format)
-3. BACK — ponytail swept aside OR angled to show crown/part-line (ponytail side angles are VALID)
+${IMAGE_VALIDATION_RULES}
 
-Self-reported: ${selfReportedStage || "unknown"}
+3 photos: FRONT, SIDE (ponytail profile), BACK (ponytail aside).
+Self-reported (reference only): ${selfReportedStage || "unknown"}
 
 Return ONLY JSON:
 {
+  "valid": true,
+  "imageRejected": false,
+  "error": "",
   "finalStage": "string",
   "stageDescription": "string",
   "aiPredictedStage": "1|2|3|overall-thinning|patchy-bald",
@@ -114,11 +123,18 @@ Return ONLY JSON:
 }`;
   }
 
-  return `You are a trichologist analyzing male hair loss (Norwood scale).
-Self-reported: ${selfReportedStage || "unknown"}
+  return `You are a professional trichologist analyzing male pattern hair loss (Norwood scale).
+
+${IMAGE_VALIDATION_RULES}
+
+Photos: front hairline + top/crown.
+Self-reported (reference only): ${selfReportedStage || "unknown"}
 
 Return ONLY JSON:
 {
+  "valid": true,
+  "imageRejected": false,
+  "error": "",
   "finalStage": "string",
   "stageDescription": "string",
   "aiPredictedStage": "1|2|3|4|5|6|7|overall-thinning",
@@ -128,65 +144,55 @@ Return ONLY JSON:
 }`;
 };
 
-const RESPONSE_SCHEMA = {
-  type: "object",
-  properties: {
-    finalStage: { type: "string" },
-    stageDescription: { type: "string" },
-    aiPredictedStage: { type: "string" },
-    aiConfidence: { type: "number" },
-    aiReasoning: { type: "string" },
-    requiresDoctorConsultation: { type: "boolean" },
-  },
-  required: ["aiPredictedStage", "aiConfidence", "aiReasoning"],
-};
-
 const normalizeFemaleStage = (stage, selfReported) => {
   const valid = ["1", "2", "3", "overall-thinning", "patchy-bald"];
   const s = String(stage || "").toLowerCase().trim();
   if (valid.includes(s)) return s;
-  if (["i", "stage 1", "stage1"].includes(s)) return "1";
-  if (["ii", "stage 2", "stage2"].includes(s)) return "2";
-  if (["iii", "stage 3", "stage3"].includes(s)) return "3";
+  if (["i", "stage 1", "stage1", "ludwig 1"].includes(s)) return "1";
+  if (["ii", "stage 2", "stage2", "ludwig 2"].includes(s)) return "2";
+  if (["iii", "stage 3", "stage3", "ludwig 3"].includes(s)) return "3";
   if (s.includes("overall") || s.includes("diffuse")) return "overall-thinning";
   if (s.includes("patchy") || s.includes("alopecia")) return "patchy-bald";
   return selfReported || "1";
 };
 
+const parseLabeledImages = (images) => {
+  if (!Array.isArray(images) || images.length === 0) return [];
+
+  return images.map((img, index) => ({
+    type: img.type || img.label || `image_${index + 1}`,
+    label: img.label || img.type || `image_${index + 1}`,
+    dataUrl: img.dataUrl || img.previewUrl || img,
+  }));
+};
+
 export const analyzeScalp = async (req, res) => {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "GEMINI_API_KEY is missing in backend .env" });
+    if (!apiKey || apiKey.includes("your_key")) {
+      return res.status(500).json({
+        error: "GEMINI_API_KEY is missing or still a placeholder. Add your real key to backend/.env and restart.",
+      });
     }
 
     const ai = new GoogleGenAI({ apiKey });
     const { gender, selfReportedStage, images } = req.body;
     const userGender = String(gender || "male").toLowerCase();
 
-    const labeledImages = (images || []).map((img, i) => ({
-      type: img.type || img.label || `image_${i + 1}`,
-      label: img.label || img.type || `image_${i + 1}`,
-      dataUrl: img.dataUrl || img.previewUrl || img,
-    }));
+    const labeledImages = parseLabeledImages(images);
 
     if (labeledImages.length === 0) {
       return res.status(400).json({ error: "Valid scalp image(s) are required." });
     }
 
     if (userGender === "female" && labeledImages.length < 3) {
-      return res.status(400).json({ error: "Female assessment requires 3 images." });
-    }
-
-    const humanCheck = await validateHumanPhotos(ai, labeledImages);
-    if (!humanCheck.valid) {
-      return res.status(422).json({
-        error: humanCheck.reason || "Please upload photos of your own hair/scalp.",
-        imageRejected: true,
+      return res.status(400).json({
+        error: "Female assessment requires 3 images: front, side (ponytail), and back.",
       });
     }
 
     const analysisParts = [{ text: buildAnalysisPrompt(userGender, selfReportedStage) }];
+
     for (const img of labeledImages) {
       const part = toInlineImagePart(img.dataUrl);
       if (part) {
@@ -195,27 +201,49 @@ export const analyzeScalp = async (req, res) => {
       }
     }
 
-    const response = await callGemini(ai, {
-      model: GEMINI_MODEL,
+    if (analysisParts.length < 2) {
+      return res.status(400).json({ error: "Could not read image data. Please re-upload your photos." });
+    }
+
+    console.log(`Analyzing ${labeledImages.length} image(s)...`);
+    const startTime = Date.now();
+
+    const { response, model } = await callGeminiWithFallback(ai, {
       contents: [{ role: "user", parts: analysisParts }],
       config: {
         temperature: 0.2,
         responseMimeType: "application/json",
-        responseJsonSchema: RESPONSE_SCHEMA,
       },
     });
 
-    const responseText = response?.text?.trim();
-    if (!responseText) throw new Error("Gemini returned an empty response.");
+    console.log(`Gemini (${model}) responded in ${Date.now() - startTime}ms`);
 
-    const parsed = JSON.parse(responseText);
+    const responseText = response?.text?.trim();
+    if (!responseText) {
+      throw new Error("Gemini returned an empty response.");
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(responseText);
+    } catch {
+      throw new Error("Gemini returned invalid JSON. Please try again.");
+    }
+
+    if (parsed.valid === false || parsed.imageRejected === true) {
+      return res.status(422).json({
+        error: parsed.error || "Please upload photos of your own scalp/hair.",
+        imageRejected: true,
+      });
+    }
+
     let aiPredictedStage = parsed.aiPredictedStage || parsed.finalStage || null;
 
     if (userGender === "female") {
       aiPredictedStage = normalizeFemaleStage(aiPredictedStage, selfReportedStage);
     }
 
-    return res.status(200).json({
+    const result = {
       finalStage: parsed.finalStage || aiPredictedStage,
       stageDescription: parsed.stageDescription || "",
       aiPredictedStage,
@@ -225,12 +253,18 @@ export const analyzeScalp = async (req, res) => {
       selfReportedStage: selfReportedStage || null,
       gender: userGender,
       analysisComplete: true,
-      model: GEMINI_MODEL,
-    });
+      model,
+    };
+
+    if (!result.aiPredictedStage) {
+      throw new Error("AI response missing aiPredictedStage.");
+    }
+
+    return res.status(200).json(result);
   } catch (error) {
     console.error("analyzeScalp error:", error);
     return res.status(500).json({
-      error: error?.message || "Diagnostics failed.",
+      error: formatGeminiError(error),
       aiPredictedStage: null,
       analysisComplete: false,
     });

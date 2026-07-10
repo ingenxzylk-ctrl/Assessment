@@ -1,12 +1,19 @@
-import React from "react";
+import { useCart } from "../context/CartContext";
+import { getTestBundle } from "../config/bundles";
 
 export default function Home({ onStart }) {
+  const { addToCart } = useCart();
+
+  const handleAddTestBundle = () => {
+    addToCart(getTestBundle());
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-20 animate-[fadeIn_0.4s_ease-out]">
-      
+
       {/* 1. Hero Content & How It Works Split Grid Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center mt-6 lg:mt-12">
-        
+
         {/* Left Side: Dynamic Hero Text Block */}
         <div className="lg:col-span-7 space-y-6 text-left">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100/60 border border-emerald-200/50 rounded-full">
@@ -23,7 +30,6 @@ export default function Home({ onStart }) {
 
           <p className="text-gray-600 text-base sm:text-lg max-w-xl leading-relaxed font-medium">
             Take our FREE AI scalp analysis to uncover why you have hair-loss and get the exact routine to fix it.
-
           </p>
 
           {/* Action Trigger Row */}
@@ -61,9 +67,8 @@ export default function Home({ onStart }) {
             <p className="text-xs font-bold uppercase tracking-widest text-emerald-800/80 mb-5 text-left">
               HOW IT WORKS
             </p>
-            
+
             <div className="space-y-3.5 text-left">
-              {/* Step 1 */}
               <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 hover:border-emerald-900/10 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-lg shadow-sm">👤</div>
                 <div>
@@ -71,7 +76,6 @@ export default function Home({ onStart }) {
                   <p className="text-xs text-gray-400 mt-0.5">Share a bit about your hair history and goals.</p>
                 </div>
               </div>
-              {/* Step 2 */}
               <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 hover:border-emerald-900/10 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-lg shadow-sm">💇</div>
                 <div>
@@ -79,7 +83,6 @@ export default function Home({ onStart }) {
                   <p className="text-xs text-gray-400 mt-0.5">Snap and upload a quick picture of your scalp.</p>
                 </div>
               </div>
-              {/* Step 3 */}
               <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 hover:border-emerald-900/10 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-lg shadow-sm">🩺</div>
                 <div>
@@ -87,7 +90,6 @@ export default function Home({ onStart }) {
                   <p className="text-xs text-gray-400 mt-0.5">Our advanced tech instantly pinpoints your root causes.</p>
                 </div>
               </div>
-              {/* Step 4 */}
               <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 hover:border-emerald-900/10 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-lg shadow-sm">📸</div>
                 <div>
@@ -104,8 +106,7 @@ export default function Home({ onStart }) {
       {/* 2. Secondary Strategy Pillars Grid Section */}
       <div className="mt-24 pt-12 border-t border-gray-200/60">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Card 1 */}
+
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] text-left space-y-4">
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#064e3b] flex items-center justify-center text-lg font-bold">🧪</div>
             <h3 className="font-bold text-lg text-gray-900">AI Scalp Analysis</h3>
@@ -114,7 +115,6 @@ export default function Home({ onStart }) {
             </p>
           </div>
 
-          {/* Card 2 */}
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] text-left space-y-4">
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#064e3b] flex items-center justify-center text-lg font-bold">✦</div>
             <h3 className="font-bold text-lg text-gray-900">Root Cause Mapping</h3>
@@ -123,7 +123,6 @@ export default function Home({ onStart }) {
             </p>
           </div>
 
-          {/* Card 3 */}
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] text-left space-y-4">
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#064e3b] flex items-center justify-center text-lg font-bold">❤️</div>
             <h3 className="font-bold text-lg text-gray-900">Hope-Forward Results</h3>
@@ -144,6 +143,21 @@ export default function Home({ onStart }) {
           className="h-14 px-10 bg-[#064e3b] text-white font-semibold rounded-2xl hover:bg-[#043427] transition-all transform hover:scale-[1.01] shadow-md text-base cursor-pointer inline-flex items-center justify-center"
         >
           Begin Your Assessment
+        </button>
+      </div>
+
+      {/* 4. ₹1 Test Bundle */}
+      <div className="mt-12 p-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50/50 text-left max-w-md mx-auto">
+        <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2">Testing</p>
+        <p className="text-xs text-amber-700 mb-3">
+          Add a ₹1 bundle to cart and test WordPress checkout.
+        </p>
+        <button
+          type="button"
+          onClick={handleAddTestBundle}
+          className="w-full h-11 bg-amber-600 text-white text-sm font-bold rounded-xl hover:bg-amber-700 transition-colors cursor-pointer"
+        >
+          🛒 Add ₹1 Test Bundle to Cart
         </button>
       </div>
 
