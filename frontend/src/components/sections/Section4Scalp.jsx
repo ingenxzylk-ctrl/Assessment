@@ -178,7 +178,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     try {
       const { analyzeScalp } = await import("../../api/quizApi");
 
-      const rawPayloads = isFemale
+           const rawPayloads = isFemale
         ? [
             { type: "front", label: "front", dataUrl: images.front },
             { type: "side", label: "side", dataUrl: images.side },
@@ -189,11 +189,10 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             { type: "top", label: "top", dataUrl: images.top },
           ];
 
-      setAnalysisStatus("Compressing photos for faster upload...");
       const imagePayloads = await Promise.all(
         rawPayloads.map(async (img) => ({
           ...img,
-          dataUrl: await compressImage(img.dataUrl, 800, 0.75),
+          dataUrl: await compressImage(img.dataUrl, 1280, 0.88),
         }))
       );
 
