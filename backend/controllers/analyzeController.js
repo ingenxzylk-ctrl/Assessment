@@ -251,7 +251,9 @@ CONSISTENCY RULES (mandatory):
 - midscalpBridge=absent OR (visibleScalp=extensive AND frontalHairline=receding_severe) → "6" or "7"
 - crownThinning=severe AND temples moderate/severe AND bridge thinning → at least "5"
 - temples mild + crown none + bridge full/not_visible → "1" or "2"
-- Never output "4"/"5" if crownThinning is none and visibleScalp is minimal
+- Never output "4"/"5" if crownThinning is none/mild and visibleScalp is minimal
+- crownThinning=mild with full bridge is NOT stage 4 — treat mild crown as noise
+- Front hairline recession alone (no crown bald patch) = stage 2 or 3 ONLY
 
 STAGE 7: horseshoe only / top fully bald → "7"
 
@@ -311,6 +313,15 @@ const hasCompleteFemaleObservations = (observations = {}) => {
   return hasFront && hasBackOrSide;
 };
 
+const hasClearCrownLoss = (observations = {}) => {
+  const top = observations.topView || {};
+  const bridge = String(observations.midscalpBridge || "not_visible").toLowerCase();
+  const scalp = String(top.visibleScalp || "minimal").toLowerCase();
+  const crown = level(top.crownThinning);
+  // Mild crown alone is noise — need real thinning / visible scalp / bridge change
+  return crown >= 2 || scalp === "partial" || scalp === "extensive" || bridge === "thinning" || bridge === "absent";
+};
+
 const hasStrongAdvancedEvidence = (observations = {}) => {
   const front = observations.frontView || {};
   const top = observations.topView || {};
@@ -326,16 +337,25 @@ const hasStrongAdvancedEvidence = (observations = {}) => {
   return false;
 };
 
+/** Full/near-full crown + intact bridge = early Norwood (1–3), regardless of temple labels */
 const hasEarlyStageEvidence = (observations = {}) => {
-  const front = observations.frontView || {};
   const top = observations.topView || {};
   const bridge = String(observations.midscalpBridge || "not_visible").toLowerCase();
   const scalp = String(top.visibleScalp || "minimal").toLowerCase();
-  const temples = maxTempleRecession(front);
   const crown = level(top.crownThinning);
+  return crown <= 1 && scalp === "minimal" && bridge !== "absent" && bridge !== "thinning";
+};
 
-  // Crown still full and bridge intact → early pattern (1–3)
-  return crown <= 1 && scalp !== "extensive" && bridge !== "absent" && temples <= 2;
+/** Map temples-only when crown is still full — never returns 4+ */
+const stageFromTemplesOnly = (observations = {}) => {
+  const front = observations.frontView || {};
+  const hairline = String(front.frontalHairline || "").toLowerCase();
+  const temples = maxTempleRecession(front);
+
+  if (temples >= 2 || hairline.includes("moderate") || hairline.includes("severe")) return "3";
+  if (temples === 1 || hairline.includes("mild") || hairline.includes("receding")) return "2";
+  if (temples === 0 && (hairline.includes("intact") || !hairline)) return "1";
+  return "2";
 };
 
 const computeMaleNorwoodFromObservations = (observations = {}) => {
@@ -351,6 +371,12 @@ const computeMaleNorwoodFromObservations = (observations = {}) => {
   const scalp = String(top.visibleScalp || "minimal").toLowerCase();
   const severeHairline = hairline.includes("severe");
 
+  // HARD RULE: no clear crown/bridge loss → stage 1–3 from temples only
+  // Fixes stage-2 hairlines wrongly labeled 4/5 because crown was marked "mild"
+  if (!hasClearCrownLoss(observations)) {
+    return stageFromTemplesOnly(observations);
+  }
+
   // Stage 7: near-total top loss
   if (
     (bridge === "absent" && scalp === "extensive" && temples >= 3 && crown >= 3) ||
@@ -359,7 +385,7 @@ const computeMaleNorwoodFromObservations = (observations = {}) => {
     return "7";
   }
 
-  // Stage 6: needs clear bridge loss / extensive top — not hairline alone
+  // Stage 6
   if (
     bridge === "absent" ||
     (scalp === "extensive" && crown >= 2 && (severeHairline || temples >= 3))
@@ -367,7 +393,7 @@ const computeMaleNorwoodFromObservations = (observations = {}) => {
     return "6";
   }
 
-  // Stage 5: BOTH significant front AND crown loss with thinning bridge
+  // Stage 5: BOTH significant front AND crown loss
   if (
     temples >= 3 && crown >= 2 && (bridge === "thinning" || scalp === "partial" || scalp === "extensive")
   ) {
@@ -375,20 +401,15 @@ const computeMaleNorwoodFromObservations = (observations = {}) => {
   }
   if (temples >= 2 && crown >= 3 && bridge === "thinning") return "5";
 
-  // Stage 4: temples + real crown thinning (not crown alone from noise)
+  // Stage 4: needs REAL crown thinning (moderate+), not mild noise
   if (temples >= 2 && crown >= 2) return "4";
-  if (temples >= 2 && crown === 1 && (scalp === "partial" || bridge === "thinning")) return "4";
+  if (temples >= 2 && crown >= 2 && scalp === "partial") return "4";
 
-  // Early stages — crown still full
-  if (crown === 0 && scalp === "minimal" && bridge !== "absent" && bridge !== "thinning") {
-    if (temples >= 2 || hairline.includes("moderate") || severeHairline) return "3";
-    if (temples === 1 || hairline.includes("mild") || hairline.includes("receding")) return "2";
-    return "1";
-  }
+  // Crown mild + temples → still early
+  if (crown <= 1) return stageFromTemplesOnly(observations);
 
   if (temples >= 2 && crown === 0) return "3";
-  if (temples <= 1 && crown === 0) return temples === 0 && !hairline.includes("receding") ? "1" : "2";
-  if (crown >= 1 && temples >= 1) return "4";
+  if (temples <= 1 && crown === 0) return stageFromTemplesOnly(observations);
 
   return "3";
 };
@@ -474,12 +495,36 @@ const reconcileStage = (
       : hasCompleteMaleObservations(observations);
 
   if (!ai) return rule || self;
+
+  // HARD CAP: no clear crown/bridge loss → temples-only stage (1–3).
+  // Runs even when AI and rule agree on an inflated stage 4/5.
+  if (gender === "male" && !hasClearCrownLoss(observations) && !hasStrongAdvancedEvidence(observations)) {
+    const templeStage = stageFromTemplesOnly(observations);
+    const templeNum = parseInt(templeStage, 10);
+    const selfNumEarly = parseInt(self, 10);
+    const aiNumEarly = parseInt(ai, 10);
+
+    // Prefer temple mapping; if self-report is also early and within 1, keep temple stage
+    if (!Number.isNaN(selfNumEarly) && selfNumEarly <= 3) {
+      if (Math.abs(templeNum - selfNumEarly) <= 1) return templeStage;
+      // Self said 3, temples say 2 → trust temples (photo) for mild recession
+      if (templeNum <= selfNumEarly) return templeStage;
+      return String(Math.min(3, selfNumEarly + 1));
+    }
+
+    // If AI is early too, pick the more conservative of AI vs temples
+    if (!Number.isNaN(aiNumEarly) && aiNumEarly <= 3) {
+      return String(Math.min(templeNum, aiNumEarly));
+    }
+
+    return templeStage;
+  }
+
   if (!rule || !obsComplete) {
-    // Soft-anchor: if AI jumps 3+ stages above self-report without complete obs, temper it
     if (self && gender === "male") {
       const aiNum = parseInt(ai, 10);
       const selfNum = parseInt(self, 10);
-      if (!Number.isNaN(aiNum) && !Number.isNaN(selfNum) && aiNum - selfNum >= 3 && aiNum >= 4) {
+      if (!Number.isNaN(aiNum) && !Number.isNaN(selfNum) && aiNum - selfNum >= 2 && aiNum >= 4) {
         return String(Math.min(aiNum, selfNum + 1));
       }
     }
@@ -512,18 +557,20 @@ const reconcileStage = (
     // True advanced loss with strong visual evidence
     if (strongAdvanced && higher >= 5) return String(higher);
 
-    // Early-stage photos (full/near-full crown, intact bridge):
-    // never allow 4/5/6/7 — this fixes stage-2 hairlines labeled as stage 5
+    // Early-stage photos (full crown): force temples-only, never 4+
     if (earlyEvidence && !strongAdvanced) {
+      const templeStage = stageFromTemplesOnly(observations);
+      const templeNum = parseInt(templeStage, 10);
       if (!Number.isNaN(selfNum) && selfNum <= 3) {
-        // Prefer self-report when it is early; clamp AI/rule noise
-        const photoHint = lower <= 3 ? lower : selfNum;
-        return String(Math.min(3, Math.max(1, Math.round((photoHint + selfNum) / 2))));
+        if (Math.abs(templeNum - selfNum) <= 1) return templeStage;
+        return templeNum <= selfNum ? templeStage : String(Math.min(3, selfNum));
       }
-      if (lower <= 3) return String(Math.max(1, lower));
-      if (ruleNum <= 3) return rule;
-      if (aiNum <= 3) return ai;
-      return "2";
+      return templeStage;
+    }
+
+    // Cap stage 4 claims without clear crown loss
+    if (higher >= 4 && !hasClearCrownLoss(observations) && !strongAdvanced) {
+      return stageFromTemplesOnly(observations);
     }
 
     // One source says 5+ but the other says early (1–3) without strong advanced evidence
