@@ -4,6 +4,7 @@ import { useCart } from "../context/CartContext";
 import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
+import { formatBundleProduct, DEFAULT_PRODUCT_IMAGE } from "../utils/productImages";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import AssessmentPDFTemplate from "./sections/AssessmentPDFTemplate"; 
 
@@ -57,14 +58,24 @@ export default function Result() {
   // 🟢 FIX: single lookup per image type instead of searching the array twice.
   // Previously this ran .find() twice for the same type, which was redundant
   // (and confusing to read) even though it happened not to crash.
-  const findScalpImage = (type) => state?.scalpImages?.find(img => img.type === type);
+  const extractImageUrl = (img) => {
+    if (!img) return null;
+    if (typeof img === "string") return img;
+    return img.dataUrl || img.previewUrl || img.url || null;
+  };
+
+  const findScalpImage = (type) => state?.scalpImages?.find((img) => img.type === type);
   const realFrontImage = findScalpImage("front");
   const realSideImage = findScalpImage("side");
   const realTopImage = findScalpImage("top");
+  const realBackImage = findScalpImage("back");
 
-  const displayUserPhoto = (typeof realFrontImage === 'string' ? realFrontImage : realFrontImage?.dataUrl) || 
-                            (typeof realSideImage === 'string' ? realSideImage : realSideImage?.dataUrl) || 
-                            (typeof realTopImage === 'string' ? realTopImage : realTopImage?.dataUrl);
+  const displayUserPhoto =
+    extractImageUrl(realFrontImage) ||
+    extractImageUrl(realTopImage) ||
+    extractImageUrl(realSideImage) ||
+    extractImageUrl(realBackImage) ||
+    extractImageUrl(state?.scalpImages?.[0]);
 
   // CLINICAL GUARDRAIL: Advanced stages directed to specialist practitioner routing
   const requiresDoctorConsultation = (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
@@ -134,25 +145,16 @@ export default function Result() {
         { tag: "scalp-related", label: "Scalp Shield Environment", description: hasDandruff ? "Surface microbial activity disrupting lipid barrier consistency." : "Standard external cellular balance status." }
       ];
 
-  const formatProductName = (name) => {
-    // 🟢 SAFE FILTER: Disallow and completely exclude Finasteride formulas for female users
-    if (isFemale && name.toLowerCase().includes("finasteride")) {
-      return null;
+  const handleProductImageError = (event) => {
+    const img = event.target;
+    if (!img.dataset.fallback) {
+      img.dataset.fallback = "1";
+      img.src = DEFAULT_PRODUCT_IMAGE;
+      return;
     }
-
-    let shortName = name;
-    if (name.toLowerCase().includes("minoxidil")) {
-      shortName = isFemale ? "Targeted Growth Serum (Female Formula)" : "Minoxidil + Finasteride Serum";
-    } else if (name.toLowerCase().includes("derma")) {
-      shortName = "Scalp Derma Roller (0.5mm)";
-    } else if (name.toLowerCase().includes("shampoo")) {
-      shortName = "Anti-Dandruff Cleanser";
-    }
-    
-    return { 
-      shortName, 
-      imgUrl: "/products/placeholder.png" 
-    };
+    img.onerror = null;
+    img.src =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23064e3b'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'/></svg>";
   };
 
   const handleBackNavigation = () => {
@@ -220,7 +222,7 @@ export default function Result() {
                 <img 
                   src={displayUserPhoto || AVATAR_FALLBACK_SVG} 
                   alt="Real user scalp photograph diagnostics visual representation" 
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-center"
                   onError={(e) => {
                     // 🟢 FIX: previously fell back to /stages/female_stage1.png
                     // (or /stages/Stage1.png), but female_stage1.png doesn't
@@ -394,8 +396,8 @@ export default function Result() {
                   the whole Result page. Now fully optional-chained with a safe
                   empty-array fallback. */}
               {(recommendedBundle?.items ?? [])
-                .map((prod) => formatProductName(prod.name))
-                .filter((productDetails) => productDetails !== null) // 🟢 Strict Array Removal filter for non-null entities
+                .map((prod) => formatBundleProduct(prod, isFemale))
+                .filter((productDetails) => productDetails !== null)
                 .map((productDetails, index) => (
                   <div 
                     key={index} 
@@ -406,10 +408,8 @@ export default function Result() {
                         <img 
                           src={productDetails.imgUrl} 
                           alt={productDetails.shortName}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={(e) => {
-                            e.target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23064e3b'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'/></svg>";
-                          }}
+                          className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                          onError={handleProductImageError}
                         />
                       </div>
 
