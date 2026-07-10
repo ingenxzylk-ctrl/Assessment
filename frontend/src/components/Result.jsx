@@ -3,6 +3,7 @@ import { useQuiz } from "../context/QuizContext";
 import { useCart } from "../context/CartContext";
 import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
+import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import AssessmentPDFTemplate from "./sections/AssessmentPDFTemplate"; 
 
@@ -113,15 +114,15 @@ export default function Result() {
   const confidencePercent = rawAnalysis.aiConfidence ? Math.round(rawAnalysis.aiConfidence * 100) : 94;
   const aiReasoning = rawAnalysis.aiReasoning || `Visual tracking mapping isolated root thinning areas consistent with a distinct signature layout configuration.`;
 
-  const timelineMap = {
-    "1": "1 - 2 Months",
-    "2": "3 - 4 Months",
-    "3": "6 Months",
-    "4": "8 Months",
-    "5": "12 Months",
-    "overall-thinning": "4 - 6 Months",
-    "patchy-bald": "Clinical Care Plan"
-  };
+  const eligibilityTimeline = getEligibilityTimeline(state, aiPredictedStageNumber);
+  const resultsTimelineLabel = analysisMissing
+    ? "—"
+    : eligibilityTimeline.label;
+  const timelineHeading = eligibilityTimeline.needsTransplant
+    ? "Recommended Next Step"
+    : eligibilityTimeline.eligible === false
+      ? "Money-Back Program"
+      : "Start Seeing Results In";
 
   const contributingFactors = requiresDoctorConsultation
     ? [
@@ -196,8 +197,21 @@ export default function Result() {
                   You Are Currently On <span className="text-[#064e3b] font-bold">{getStageTitle()}</span>
                 </p>
                 <div className="pt-2 !text-left block">
-                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wide !text-left">Start Seeing Results In</span>
-                  <span className="text-2xl font-black text-gray-900 !text-left block">{timelineMap[aiPredictedStageNumber] || "6 Months"}</span>
+                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wide !text-left">{timelineHeading}</span>
+                  <span className={`text-2xl font-black !text-left block ${
+                    eligibilityTimeline.needsTransplant
+                      ? "text-amber-700"
+                      : eligibilityTimeline.eligible === false
+                        ? "text-gray-400"
+                        : "text-gray-900"
+                  }`}>
+                    {resultsTimelineLabel}
+                  </span>
+                  {!analysisMissing && (eligibilityTimeline.needsTransplant || eligibilityTimeline.eligible === false) && (
+                    <p className={`text-xs mt-1 !text-left ${eligibilityTimeline.needsTransplant ? "text-amber-800" : "text-gray-500"}`}>
+                      {eligibilityTimeline.reason}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -257,7 +271,11 @@ export default function Result() {
               Safe to delete once you've confirmed the pipeline is returning
               the right stage — this is dev-only visibility, not for production. */}
           <div className="p-3 rounded-xl bg-yellow-50 border border-yellow-200 text-[11px] text-yellow-800 font-mono !text-left w-full block">
-            🔧 DEBUG — gender: <b>{gender}</b> | self-reported: <b>{reportedStage}</b> | AI predicted stage: <b>{String(aiPredictedStageNumber)}</b> | requiresDoctorConsultation: <b>{String(requiresDoctorConsultation)}</b>
+            🔧 DEBUG — gender: <b>{gender}</b> | self-reported: <b>{reportedStage}</b> | AI stage: <b>{String(aiPredictedStageNumber)}</b>
+            {rawAnalysis.rawAiStage && rawAnalysis.rawAiStage !== aiPredictedStageNumber && (
+              <> | raw AI: <b>{rawAnalysis.rawAiStage}</b> | rule-based: <b>{rawAnalysis.ruleBasedStage}</b></>
+            )}
+            {rawAnalysis.stageAdjusted && <> | <b>adjusted for accuracy</b></>}
           </div>
 
           {/* Hope Prompt Status Banner Panel */}
