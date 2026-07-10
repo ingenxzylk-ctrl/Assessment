@@ -1,21 +1,54 @@
 /**
- * Maps bundle product id/name keywords → public image paths.
- * Add your real product photos under frontend/public/products/ with the same filenames.
+ * Maps bundle products → images in frontend/public/products/
+ * Your files: antidandruff-shampoo.jpg, dermaroller.jpg, detox-shampoo.jpg,
+ * health-mix.jpg, minoxidil-2.jpg, minoxidil-5.jpg, progro-oil.jpg,
+ * rosemary-mist.jpg, rosemary-oil.jpg, scalp-massager.jpg, tea-tree-conditioner.jpg
  */
+
+const PRODUCT_IMAGES_BY_ID = {
+  "prod-minox-male-rx": "/products/minoxidil-5.jpg",
+  "prod-minox-female-rx": "/products/minoxidil-2.jpg",
+  "prod-rosemary-concentrate": "/products/rosemary-oil.jpg",
+  "prod-derma": "/products/dermaroller.jpg",
+  "prod-shampoo": "/products/antidandruff-shampoo.jpg",
+  "prod-massager": "/products/scalp-massager.jpg",
+  "prod-oil-mct-dandruff": "/products/progro-oil.jpg",
+  "prod-oil-jojoba-clear": "/products/progro-oil.jpg",
+};
+
 const PRODUCT_IMAGE_MAP = [
-  { match: /shampoo|cleanser|anti-dandruff/i, img: "/products/anti-dandruff-cleanser.svg" },
-  { match: /derma|roller|microneedl/i, img: "/products/derma-roller.svg" },
-  { match: /massager|brush/i, img: "/products/scalp-massager.svg" },
-  { match: /conditioner|tea.?tree/i, img: "/products/tea-tree-conditioner.svg" },
-  { match: /health.?mix|supplement|vitality|capsule/i, img: "/products/hair-health-mix.svg" },
-  { match: /minoxidil|finasteride|serum|rosemary|growth|concentrate/i, img: "/products/growth-serum.svg" },
-  { match: /oil|progro|jojoba|mct/i, img: "/products/progro-oil.svg" },
+  { match: /supplement|vitality|health.?mix|capsule/i, img: "/products/health-mix.jpg" },
+  { match: /2%|female.*minoxidil|minox.*female/i, img: "/products/minoxidil-2.jpg" },
+  { match: /5%|finasteride|male.*minoxidil|minox.*male/i, img: "/products/minoxidil-5.jpg" },
+  { match: /minoxidil/i, img: "/products/minoxidil-5.jpg" },
+  { match: /rosemary.*mist|follicle.*mist/i, img: "/products/rosemary-mist.jpg" },
+  { match: /rosemary|concentrate/i, img: "/products/rosemary-oil.jpg" },
+  { match: /detox/i, img: "/products/detox-shampoo.jpg" },
+  { match: /anti.?dandruff|dandruff.*shampoo|shampoo|cleanser/i, img: "/products/antidandruff-shampoo.jpg" },
+  { match: /derma|roller|microneedl/i, img: "/products/dermaroller.jpg" },
+  { match: /massager|brush/i, img: "/products/scalp-massager.jpg" },
+  { match: /conditioner|tea.?tree/i, img: "/products/tea-tree-conditioner.jpg" },
+  { match: /progro|jojoba|mct|oil/i, img: "/products/progro-oil.jpg" },
 ];
 
-export const DEFAULT_PRODUCT_IMAGE = "/products/default-product.svg";
+export const DEFAULT_PRODUCT_IMAGE = "/products/health-mix.jpg";
 
-export function getProductImageUrl(product = {}) {
-  const haystack = `${product.id || ""} ${product.name || ""} ${product.subtitle || ""}`;
+export function getProductImageUrl(product = {}, isFemale = false) {
+  const id = product.id || "";
+
+  if (PRODUCT_IMAGES_BY_ID[id]) {
+    return PRODUCT_IMAGES_BY_ID[id];
+  }
+
+  if (id.startsWith("prod-supplements")) {
+    return "/products/health-mix.jpg";
+  }
+
+  const haystack = `${id} ${product.name || ""} ${product.subtitle || ""}`;
+
+  if (/minoxidil/i.test(haystack)) {
+    return isFemale ? "/products/minoxidil-2.jpg" : "/products/minoxidil-5.jpg";
+  }
 
   for (const entry of PRODUCT_IMAGE_MAP) {
     if (entry.match.test(haystack)) return entry.img;
@@ -30,7 +63,7 @@ export function shortenProductName(name = "", isFemale = false) {
   if (isFemale && lower.includes("finasteride")) return null;
 
   if (lower.includes("minoxidil")) {
-    return isFemale ? "Targeted Growth Serum (Female Formula)" : "Minoxidil + Finasteride Serum";
+    return isFemale ? "Minoxidil 2% Serum (Female)" : "Minoxidil 5% + Finasteride Serum";
   }
   if (lower.includes("rosemary")) return "Rosemary Growth Concentrate";
   if (lower.includes("derma") || lower.includes("roller")) return "Scalp Derma Roller (0.5mm)";
@@ -41,7 +74,6 @@ export function shortenProductName(name = "", isFemale = false) {
     return "Zylk Hair Health Mix";
   }
   if (lower.includes("oil") || lower.includes("progro")) return "Custom ProGro Oil";
-  if (lower.includes("hair health mix")) return "Zylk Hair Health Mix";
 
   return name;
 }
@@ -52,6 +84,6 @@ export function formatBundleProduct(product, isFemale = false) {
 
   return {
     shortName,
-    imgUrl: getProductImageUrl(product),
+    imgUrl: getProductImageUrl(product, isFemale),
   };
 }
