@@ -49,24 +49,22 @@ export const BUNDLE_CONFIG = {
   },
 };
 
-export const TEST_BUNDLE_NUMBER = 99;
-export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
 
+export const TEST_BUNDLE_NUMBER = 99;
+export const HAIR_HEALTH_MIX_ID = "hair-health-mix";
 export function getBundleDisplayName(bundleNumber, gender, stage) {
   const stageStr = String(stage ?? "");
-  if (bundleNumber === 1) return "Stage 2–5 Men Bundle";
-  if (bundleNumber === 2) return "Stage 2–5 Men Bundle (Dandruff)";
-  if (bundleNumber === 4) return "Stage 2–3 Female Bundle";
-  if (stageStr === "overall-thinning") return "Overall Thinning Bundle";
-  return gender === "female" ? "Stage 1 Female Bundle" : "Stage 1 Men Bundle";
+  if (bundleNumber === 1) return "Stage 2-5 Men Product";
+  if (bundleNumber === 2) return "Stage 2-5 Men Product (Dandruff)";
+  if (bundleNumber === 4) return "Stage 2-3 Female Product";
+  if (stageStr === "overall-thinning") return "Overall Thinning Product";
+  return gender === "female" ? "Stage 1 Female Product" : "Stage 1 Men Product";
 }
-
 export function getWooProductId(bundleNumber, includeHealthMix = true) {
   const config = BUNDLE_CONFIG[bundleNumber];
   if (!config) return null;
   return includeHealthMix ? config.wooProductId : config.wooProductIdNoMix;
 }
-
 export function getBundlePrices(bundleNumber) {
   const config = BUNDLE_CONFIG[bundleNumber];
   if (!config) return { priceWithMix: 0, priceWithoutMix: 0, originalPrice: 0 };
@@ -76,16 +74,13 @@ export function getBundlePrices(bundleNumber) {
     originalPrice: config.originalPrice,
   };
 }
-
 export function resolveBundleNumber(gender, stage, hasDandruff) {
   const stageStr = String(stage ?? "");
   const isMale = gender === "male";
   const isFemale = gender === "female";
-
   if (stageStr === "1" || stageStr === "overall-thinning") return 3;
   if (isFemale && ["2", "3"].includes(stageStr)) return 4;
   if (isMale && ["2", "3", "4", "5"].includes(stageStr)) return hasDandruff ? 2 : 1;
-
   return 3;
 }
 export function getTestBundle() {

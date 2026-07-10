@@ -1,486 +1,717 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuiz } from "../context/QuizContext";
 import { useCart } from "../context/CartContext";
 import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
-import { PDFDownloadLink } from "@react-pdf/renderer";
-import AssessmentPDFTemplate from "./sections/AssessmentPDFTemplate"; 
+import { formatBundleProduct } from "../utils/productImages";
 
-const FACTOR_STYLES = {
-  genetic: { bg: "bg-purple-50", text: "text-purple-800", dot: "bg-purple-500" },
-  hormonal: { bg: "bg-pink-50", text: "text-pink-800", dot: "bg-pink-500" },
-  nutritional: { bg: "bg-orange-50", text: "text-orange-800", dot: "bg-orange-500" },
-  "stress-related": { bg: "bg-blue-50", text: "text-blue-800", dot: "bg-blue-500" },
-  "scalp-related": { bg: "bg-teal-50", text: "text-teal-800", dot: "bg-teal-500" },
-};
+const AVATAR_FALLBACK =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
 
-// 🟢 A data-URI can never 404, unlike /stages/female_stage1.png which
-// doesn't exist in public/stages. Used as the ultimate fallback for the
-// user's capture avatar so the box is never left blank.
-const AVATAR_FALLBACK_SVG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f3f4f6'/><circle cx='50' cy='38' r='18' fill='%23d1d5db'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23d1d5db'/></svg>";
+const FREE_ADDONS = [
+  {
+    id: "coach",
+    title: "Hair Coach Support",
+    desc: "Personalised guidance from a Hair Coach throughout your journey",
+    was: 400,
+    icon: "👩‍⚕️",
+  },
+  {
+    id: "diet",
+    title: "Customised Diet Plan",
+    desc: "Nutrition roadmap tailored to your root causes",
+    was: 500,
+    icon: "🥗",
+  },
+  {
+    id: "expert",
+    title: "Expert Approval",
+    desc: "Your kit is reviewed by a trichology expert before dispatch",
+    was: 300,
+    icon: "✅",
+  },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "Ajay Kumar",
+    age: 28,
+    city: "Hyderabad, Telangana",
+    stage: "2",
+    rating: 5,
+    review:
+      "I was losing hope with generic oils. Zylk's stage-based kit actually reduced my shedding in the first month. My hairline looks fuller now.",
+    date: "Reviewed on 25th Feb 2025",
+    months: ["Month 1", "Month 4", "Month 9"],
+  },
+  {
+    name: "Rahul Mehta",
+    age: 32,
+    city: "Mumbai, Maharashtra",
+    stage: "3",
+    rating: 5,
+    review:
+      "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
+    date: "Reviewed on 12th Jan 2025",
+    months: ["Month 1", "Month 3", "Month 8"],
+  },
+];
+
+function ProductImage({ src, fallbacks = [], alt, className }) {
+  const [urlIndex, setUrlIndex] = useState(0);
+  const allUrls = [src, ...fallbacks].filter(Boolean);
+  const currentUrl = allUrls[urlIndex] || allUrls[allUrls.length - 1];
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt}
+      className={className}
+      onError={() => {
+        if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
+      }}
+    />
+  );
+}
+
+function getProductPurpose(name = "") {
+  const n = name.toLowerCase();
+  if (n.includes("shampoo") || n.includes("cleanser") || n.includes("dandruff")) return "For Dandruff";
+  if (n.includes("minoxidil") || n.includes("rosemary") || n.includes("serum") || n.includes("growth")) return "For Hair Regrowth";
+  if (n.includes("oil") || n.includes("progro")) return "For Scalp Nourishment";
+  if (n.includes("supplement") || n.includes("health mix") || n.includes("vitality")) return "For Internal Health";
+  if (n.includes("derma") || n.includes("roller")) return "For Absorption";
+  if (n.includes("massager")) return "For Scalp Stimulation";
+  if (n.includes("conditioner")) return "For Scalp Care";
+  return "For Hair Health";
+}
+
+function buildRootCauses(state, hasDandruff, isFemale) {
+  const dump = JSON.stringify(state || {}).toLowerCase();
+  const causes = [];
+
+  if (hasDandruff) {
+    causes.push({
+      id: "dandruff",
+      label: "Dandruff",
+      icon: "🧴",
+      activeBg: "bg-orange-50 border-orange-200",
+      desc: "Dandruff irritates your scalp and weakens hair roots. We clear it in 1 month for long-term regrowth.",
+    });
+  }
+
+  causes.push({
+    id: "genetic",
+    label: "Genetics",
+    icon: "🧬",
+    activeBg: "bg-orange-50 border-orange-200",
+    desc: isFemale
+      ? "Hormonal shifts along the hair part line cause progressive thinning. Our kit targets receptors internally and topically."
+      : "DHT sensitivity shrinks follicles over time. Our dual-action serum blocks DHT locally while nourishing roots.",
+  });
+
+  if (dump.includes("stress") || dump.includes("anxiety")) {
+    causes.push({
+      id: "stress",
+      label: "Stress",
+      icon: "⚖️",
+      activeBg: "bg-orange-50 border-orange-200",
+      desc: "Elevated cortisol pushes follicles into telogen (resting) phase. Adaptogens in your mix help rebalance stress response.",
+    });
+  }
+
+  if (dump.includes("diet") || dump.includes("nutrition") || dump.includes("iron") || dump.includes("veg")) {
+    causes.push({
+      id: "nutrition",
+      label: "Nutrition",
+      icon: "🥬",
+      activeBg: "bg-orange-50 border-orange-200",
+      desc: "Micronutrient gaps weaken hair shaft production. Your supplement blend restores proteins, iron, and collagen support.",
+    });
+  }
+
+  if (dump.includes("thyroid") || dump.includes("pcos") || dump.includes("hormone")) {
+    causes.push({
+      id: "hormonal",
+      label: "Hormonal",
+      icon: "💊",
+      activeBg: "bg-orange-50 border-orange-200",
+      desc: "Internal hormonal imbalance accelerates shedding. We address this with targeted internal + topical therapy.",
+    });
+  }
+
+  return causes.length ? causes : causes;
+}
+
+function buildRoadmapMonths(totalMonths) {
+  const m = totalMonths || 8;
+  const all = [
+    { month: 1, label: "Month 1", desc: "Control Dandruff", icon: "🌱" },
+    { month: 2, label: "Month 2", desc: "Improve Follicular Health", icon: "💧" },
+    { month: 3, label: "Month 3", desc: "Hair Fall Control", icon: "📉" },
+    { month: 4, label: "Month 4", desc: "Hair Fall Control", icon: "🛡️" },
+    { month: 5, label: "Month 5", desc: "Hair Growth", icon: "📈" },
+    { month: 6, label: "Month 6", desc: "Hair Growth", icon: "✨" },
+    { month: 7, label: "Month 7", desc: "Hair Growth", icon: "💪" },
+    { month: 8, label: "Month 8", desc: "Maintaining Awesome Hair", icon: "🌟" },
+    { month: 9, label: "Month 9", desc: "Maintaining Awesome Hair", icon: "👑" },
+    { month: 12, label: "Month 12", desc: "Full Density Results", icon: "🏆" },
+  ];
+
+  if (m <= 5) return all.filter((x) => [1, 2, 3, 4, 5].includes(x.month)).slice(0, 5);
+  if (m <= 8) return all.filter((x) => [1, 2, 3, 4, 5, 6, 7, 8].includes(x.month));
+  return all.filter((x) => [1, 3, 5, 8, 12].includes(x.month));
+}
 
 export default function Result() {
   const { state, resetQuiz, prevStep, setLoading, setError } = useQuiz();
-  const { addToCart } = useCart(); 
-  const [showRoutinePanel, setShowRoutinePanel] = useState(false);
-  const [activeTab, setActiveTab] = useState("genetic");
-  const [includeHealthMix, setIncludeHealthMix] = useState(true);
+  const { addToCart, cartCount, setIsCartOpen } = useCart();
 
-  // 1. Gather variables safely
+  const [activeCause, setActiveCause] = useState(null);
+  const [includeHealthMix, setIncludeHealthMix] = useState(true);
+  const [coachCallOptIn, setCoachCallOptIn] = useState(false);
+  const [faqOpen, setFaqOpen] = useState(false);
+  const [testimonialIdx, setTestimonialIdx] = useState(0);
+
   const rawAnalysis = state?.scalpAnalysis || {};
   const gender = state?.aboutMe?.gender || "male";
   const isFemale = gender === "female";
-  const userName = state?.aboutMe?.fullName || "Guest User";
-  
-  // Normalize reported staging metrics safely based on gender
-  const reportedStage = isFemale 
-    ? (state?.hairHealth?.hair_fall_zone || "1") 
-    : (state?.hairHealth?.norwood_stage || "1");
+  const userName = state?.aboutMe?.fullName?.split(" ")[0] || "Guest";
+
   const aiPredictedStageNumber = rawAnalysis.aiPredictedStage;
-  const stageDiscrepancy = Boolean(rawAnalysis.stageDiscrepancy);
-
-  // 🟢 DEBUG: log exactly what stage data made it into Result.jsx.
-  // Check DevTools console when this page loads — this tells you whether
-  // the AI pipeline actually returned a stage, or if rawAnalysis is empty
-  // (meaning scalpAnalysis never got set in QuizContext state).
-  console.log("🔍 RESULT PAGE DEBUG:", {
-    gender,
-    reportedStage: isFemale
-      ? (state?.hairHealth?.hair_fall_zone || "1")
-      : (state?.hairHealth?.norwood_stage || "1"),
-    aiPredictedStage: aiPredictedStageNumber,
-    rawAnalysis,
-    fullScalpAnalysisPresent: !!state?.scalpAnalysis,
-  });
-
-  // 🟢 FIX: single lookup per image type instead of searching the array twice.
-  // Previously this ran .find() twice for the same type, which was redundant
-  // (and confusing to read) even though it happened not to crash.
-  const findScalpImage = (type) => state?.scalpImages?.find(img => img.type === type);
-  const realFrontImage = findScalpImage("front");
-  const realSideImage = findScalpImage("side");
-  const realTopImage = findScalpImage("top");
-
-  const displayUserPhoto = (typeof realFrontImage === 'string' ? realFrontImage : realFrontImage?.dataUrl) || 
-                            (typeof realSideImage === 'string' ? realSideImage : realSideImage?.dataUrl) || 
-                            (typeof realTopImage === 'string' ? realTopImage : realTopImage?.dataUrl);
-
-  // CLINICAL GUARDRAIL: Advanced stages directed to specialist practitioner routing
-  const requiresDoctorConsultation = (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
-                                     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
-
-  // Parse root causes from questionnaire
-  const stateDumpString = JSON.stringify(state || {}).toLowerCase();
-  const hasDandruff = stateDumpString.includes("dandruff") && !stateDumpString.includes("no-dandruff");
-  
-  const rootCauses = [];
-  if (stateDumpString.includes("stress") || stateDumpString.includes("anxiety")) rootCauses.push("Cortisol Control");
-  if (stateDumpString.includes("diet") || stateDumpString.includes("nutrition") || stateDumpString.includes("veg")) rootCauses.push("Nutrient Sync");
-  if (stateDumpString.includes("hormone") || stateDumpString.includes("pcos") || stateDumpString.includes("thyroid")) rootCauses.push("Hormone Balancing");
-
-  // Generate treatment bundle configurations
-  const recommendedBundle = !requiresDoctorConsultation
-    ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauses, includeHealthMix)
-    : null;
-
-  // 🟢 Explicit flag for "the AI never returned a stage" — used to show an
-  // honest banner instead of quietly rendering a fake-looking report.
   const analysisMissing = !aiPredictedStageNumber;
 
-  // 🟢 DYNAMIC TITLE: Sets professional terminology based on profile tracking scales
-  const getStageTitle = () => {
-    // 🟢 FIX: guard against aiPredictedStageNumber being undefined (e.g. before
-    // analysis finishes), which previously rendered "Stage undefined Of..."
-    if (analysisMissing) return "Assessment Incomplete";
+  const extractImageUrl = (img) => {
+    if (!img) return null;
+    if (typeof img === "string") return img;
+    return img.dataUrl || img.previewUrl || img.url || null;
+  };
 
+  const findScalpImage = (type) => state?.scalpImages?.find((img) => img.type === type);
+  const displayUserPhoto =
+    extractImageUrl(findScalpImage("front")) ||
+    extractImageUrl(findScalpImage("top")) ||
+    extractImageUrl(findScalpImage("side")) ||
+    extractImageUrl(findScalpImage("back")) ||
+    extractImageUrl(state?.scalpImages?.[0]);
+
+  const requiresDoctorConsultation =
+    (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
+    (gender === "female" && aiPredictedStageNumber === "patchy-bald");
+
+  const stateDump = JSON.stringify(state || {}).toLowerCase();
+  const hasDandruff = stateDump.includes("dandruff") && !stateDump.includes("no-dandruff");
+
+  const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
+  const selectedCause = rootCauses.find((c) => c.id === (activeCause || rootCauses[0]?.id)) || rootCauses[0];
+
+  const rootCauseTags = [];
+  if (stateDump.includes("stress")) rootCauseTags.push("Cortisol Control");
+  if (stateDump.includes("diet") || stateDump.includes("nutrition")) rootCauseTags.push("Nutrient Sync");
+  if (stateDump.includes("hormone") || stateDump.includes("pcos") || stateDump.includes("thyroid")) rootCauseTags.push("Hormone Balancing");
+
+  const recommendedBundle = !requiresDoctorConsultation
+    ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, includeHealthMix)
+    : null;
+
+  const eligibilityTimeline = getEligibilityTimeline(state, aiPredictedStageNumber);
+  const resultMonths = eligibilityTimeline.months || 8;
+  const roadmap = buildRoadmapMonths(resultMonths);
+
+  const getStageTitle = () => {
+    if (analysisMissing) return "Assessment Incomplete";
     if (isFemale) {
       if (aiPredictedStageNumber === "patchy-bald") return "Alopecia / Focal Pattern Thinning";
-      if (aiPredictedStageNumber === "overall-thinning") return "Overall Diffuse Thinning Profile";
-      return `Ludwig Stage ${aiPredictedStageNumber} Of Female Pattern Thinning`;
+      if (aiPredictedStageNumber === "overall-thinning") return "Overall Diffuse Thinning";
+      return `Stage ${aiPredictedStageNumber} Of Female Pattern Hair Fall`;
     }
     if (aiPredictedStageNumber === "overall-thinning") return "Overall Thinning Pattern";
     return `Stage ${aiPredictedStageNumber} Of Male Pattern Hair Fall`;
   };
-  
-  const stageDescription = requiresDoctorConsultation
-    ? `Our multi-modal assessment indicates advanced follicular depletion matching an advanced profiling scale. At this configuration layout, generic online topical serums are highly restricted. Direct medical oversight is required.`
-    : (rawAnalysis.stageDescription || `Our multi-modal assessment indicates localized phase shifts matching a ${getStageTitle()} signature layout.`);
-  
-  const regrowthOutlook = requiresDoctorConsultation
-    ? `Advanced hair loss configurations require specialized clinical treatment strategies (such as clinical targeted therapies or surgical transpositioning plans). Speak with a dermatologist.`
-    : (rawAnalysis.regrowthOutlook || `Your target configuration responds exceptionally well to your prescribed comprehensive treatment package layout.`);
 
-  const confidencePercent = rawAnalysis.aiConfidence ? Math.round(rawAnalysis.aiConfidence * 100) : 94;
-  const aiReasoning = rawAnalysis.aiReasoning || `Visual tracking mapping isolated root thinning areas consistent with a distinct signature layout configuration.`;
+  const kitProducts = (recommendedBundle?.items ?? [])
+    .map((prod) => {
+      const formatted = formatBundleProduct(prod, isFemale);
+      if (!formatted) return null;
+      return {
+        ...formatted,
+        purpose: getProductPurpose(prod.name),
+        subtitle: prod.subtitle || formatted.shortName,
+        price: prod.price,
+      };
+    })
+    .filter(Boolean);
 
-  const eligibilityTimeline = getEligibilityTimeline(state, aiPredictedStageNumber);
-  const resultsTimelineLabel = analysisMissing
-    ? "—"
-    : eligibilityTimeline.label;
-  const timelineHeading = eligibilityTimeline.needsTransplant
-    ? "Recommended Next Step"
-    : eligibilityTimeline.eligible === false
-      ? "Money-Back Program"
-      : "Start Seeing Results In";
+  const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
+  const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
 
-  const contributingFactors = requiresDoctorConsultation
-    ? [
-        { tag: "genetic", label: "Advanced Genetic Miniaturization", description: "Long-standing enzyme paths causing closure of active root fields." }
-      ]
-    : [
-        { tag: "genetic", label: isFemale ? "Hormonal Hair Vector" : "Genetic Predisposition Vector", description: isFemale ? "Receptor pathways causing micro-thinning along center hair parts over time." : "Hormonal shifts triggering cellular variations along target active follicles." },
-        { tag: "stress-related", label: "Stress Adaptation Metrics", description: "Fluctuating cortisol levels forcing root clusters prematurely into resting telogen phases." },
-        { tag: "scalp-related", label: "Scalp Shield Environment", description: hasDandruff ? "Surface microbial activity disrupting lipid barrier consistency." : "Standard external cellular balance status." }
-      ];
-
-  const formatProductName = (name) => {
-    // 🟢 SAFE FILTER: Disallow and completely exclude Finasteride formulas for female users
-    if (isFemale && name.toLowerCase().includes("finasteride")) {
-      return null;
+  const handleBuyNow = () => {
+    if (requiresDoctorConsultation) {
+      alert("Connecting you with a Zylk trichology specialist...");
+      return;
     }
-
-    let shortName = name;
-    if (name.toLowerCase().includes("minoxidil")) {
-      shortName = isFemale ? "Targeted Growth Serum (Female Formula)" : "Minoxidil + Finasteride Serum";
-    } else if (name.toLowerCase().includes("derma")) {
-      shortName = "Scalp Derma Roller (0.5mm)";
-    } else if (name.toLowerCase().includes("shampoo")) {
-      shortName = "Anti-Dandruff Cleanser";
-    }
-    
-    return { 
-      shortName, 
-      imgUrl: "/products/placeholder.png" 
-    };
+    if (!recommendedBundle) return;
+    const { bundleNumber } = recommendedBundle;
+    addToCart({
+      id: recommendedBundle.bundleId,
+      name: getBundleDisplayName(bundleNumber, gender, aiPredictedStageNumber),
+      price: recommendedBundle.price,
+      priceWithMix: recommendedBundle.bundlePrice,
+      priceWithoutMix: recommendedBundle.priceWithoutMix,
+      bundleNumber,
+      includeHealthMix,
+      coachCallOptIn,
+      wooProductId: getWooProductId(bundleNumber, includeHealthMix),
+      wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
+      wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
+      subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,
+    });
   };
 
-  const handleBackNavigation = () => {
+  const handleBack = () => {
     if (setLoading) setLoading(false);
     if (setError) setError(null);
-    
     if (prevStep) prevStep();
     else window.history.back();
   };
 
   return (
-    <div className="max-w-7xl mx-auto mt-4 px-4 mb-16 select-none !text-left animate-[fadeIn_0.3s_ease-out] block w-full">
-      
-      {/* Back Navigation Bar */}
-      <div className="flex justify-between items-center mb-6 w-full !text-left">
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36">
+      <header className="sticky top-0 z-40 bg-[#2b2b2b] px-4 py-3 flex items-center justify-between shadow-md">
+        <span className="text-white text-xl font-bold tracking-tight">Zylk<span className="text-[#b8d86e]">.</span></span>
         <button
           type="button"
-          onClick={handleBackNavigation}
-          className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-gray-700 transition-colors cursor-pointer group py-2"
+          onClick={() => setIsCartOpen(true)}
+          className="relative text-white p-1 cursor-pointer"
+          aria-label="Open cart"
         >
-          <span className="transform group-hover:-translate-x-0.5 transition-transform">←</span> Back to Questions
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          {cartCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
+              {cartCount}
+            </span>
+          )}
         </button>
+      </header>
 
-        <span className="text-[10px] md:text-xs font-medium text-gray-400 bg-gray-100/80 px-3 py-1 rounded-full border border-gray-200/40">
-          🤖 Generated by AI Assessment Engines • Adaptive Gender Metrics
-        </span>
-      </div>
+      <div className="max-w-lg mx-auto px-3 pt-4 space-y-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 pt-3">
+            <span className="inline-block text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-3 py-1 rounded-t-lg border border-b-0 border-gray-100">
+              Assessment Report
+            </span>
+          </div>
 
-      {/* Main Grid Split Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 items-start w-full !text-left">
-        
-        {/* ================= LEFT SIDE COMPONENT: DIAGNOSTICS ASSESSMENT REPORT ================= */}
-        <div className="lg:col-span-6 bg-white rounded-[32px] p-6 md:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-8 w-full !text-left block">
-          
-          <div className="w-full !text-left block">
-            <span className="text-xs font-bold tracking-[0.1em] text-gray-400 uppercase block !text-left">Assessment Report</span>
-            
-            <div className="flex flex-col-reverse sm:flex-row justify-between items-start gap-6 mt-4 w-full !text-left">
-              <div className="space-y-3 flex-1 !text-left block">
-                <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight !text-left">{userName},</h2>
-                <p className="text-lg text-gray-700 font-medium !text-left">
-                  You Are Currently On <span className="text-[#064e3b] font-bold">{getStageTitle()}</span>
-                </p>
-                <div className="pt-2 !text-left block">
-                  <span className="text-xs font-bold text-gray-400 block uppercase tracking-wide !text-left">{timelineHeading}</span>
-                  <span className={`text-2xl font-black !text-left block ${
-                    eligibilityTimeline.needsTransplant
-                      ? "text-amber-700"
-                      : eligibilityTimeline.eligible === false
-                        ? "text-gray-400"
-                        : "text-gray-900"
-                  }`}>
-                    {resultsTimelineLabel}
-                  </span>
-                  {!analysisMissing && (eligibilityTimeline.needsTransplant || eligibilityTimeline.eligible === false) && (
-                    <p className={`text-xs mt-1 !text-left ${eligibilityTimeline.needsTransplant ? "text-amber-800" : "text-gray-500"}`}>
-                      {eligibilityTimeline.reason}
-                    </p>
-                  )}
-                </div>
+          <div className="px-4 pb-4 pt-2">
+            <div className="flex gap-3 items-start">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">{userName},</h1>
+                <p className="text-sm text-gray-500 mt-1">You Are Currently On</p>
+                <p className="text-base font-bold text-gray-900 leading-snug mt-0.5">{getStageTitle()}</p>
+
+                {!analysisMissing && (
+                  <div className="mt-3">
+                    {eligibilityTimeline.needsTransplant ? (
+                      <>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Recommended Next Step</p>
+                        <p className="text-lg font-black text-amber-700">Hair Transplant Consultation</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Start Seeing Results In</p>
+                        <p className="text-2xl font-black text-gray-900">{eligibilityTimeline.label}</p>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* 🟢 GENDER-SPECIFIC AVATAR ACCORDING TO USER STATE */}
-              <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0 shadow-sm mx-auto sm:mx-0">
-                <img 
-                  src={displayUserPhoto || AVATAR_FALLBACK_SVG} 
-                  alt="Real user scalp photograph diagnostics visual representation" 
+              <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-[#064e3b]/20 shrink-0 bg-gray-50">
+                <img
+                  src={displayUserPhoto || AVATAR_FALLBACK}
+                  alt="Your scalp capture"
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    // 🟢 FIX: previously fell back to /stages/female_stage1.png
-                    // (or /stages/Stage1.png), but female_stage1.png doesn't
-                    // exist in public/stages — that 404 triggered this same
-                    // onError handler again, which re-set the SAME missing
-                    // path, so the box just stayed permanently blank.
-                    // A data-URI SVG can never 404, so this is guaranteed
-                    // to render something instead of nothing.
-                    e.target.onerror = null; // stop any possible loop
-                    e.target.src = AVATAR_FALLBACK_SVG;
+                    e.target.onerror = null;
+                    e.target.src = AVATAR_FALLBACK;
                   }}
                 />
-                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded backdrop-blur-[1px]">
-                  Your Capture
-                </span>
               </div>
             </div>
-          </div>
 
-          {/* 🟢 Analysis-missing banner: shown instead of pretending the
-              report is complete when aiPredictedStage never arrived. */}
-          {analysisMissing && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-sm text-red-800 font-medium leading-relaxed !text-left w-full block">
-              ⚠️ <span className="font-bold">We couldn't complete your AI scalp analysis.</span>
-              <p className="text-xs text-red-600 mt-1.5 !text-left">
-                Your questionnaire answers were saved, but the photo analysis didn't finish. Please retake the scalp scan to get your actual stage.
-              </p>
-              <button
-                type="button"
-                onClick={() => { if (prevStep) prevStep(); else window.history.back(); }}
-                className="mt-3 text-xs font-bold uppercase tracking-wider bg-red-600 text-white px-4 py-2 rounded-full hover:bg-red-700 transition-colors cursor-pointer"
-              >
-                Retake Scalp Scan
-              </button>
-            </div>
-          )}
-
-          {stageDiscrepancy && !analysisMissing && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-sm text-blue-900 font-medium leading-relaxed !text-left w-full block">
-              📸 <span className="font-bold">Photo-based assessment used.</span>
-              <p className="text-xs text-blue-700 mt-1.5 !text-left">
-                Your quiz answer was Stage {reportedStage}, but your uploaded photos indicate Stage {aiPredictedStageNumber}. Results are based on what we see in your images, not the quiz.
-              </p>
-            </div>
-          )}
-
-          {/* 🟢 DEBUG CHIP: shows exactly which stage the page thinks it's on.
-              Safe to delete once you've confirmed the pipeline is returning
-              the right stage — this is dev-only visibility, not for production. */}
-          <div className="p-3 rounded-xl bg-yellow-50 border border-yellow-200 text-[11px] text-yellow-800 font-mono !text-left w-full block">
-            🔧 DEBUG — gender: <b>{gender}</b> | self-reported: <b>{reportedStage}</b> | AI stage: <b>{String(aiPredictedStageNumber)}</b>
-            {rawAnalysis.rawAiStage && rawAnalysis.rawAiStage !== aiPredictedStageNumber && (
-              <> | raw AI: <b>{rawAnalysis.rawAiStage}</b> | rule-based: <b>{rawAnalysis.ruleBasedStage}</b></>
-            )}
-            {rawAnalysis.stageAdjusted && <> | <b>adjusted for accuracy</b></>}
-          </div>
-
-          {/* Hope Prompt Status Banner Panel */}
-          <div className="p-4 bg-[#f4f6f0] border border-[#064e3b]/10 rounded-2xl text-sm text-[#064e3b] font-medium leading-relaxed !text-left w-full block">
-            ✨ <span className="font-bold">Prognosis Context:</span>
-            <ul className="list-disc pl-5 mt-2 space-y-1.5 text-xs text-gray-600 font-normal !text-left">
-              <li>{stageDescription}</li>
-              <li>{regrowthOutlook}</li>
-            </ul>
-          </div>
-
-          {/* TAB DRIVEN INTERACTIVE CONTRIBUTING CAUSES VIEWER */}
-          <div className="space-y-4 w-full !text-left block">
-            <h4 className="text-base font-bold text-gray-900 tracking-tight !text-left">Your Hair Fall Root Causes</h4>
-            <div className="grid grid-cols-3 gap-3 w-full">
-              {contributingFactors.map((factor) => (
-                <button 
-                  key={factor.tag}
-                  type="button" 
-                  onClick={() => setActiveTab(factor.tag)}
-                  className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 text-center transition-all cursor-pointer ${
-                    activeTab === factor.tag ? "border-[#064e3b] bg-[#064e3b]/5 text-[#064e3b] font-bold" : "border-gray-100 text-gray-500 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="text-lg">
-                    {factor.tag === "genetic" && "🧬"}
-                    {factor.tag === "stress-related" && "⚖️"}
-                    {factor.tag === "scalp-related" && "❄️"}
-                  </span>
-                  <span className="text-xs tracking-tight truncate max-w-full">{factor.label.split(" ")[0]}</span>
+            {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && (
+              <div className="mt-4 bg-[#5a6b2e] rounded-full px-4 py-2 flex items-center justify-between text-white text-sm">
+                <span className="font-bold">93% Saw Results*</span>
+                <button type="button" className="text-white/90 text-xs font-semibold flex items-center gap-1">
+                  Check Study <span>›</span>
                 </button>
-              ))}
-            </div>
-
-            {/* Display active tab parameters text */}
-            {contributingFactors.find(f => f.tag === activeTab) && (
-              <div className="p-4 bg-gray-50 rounded-2xl text-xs text-gray-600 border border-gray-100 !text-left space-y-1 w-full block">
-                <p className="font-bold text-gray-900 !text-left">{contributingFactors.find(f => f.tag === activeTab).label}</p>
-                <p className="leading-relaxed !text-left">{contributingFactors.find(f => f.tag === activeTab).description}</p>
               </div>
             )}
-          </div>
 
-          {/* Confidence Meter Subsystem */}
-          <div className="p-5 rounded-2xl bg-gray-50 border border-gray-200/60 w-full !text-left block">
-            <div className="flex justify-between text-xs mb-2 font-bold w-full !text-left">
-              <span className="text-gray-500 uppercase tracking-wider !text-left">AI Confidence Matrix Ratio</span>
-              <span className="text-[#064e3b]">{confidencePercent}%</span>
-            </div>
-            <div className="h-2 bg-gray-200 rounded-full overflow-hidden w-full block">
-              <div className="h-full rounded-full bg-[#064e3b] transition-all duration-500" style={{ width: `${confidencePercent}%` }} />
-            </div>
-            <p className="mt-3 text-[11px] text-gray-400 italic !text-left">"{aiReasoning}"</p>
-          </div>
-
-          {/* ACTIONS: PDF DOWNLOAD & RETAKE QUIZ */}
-          <div className="pt-4 border-t border-gray-100 space-y-4 w-full block">
-            <div className="w-full block">
-              {state ? (
-                <PDFDownloadLink
-                  document={<AssessmentPDFTemplate state={state} aiAnalysis={rawAnalysis} />}
-                  fileName={`${userName.replace(/\s+/g, '_')}_Hair_Report.pdf`}
-                >
-                  {({ blob, url, loading, error }) => (
-                    <button
-                      type="button"
-                      disabled={loading}
-                      className="w-full h-14 bg-white border-2 border-dashed border-gray-300 text-gray-700 rounded-full font-bold hover:bg-gray-50 hover:border-gray-400 transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-xs"
-                    >
-                      {loading ? "🔄 Compiling Document Layout..." : "📥 Download Full PDF Assessment Report"}
-                    </button>
-                  )}
-                </PDFDownloadLink>
-              ) : (
-                <div className="text-center text-xs text-gray-400 py-2">Awaiting image extraction matrix...</div>
-              )}
+            <div className="mt-4 bg-[#e8f5e9] rounded-xl p-4 text-sm text-[#1b4332] leading-relaxed">
+              <p className="font-bold mb-2">
+                {requiresDoctorConsultation
+                  ? "Your hair loss needs clinical intervention."
+                  : hasDandruff
+                    ? "Your hair fall has multiple root causes, but don't worry!"
+                    : "Your hair fall is genetic, but don't worry!"}
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-xs text-[#2d6a4f]">
+                {requiresDoctorConsultation ? (
+                  <>
+                    <li>Advanced follicular depletion at this stage needs specialist evaluation.</li>
+                    <li>Topical kits alone may not restore significant density.</li>
+                    <li>Book a consultation to explore transplant or clinical therapies.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>This is caused by internal hormones and scalp environment working together.</li>
+                    <li>At your stage, most hair follicles are still active and can be revived.</li>
+                    <li>With consistent use of your customised Zylk kit, regrowth is achievable.</li>
+                  </>
+                )}
+              </ul>
             </div>
 
-            <button 
-              type="button" 
-              onClick={() => {
-                if (resetQuiz) resetQuiz();
-                window.location.href = "/";
-              }} 
-              className="w-full text-center text-xs font-bold uppercase tracking-wider text-gray-400 hover:text-gray-600 transition-colors pt-2 cursor-pointer block"
-            >
-              🔄 Discard & Retake Quiz
-            </button>
+            <p className="text-[10px] text-gray-400 mt-3 italic">
+              *Based on internal Zylk user outcomes for profiles matching your stage and age group.
+            </p>
           </div>
-
         </div>
 
-        {/* ================= RIGHT SIDE COMPONENT: RETAIL TREATMENT SYSTEM PRODUCTS ================= */}
-        <div className="lg:col-span-4 bg-white rounded-[32px] p-6 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-6 w-full !text-left block">
-          
-          <div className="!text-left w-full block">
-            <h3 className="text-lg font-bold text-gray-900 tracking-tight !text-left">Start Your Journey With Just 1 Month Kit</h3>
-            <p className="text-xs text-gray-400 mt-1 !text-left">Clinically targeted formula system mapped configurations.</p>
-          </div>
-
-          {/* PRODUCT STACK CONTAINER */}
-          {requiresDoctorConsultation ? (
-            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 !text-left space-y-2 w-full block">
-              <h4 className="font-bold text-sm text-amber-900 flex items-center gap-1 !text-left">⚠️ Direct Orders Restricted</h4>
-              <p className="text-xs text-amber-700 leading-relaxed !text-left">
-                Due to advanced hair loss depletion parameters, this configuration layout requires custom medical prescription setups. Please arrange an entry consultation exam with an authorized trichologist practitioner using the link below.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4 w-full !text-left flex flex-col justify-start items-start">
-              {(recommendedBundle?.items ?? [])
-                .map((prod) => formatProductName(prod.name))
-                .filter((productDetails) => productDetails !== null)
-                .map((productDetails, index) => (
-                  <div 
-                    key={index} 
-                    className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex flex-row items-center justify-between gap-4 !text-left w-full block group"
+        {!requiresDoctorConsultation && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <h2 className="text-base font-bold text-gray-900 mb-3">Your Hair Fall Root Causes</h2>
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              {rootCauses.map((cause) => {
+                const isActive = (activeCause || rootCauses[0]?.id) === cause.id;
+                return (
+                  <button
+                    key={cause.id}
+                    type="button"
+                    onClick={() => setActiveCause(cause.id)}
+                    className={`shrink-0 w-20 flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all cursor-pointer ${
+                      isActive ? "bg-orange-50 border-orange-200" : "bg-white border-gray-100"
+                    }`}
                   >
-                    <div className="flex flex-row items-center justify-start text-left flex-1 min-w-0">
-                      <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-xs shrink-0 overflow-hidden mr-4">
-                        <img 
-                          src={productDetails.imgUrl} 
-                          alt={productDetails.shortName}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={(e) => {
-                            e.target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23064e3b'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4'/></svg>";
-                          }}
-                        />
-                      </div>
+                    <span className="text-2xl">{cause.icon}</span>
+                    <span className="text-[11px] font-semibold text-gray-700">{cause.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedCause && (
+              <div className="mt-3 bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-gray-700 leading-relaxed">
+                {selectedCause.desc}
+              </div>
+            )}
+          </div>
+        )}
 
-                      <div className="flex-1 min-w-0 text-left block pr-2">
-                        <h4 className="text-sm font-bold text-gray-800 leading-snug tracking-tight !text-left block whitespace-normal break-words">
-                          {productDetails.shortName}
-                        </h4>
-                      </div>
-                    </div>
+        {!requiresDoctorConsultation && (
+          <div className="bg-[#f0faf4] border border-[#b7e4c7] rounded-2xl p-4 flex gap-3 items-center">
+            <div className="flex-1">
+              <p className="text-3xl font-black text-[#064e3b]">3 Times</p>
+              <p className="text-sm font-bold text-gray-800">Better results</p>
+              <p className="text-[10px] text-gray-500 uppercase mt-1">Based on a 5-month study*</p>
+              <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
+                Check Study →
+              </button>
+            </div>
+            <div className="w-28 shrink-0 flex items-end gap-1 h-24">
+              <div className="flex flex-col items-center flex-1">
+                <div className="w-full bg-gray-300 rounded-t h-8" />
+                <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Minoxidil Alone</span>
+              </div>
+              <div className="flex flex-col items-center flex-1">
+                <div className="w-full bg-[#52b788] rounded-t h-20 relative">
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">3x</span>
+                </div>
+                <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Zylk Regimen</span>
+              </div>
+            </div>
+          </div>
+        )}
 
-                    <div className="shrink-0 flex items-center justify-end">
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-100/40 px-2.5 py-1 rounded-full whitespace-nowrap shadow-3xs">
-                        Included
-                      </span>
+        {!requiresDoctorConsultation && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <h2 className="text-base font-bold text-gray-900">
+              Here is <span className="text-[#064e3b]">{testimonial.name.split(" ")[0]}</span>
+            </h2>
+            <p className="text-sm text-gray-500 mb-3">Who Matches Your Profile</p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {testimonial.months.map((label, i) => (
+                <div key={i} className="shrink-0 w-24">
+                  <div className="h-28 rounded-lg bg-gradient-to-b from-gray-200 to-gray-300 overflow-hidden border border-gray-200">
+                    <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">👤</div>
+                  </div>
+                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-center gap-1.5 mt-3">
+              {TESTIMONIALS.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setTestimonialIdx(i)}
+                  className={`w-2 h-2 rounded-full ${i === testimonialIdx ? "bg-gray-800" : "bg-gray-300"}`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!requiresDoctorConsultation && kitProducts.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-900">Kit</h2>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {kitProducts.map((product, index) => (
+                <div key={index} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-14 h-14 rounded-lg bg-gray-50 border border-gray-100 shrink-0 overflow-hidden flex items-center justify-center">
+                    <ProductImage
+                      src={product.imgUrl}
+                      fallbacks={product.imgFallbacks}
+                      alt={product.shortName}
+                      className="w-full h-full object-contain p-1"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900">{product.purpose}</p>
+                    <p className="text-xs text-gray-500 truncate">{product.subtitle}</p>
+                    <p className="text-sm font-bold text-gray-800 mt-0.5">₹{product.price}</p>
+                  </div>
+                  <span className="text-gray-300 text-lg">›</span>
+                </div>
+              ))}
+            </div>
+            <div className="mx-4 mb-4 mt-2 bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
+              <span>🌿</span>
+              <span>Supplements &amp; Oil are 100% Ayurvedic with no side effects.</span>
+            </div>
+          </div>
+        )}
+
+        {!requiresDoctorConsultation && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <div className="flex justify-center mb-4">
+              <span className="text-[11px] font-bold uppercase tracking-wider border-2 border-[#064e3b] text-[#064e3b] rounded-full px-4 py-1">
+                Free Add-ons
+              </span>
+            </div>
+            <div className="space-y-3">
+              {FREE_ADDONS.map((addon) => (
+                <div key={addon.id} className="flex items-start gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-xl shrink-0">
+                    {addon.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900">{addon.title}</p>
+                    <p className="text-xs text-gray-500 leading-snug">{addon.desc}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-gray-400 line-through">₹{addon.was}</span>
+                      <span className="text-[10px] font-bold bg-[#52b788] text-white px-2 py-0.5 rounded">FREE</span>
                     </div>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!requiresDoctorConsultation && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <p className="text-base font-bold text-gray-900">Hair coach unlocked</p>
+                <p className="text-xs text-gray-500 mt-1">Dedicated hair expert just a call away to support you.</p>
+              </div>
+              <div className="w-16 h-16 rounded-full bg-[#e8eede] flex items-center justify-center text-3xl shrink-0">👩‍⚕️</div>
+            </div>
+            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
+              <p className="text-xs text-gray-600 flex-1">Opt-in for a call immediately after placing your order</p>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={coachCallOptIn}
+                onClick={() => setCoachCallOptIn(!coachCallOptIn)}
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 cursor-pointer ${
+                  coachCallOptIn ? "bg-[#064e3b]" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    coachCallOptIn ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!requiresDoctorConsultation && !eligibilityTimeline.needsTransplant && (
+          <div className="bg-[#e8f5e9] rounded-2xl p-4 overflow-x-auto">
+            <p className="text-center text-sm text-gray-700 mb-4">
+              Start Seeing Results In <span className="font-black text-[#064e3b] text-lg">{resultMonths} Months</span>
+            </p>
+            <div className="relative min-w-[320px]">
+              <div className="absolute top-[52px] left-4 right-4 h-0.5 bg-[#52b788]" />
+              <div className="flex justify-between relative z-10">
+                {roadmap.map((step) => (
+                  <div key={step.month} className="flex flex-col items-center w-16 shrink-0">
+                    <span className="text-xl mb-1">{step.icon}</span>
+                    <div className="w-3 h-3 rounded-full bg-[#2d6a4f] border-2 border-white shadow" />
+                    <p className="text-[10px] font-bold text-gray-800 mt-2 text-center">{step.label}</p>
+                    <p className="text-[9px] text-gray-500 text-center leading-tight mt-0.5">{step.desc}</p>
+                  </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!requiresDoctorConsultation && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <h2 className="text-lg font-bold text-gray-900 leading-snug mb-4">
+              Your Routine Gets Easier And Cheaper Every Month
+            </h2>
+            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 relative h-44">
+              <p className="text-sm font-bold text-gray-500 mb-2">Less Products. Less Cost. Less Effort.</p>
+              <svg viewBox="0 0 300 100" className="w-full h-24" preserveAspectRatio="none">
+                <path d="M20,20 Q150,80 280,70" fill="none" stroke="#52b788" strokeWidth="4" />
+                <circle cx="20" cy="20" r="5" fill="#52b788" />
+                <circle cx="280" cy="70" r="5" fill="#52b788" />
+              </svg>
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1 px-1">
+                <span>Month 1</span>
+                <span>Month 3</span>
+                <span>Month 5</span>
+                <span>Month 8</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
+          <div className="border border-gray-100 rounded-xl p-4">
+            <span className="inline-block text-[10px] font-bold bg-gray-800 text-white px-2 py-0.5 rounded mb-3">
+              STAGE {testimonial.stage}
+            </span>
+            <div className="flex gap-2 mb-3">
+              {testimonial.months.map((m, i) => (
+                <div key={i} className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center text-lg">📷</div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="font-bold text-sm">{testimonial.name}, {testimonial.age}</p>
+              <span className="text-xs text-[#52b788] font-semibold flex items-center gap-1">✓ Verified</span>
+            </div>
+            <p className="text-xs text-gray-400">{testimonial.city}</p>
+            <p className="text-yellow-400 text-sm my-2">{"★".repeat(testimonial.rating)}</p>
+            <p className="text-sm text-gray-700 leading-relaxed">{testimonial.review}</p>
+            <p className="text-[10px] text-gray-400 mt-2">{testimonial.date}</p>
+          </div>
+        </div>
+
+        {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && !eligibilityTimeline.needsTransplant && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 text-xl">₹</div>
+            <p className="text-xl font-bold text-[#064e3b]">Congratulations!</p>
+            <p className="text-sm font-bold text-gray-600 mt-1">You Are 100% Eligible For The Money Back Policy</p>
+            <div className="border-t border-dashed border-gray-200 my-4" />
+            <button type="button" className="text-sm text-gray-600 underline">Read Money back policy</button>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFaqOpen(!faqOpen)}
+            className="w-full flex items-center justify-between px-4 py-4 text-left font-bold text-gray-900 cursor-pointer"
+          >
+            FAQ&apos;s
+            <span className={`transition-transform ${faqOpen ? "rotate-180" : ""}`}>▾</span>
+          </button>
+          {faqOpen && (
+            <div className="px-4 pb-4 space-y-3 text-sm text-gray-600 border-t border-gray-50 pt-3">
+              <p><strong>How long until I see results?</strong> Most users see changes in {resultMonths} months with consistent use.</p>
+              <p><strong>Is it safe?</strong> All products are GMP &amp; ISO 9001 certified.</p>
+              <p><strong>Can I cancel?</strong> Yes — review our money-back policy for eligibility details.</p>
             </div>
           )}
+        </div>
 
-          {/* BASKET TRANSACTION FOOTER */}
-          <div className="pt-4 border-t border-gray-100 space-y-4 w-full !text-left block">
-            {!requiresDoctorConsultation && recommendedBundle && (
-              <>
-                <label className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 cursor-pointer">
+        <p className="text-[10px] text-gray-400 italic text-center px-2">
+          *As per an internal study conducted by Zylk Health
+        </p>
+
+        <div className="flex gap-3 pb-4">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="flex-1 h-12 border border-gray-200 rounded-full text-sm font-semibold text-gray-600 bg-white cursor-pointer"
+          >
+            ← Back
+          </button>
+          <button
+            type="button"
+            onClick={() => { if (resetQuiz) resetQuiz(); window.location.href = "/"; }}
+            className="flex-1 h-12 text-sm font-semibold text-gray-400 cursor-pointer"
+          >
+            Retake Quiz
+          </button>
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="bg-gray-100 text-center py-1.5">
+          <p className="text-[10px] text-gray-600 font-medium">All of our products are GMP &amp; ISO 9001 certified</p>
+        </div>
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          {recommendedBundle && !requiresDoctorConsultation ? (
+            <>
+              <div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-gray-900">₹{recommendedBundle.price}</span>
+                  <span className="text-sm text-gray-400 line-through">₹{recommendedBundle.originalPrice}</span>
+                </div>
+                {savings > 0 && (
+                  <p className="text-xs font-semibold text-[#52b788]">You save ₹{savings}</p>
+                )}
+                <label className="flex items-center gap-2 mt-1 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includeHealthMix}
                     onChange={(e) => setIncludeHealthMix(e.target.checked)}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 w-3.5 h-3.5"
                   />
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-gray-800">Include Hair Health Mix</p>
-                    <p className="text-xs text-gray-500">Nutrition shake + supplement blend</p>
-                  </div>
+                  <span className="text-[10px] text-gray-500">Include Hair Health Mix</span>
                 </label>
-
-                <div className="flex justify-between items-center text-sm font-bold px-1 w-full !text-left">
-                  <span className="text-gray-500 !text-left">Total Bundle Value</span>
-                  <div className="text-right">
-                    <span className="text-xs text-gray-400 line-through mr-1.5 font-medium">₹{recommendedBundle.originalPrice}</span>
-                    <span className="text-xl font-black text-gray-900">₹{recommendedBundle.price}</span>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <button 
-              type="button" 
-              onClick={() => {
-                if (requiresDoctorConsultation) {
-                  alert("Connecting with our authorized clinical specialist network panel...");
-                } else if (recommendedBundle) {
-                  const { bundleNumber } = recommendedBundle;
-                  addToCart({
-                    id: recommendedBundle.bundleId,
-                    name: getBundleDisplayName(bundleNumber, gender, aiPredictedStageNumber),
-                    price: recommendedBundle.price,
-                    priceWithMix: recommendedBundle.bundlePrice,
-                    priceWithoutMix: recommendedBundle.priceWithoutMix,
-                    bundleNumber,
-                    includeHealthMix,
-                    wooProductId: getWooProductId(bundleNumber, includeHealthMix),
-                    wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
-                    wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
-                    subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber} Configuration)`,
-                  });
-                  alert("Your customized combo routine pack has been added to the cart!");
-                }
-              }}
-              className="w-full h-14 bg-[#064e3b] text-white rounded-full font-bold shadow-md hover:bg-[#043427] transition-all text-base flex items-center justify-center gap-2 cursor-pointer"
+              </div>
+              <button
+                type="button"
+                onClick={handleBuyNow}
+                className="shrink-0 bg-[#c6d947] hover:bg-[#b8c93a] text-gray-900 font-black text-base px-10 py-3.5 rounded-lg uppercase tracking-wide cursor-pointer transition-colors shadow-sm"
+              >
+                Buy Now
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={handleBuyNow}
+              className="w-full bg-[#c6d947] hover:bg-[#b8c93a] text-gray-900 font-black text-base py-3.5 rounded-lg uppercase tracking-wide cursor-pointer"
             >
-              {requiresDoctorConsultation ? "🩺 Schedule Specialist Consultation" : "BUY NOW — Start Treatment"}
+              {requiresDoctorConsultation ? "Schedule Consultation" : "Continue"}
             </button>
-          </div>
-
+          )}
         </div>
-
       </div>
     </div>
   );

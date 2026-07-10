@@ -1,56 +1,112 @@
 /**
- * Maps bundle products → images in frontend/public/products/
+ * Product images — resolved from src/assets/products (bundled by Vite) OR public/products.
+ *
+ * Put your JPG files in EITHER:
+ *   frontend/src/assets/products/   ← recommended
+ *   frontend/public/products/       ← served at /products/filename.jpg
  */
-const PRODUCT_IMAGES_BY_ID = {
-  "prod-minox-male-rx": "/products/minoxidil-5.jpg",
-  "prod-minox-female-rx": "/products/minoxidil-2.jpg",
-  "prod-rosemary-concentrate": "/products/rosemary-oil.jpg",
-  "prod-derma": "/products/dermaroller.jpg",
-  "prod-shampoo": "/products/antidandruff-shampoo.jpg",
-  "prod-massager": "/products/scalp-massager.jpg",
-  "prod-oil-mct-dandruff": "/products/progro-oil.jpg",
-  "prod-oil-jojoba-clear": "/products/progro-oil.jpg",
+
+const EXTENSIONS = ["jpg", "jpeg", "png", "webp", "svg"];
+
+const bundledAssets = import.meta.glob("../assets/products/*", {
+  eager: true,
+  query: "?url",
+  import: "default",
+});
+
+const bundledByFilename = Object.entries(bundledAssets).reduce((acc, [path, url]) => {
+  const filename = path.split("/").pop()?.toLowerCase();
+  if (filename) acc[filename] = url;
+  return acc;
+}, {});
+
+const PRODUCT_CANDIDATE_BASES = {
+  "prod-minox-male-rx": ["minoxidil-5"],
+  "prod-minox-female-rx": ["minoxidil-2"],
+  "prod-rosemary-concentrate": ["rosemary-oil", "rosemary-mist"],
+  "prod-derma": ["dermaroller"],
+  "prod-shampoo": ["antidandruff-shampoo", "detox-shampoo"],
+  "prod-massager": ["scalp-massager"],
+  "prod-oil-mct-dandruff": ["progro-oil"],
+  "prod-oil-jojoba-clear": ["progro-oil"],
 };
 
-const PRODUCT_IMAGE_MAP = [
-  { match: /supplement|vitality|health.?mix|capsule/i, img: "/products/health-mix.jpg" },
-  { match: /2%|female.*minoxidil|minox.*female/i, img: "/products/minoxidil-2.jpg" },
-  { match: /5%|finasteride|male.*minoxidil|minox.*male/i, img: "/products/minoxidil-5.jpg" },
-  { match: /minoxidil/i, img: "/products/minoxidil-5.jpg" },
-  { match: /rosemary.*mist|follicle.*mist/i, img: "/products/rosemary-mist.jpg" },
-  { match: /rosemary|concentrate/i, img: "/products/rosemary-oil.jpg" },
-  { match: /detox/i, img: "/products/detox-shampoo.jpg" },
-  { match: /anti.?dandruff|dandruff.*shampoo|shampoo|cleanser/i, img: "/products/antidandruff-shampoo.jpg" },
-  { match: /derma|roller|microneedl/i, img: "/products/dermaroller.jpg" },
-  { match: /massager|brush/i, img: "/products/scalp-massager.jpg" },
-  { match: /conditioner|tea.?tree/i, img: "/products/tea-tree-conditioner.jpg" },
-  { match: /progro|jojoba|mct|oil/i, img: "/products/progro-oil.jpg" },
+const KEYWORD_BASES = [
+  { match: /supplement|vitality|health.?mix|capsule/i, bases: ["health-mix"] },
+  { match: /2%|female.*minoxidil/i, bases: ["minoxidil-2"] },
+  { match: /5%|finasteride|male.*minoxidil/i, bases: ["minoxidil-5"] },
+  { match: /minoxidil/i, bases: ["minoxidil-5", "minoxidil-2"] },
+  { match: /rosemary.*mist/i, bases: ["rosemary-mist"] },
+  { match: /rosemary|concentrate/i, bases: ["rosemary-oil", "rosemary-mist"] },
+  { match: /detox/i, bases: ["detox-shampoo"] },
+  { match: /anti.?dandruff|dandruff.*shampoo|shampoo|cleanser/i, bases: ["antidandruff-shampoo", "detox-shampoo"] },
+  { match: /derma|roller|microneedl/i, bases: ["dermaroller"] },
+  { match: /massager|brush/i, bases: ["scalp-massager"] },
+  { match: /conditioner|tea.?tree/i, bases: ["tea-tree-conditioner"] },
+  { match: /progro|jojoba|mct|oil/i, bases: ["progro-oil"] },
 ];
 
-export const DEFAULT_PRODUCT_IMAGE = "/products/health-mix.jpg";
+const DEFAULT_BASES = ["health-mix", "progro-oil"];
 
-export function getProductImageUrl(product = {}, isFemale = false) {
+function expandBases(bases) {
+  const files = [];
+  for (const base of bases) {
+    for (const ext of EXTENSIONS) {
+      files.push(`${base}.${ext}`);
+    }
+  }
+  return files;
+}
+
+function resolveFromBundled(filenames) {
+  for (const name of filenames) {
+    const url = bundledByFilename[name.toLowerCase()];
+    if (url) return url;
+  }
+  return null;
+}
+
+function getCandidateBases(product = {}, isFemale = false) {
   const id = product.id || "";
-
-  if (PRODUCT_IMAGES_BY_ID[id]) {
-    return PRODUCT_IMAGES_BY_ID[id];
-  }
-
-  if (id.startsWith("prod-supplements")) {
-    return "/products/health-mix.jpg";
-  }
-
   const haystack = `${id} ${product.name || ""} ${product.subtitle || ""}`;
 
+  if (id.startsWith("prod-supplements")) {
+    return ["health-mix"];
+  }
+
+  if (PRODUCT_CANDIDATE_BASES[id]) {
+    return PRODUCT_CANDIDATE_BASES[id];
+  }
+
   if (/minoxidil/i.test(haystack)) {
-    return isFemale ? "/products/minoxidil-2.jpg" : "/products/minoxidil-5.jpg";
+    return isFemale ? ["minoxidil-2"] : ["minoxidil-5"];
   }
 
-  for (const entry of PRODUCT_IMAGE_MAP) {
-    if (entry.match.test(haystack)) return entry.img;
+  for (const entry of KEYWORD_BASES) {
+    if (entry.match.test(haystack)) return entry.bases;
   }
 
-  return DEFAULT_PRODUCT_IMAGE;
+  return DEFAULT_BASES;
+}
+
+export function getProductImageSources(product = {}, isFemale = false) {
+  const bases = getCandidateBases(product, isFemale);
+  const filenames = expandBases(bases);
+
+  const bundled = resolveFromBundled(filenames);
+  if (bundled) {
+    return { src: bundled, fallbacks: [] };
+  }
+
+  const uniquePublic = [...new Set(filenames)];
+  return {
+    src: `/products/${uniquePublic[0]}`,
+    fallbacks: uniquePublic.slice(1).map((f) => `/products/${f}`),
+  };
+}
+
+export function getProductImageUrl(product = {}, isFemale = false) {
+  return getProductImageSources(product, isFemale).src;
 }
 
 export function shortenProductName(name = "", isFemale = false) {
@@ -78,8 +134,13 @@ export function formatBundleProduct(product, isFemale = false) {
   const shortName = shortenProductName(product?.name, isFemale);
   if (!shortName) return null;
 
+  const { src, fallbacks } = getProductImageSources(product, isFemale);
+
   return {
     shortName,
-    imgUrl: getProductImageUrl(product, isFemale),
+    imgUrl: src,
+    imgFallbacks: fallbacks,
   };
 }
+
+export const DEFAULT_PRODUCT_IMAGE = "/products/health-mix.jpg";
