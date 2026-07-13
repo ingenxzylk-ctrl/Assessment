@@ -773,16 +773,17 @@ export default function Result() {
                 <span className="text-[#6f8f3d]">Hair Assessment Report</span>
               </h2>
 
-              {/* Desktop: report ID stays under the title */}
-              <div className="hidden sm:inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5">
-                <span className="inline-flex h-4 w-4 items-center justify-center shrink-0" aria-hidden="true">
-                  <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
+              {/* Report ID sits under the title (beside scalp card on mobile) to avoid a large empty gap */}
+              <div className="inline-flex items-center gap-1 sm:gap-2 rounded-full bg-[#ececec] px-2 py-0.5 sm:px-3.5 sm:py-1.5 max-w-full">
+                <span className="inline-flex h-3 w-3 sm:h-4 sm:w-4 items-center justify-center shrink-0" aria-hidden="true">
+                  <svg className="h-3 w-3 sm:h-4 sm:w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
                     <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <span className="text-[12px] font-medium text-[#555555]">
-                  Report ID: {reportId} • {reportDate}
+                <span className="text-[9px] sm:text-[12px] font-medium text-[#555555] leading-none truncate">
+                  Report ID: {reportId}
+                  <span className="text-[#888888]"> • {reportDate}</span>
                 </span>
               </div>
 
@@ -814,29 +815,13 @@ export default function Result() {
             </div>
           </div>
 
-          {/* Mobile: full-width report ID + confidence under the header row */}
-          <div className="sm:hidden mt-3 space-y-2 text-left">
-            <div className="flex items-center gap-1.5 rounded-full bg-[#ececec] px-3 py-1.5 w-fit max-w-full">
-              <span className="inline-flex h-3.5 w-3.5 items-center justify-center shrink-0" aria-hidden="true">
-                <svg className="h-3.5 w-3.5 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
-                  <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <span className="text-[10px] font-medium text-[#555555] whitespace-nowrap">
-                Report ID: {reportId}
-              </span>
-              <span className="text-[10px] font-medium text-[#888888] whitespace-nowrap">
-                • {reportDate}
-              </span>
-            </div>
-            <p className="text-[12px] text-[#555555] leading-relaxed">
-              Our AI scan + expert analysis of 14 key parameters gives us{" "}
-              <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
-            </p>
-          </div>
+          {/* Mobile: confidence under the header row, tight to the scalp card */}
+          <p className="sm:hidden mt-1.5 text-[11px] text-[#555555] leading-snug text-left">
+            Our AI scan + expert analysis of 14 key parameters gives us{" "}
+            <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
+          </p>
 
-          <div className="mt-5 pt-4 border-t border-gray-100 text-left">
+          <div className="mt-3 sm:mt-5 pt-3 sm:pt-4 border-t border-gray-100 text-left">
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
               Your Assessment
             </p>
