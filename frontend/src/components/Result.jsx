@@ -480,7 +480,7 @@ function TreatmentPlanPricingStrip({ price, originalPrice, savings, onBuy }) {
     <div className="hidden lg:block fixed bottom-0 left-0 right-0 z-50 px-6 xl:px-10 pb-4 pt-2 pointer-events-none">
       <div className="max-w-[1600px] mx-auto pointer-events-auto space-y-2.5">
         <div className="bg-white rounded-2xl shadow-[0_-4px_28px_rgba(0,0,0,0.1)] border border-gray-100 px-6 xl:px-8 py-5">
-          <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1fr)] gap-6 xl:gap-10 items-center">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-6 xl:gap-10 items-center">
             {/* Price */}
             <div className="min-w-0">
               <p className="text-sm text-gray-500 mb-1">Your treatment plan price</p>
@@ -502,26 +502,6 @@ function TreatmentPlanPricingStrip({ price, originalPrice, savings, onBuy }) {
                 )}
               </div>
             </div>
-
-            {/* Features */}
-            <ul className="space-y-2 min-w-0">
-              {TREATMENT_PLAN_FEATURES.map((feature) => (
-                <li key={feature} className="flex items-start gap-2.5 text-sm text-gray-800">
-                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#52b788] text-white">
-                    <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="none" aria-hidden="true">
-                      <path
-                        d="M2.5 6.2l2.2 2.2 4.8-4.8"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <span className="leading-snug">{feature}</span>
-                </li>
-              ))}
-            </ul>
 
             {/* CTA */}
             <div className="min-w-0">
@@ -545,6 +525,26 @@ function TreatmentPlanPricingStrip({ price, originalPrice, savings, onBuy }) {
               </p>
             </div>
           </div>
+
+          {/* Features — single line at the bottom of the card */}
+          <ul className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-x-6 gap-y-2">
+            {TREATMENT_PLAN_FEATURES.map((feature) => (
+              <li key={feature} className="flex items-center gap-2 text-sm text-gray-800">
+                <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#52b788] text-white">
+                  <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="none" aria-hidden="true">
+                    <path
+                      d="M2.5 6.2l2.2 2.2 4.8-4.8"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className="leading-snug whitespace-nowrap">{feature}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         {/* Motivational banner */}
