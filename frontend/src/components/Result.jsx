@@ -377,6 +377,16 @@ export default function Result() {
               </div>
             )}
 
+            {Boolean(rawAnalysis.quotaFallback) && !analysisMissing && (
+              <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-950">
+                <p className="font-bold">Photo AI temporarily unavailable</p>
+                <p className="text-xs text-amber-800 mt-1">
+                  Gemini API quota was exceeded, so this result uses your quiz stage ({reportedStage || aiPredictedStageNumber}).
+                  Add a new key in <code className="font-mono">backend/.env</code> as <code className="font-mono">GEMINI_API_KEY</code> (or <code className="font-mono">GEMINI_API_KEYS</code>), restart the backend, and retake the scalp scan for photo-based staging.
+                </p>
+              </div>
+            )}
+
             {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && (
               <div className="mt-4 bg-[#5a6b2e] rounded-full px-4 py-2 flex items-center justify-between text-white text-sm">
                 <span className="font-bold">94% Saw Results*</span>

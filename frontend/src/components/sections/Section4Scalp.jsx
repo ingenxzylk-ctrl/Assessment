@@ -151,6 +151,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   };
 
   const handleTriggerAnalysis = async () => {
+    if (step === "analyzing") return;
     if (isFemale && (!images.front || !images.side || !images.back)) {
       setError("Please provide Front, Side (ponytail), and Back (ponytail aside) images.");
       return;

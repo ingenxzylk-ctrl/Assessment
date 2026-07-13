@@ -903,10 +903,71 @@ const buildGeminiParts = (gender, labeledImages) => {
   return parts;
 };
 
+/**
+ * When Gemini quota is exhausted, still complete the quiz using the user's
+ * self-reported stage so the flow is not blocked. Marked clearly as fallback.
+ */
+const buildQuotaFallbackResult = (gender, selfReportedStage, reason = "quota") => {
+  const userGender = String(gender || "male").toLowerCase();
+  const normalizedSelf =
+    normalizeStageForGender(selfReportedStage, userGender) ||
+    (userGender === "female" ? "1" : "2");
+
+  const stageNum = parseInt(normalizedSelf, 10);
+  const requiresDoctor =
+    (userGender === "male" && !Number.isNaN(stageNum) && stageNum >= 6) ||
+    (userGender === "female" && normalizedSelf === "patchy-bald");
+
+  return {
+    finalStage:
+      userGender === "female"
+        ? `Ludwig Stage ${normalizedSelf}`
+        : `Norwood Stage ${normalizedSelf}`,
+    stageDescription:
+      "AI photo analysis was unavailable (Gemini API quota exceeded). Stage is based on your quiz answer until a working API key is configured.",
+    aiPredictedStage: normalizedSelf,
+    rawAiStage: null,
+    ruleBasedStage: null,
+    observations: {},
+    stageAdjusted: false,
+    aiConfidence: 0.45,
+    modelConfidence: null,
+    imageQuality: null,
+    imageBased: false,
+    quotaFallback: true,
+    aiReasoning:
+      reason === "rate_limit"
+        ? "Gemini rate limit hit. Used quiz self-reported stage as temporary fallback."
+        : "Gemini API quota exceeded. Used quiz self-reported stage as temporary fallback. Add a new GEMINI_API_KEY or GEMINI_API_KEYS in backend/.env and restart.",
+    requiresDoctorConsultation: requiresDoctor,
+    selfReportedStage: normalizedSelf,
+    stageDiscrepancy: false,
+    gender: userGender,
+    analysisComplete: true,
+    model: null,
+    provider: "fallback",
+    warning:
+      "Gemini quota exceeded — results use your quiz stage for now. Replace GEMINI_API_KEY to restore photo AI analysis.",
+  };
+};
+
+/** Short cooldown after hard quota so rapid re-clicks do not keep hitting Google. */
+let lastQuotaHitAt = 0;
+const QUOTA_COOLDOWN_MS = Number(process.env.GEMINI_QUOTA_COOLDOWN_MS) || 60_000;
+
 export const analyzeScalp = async (req, res) => {
+  const { gender, selfReportedStage, images } = req.body || {};
+  const userGender = String(gender || "male").toLowerCase();
+  const allowFallback =
+    String(process.env.GEMINI_QUOTA_FALLBACK || "true").toLowerCase() !== "false";
+
   try {
     const apiKeys = getGeminiApiKeys();
     if (apiKeys.length === 0) {
+      if (allowFallback) {
+        console.warn("No Gemini API key — returning quiz-stage fallback.");
+        return res.status(200).json(buildQuotaFallbackResult(userGender, selfReportedStage, "quota"));
+      }
       return res.status(500).json({
         error:
           "GEMINI_API_KEY is missing or still a placeholder. Add your real key to backend/.env and restart the server.",
@@ -916,8 +977,11 @@ export const analyzeScalp = async (req, res) => {
       });
     }
 
-    const { gender, selfReportedStage, images } = req.body;
-    const userGender = String(gender || "male").toLowerCase();
+    // If we recently hit hard quota, skip calling Google and return fallback immediately
+    if (allowFallback && lastQuotaHitAt && Date.now() - lastQuotaHitAt < QUOTA_COOLDOWN_MS) {
+      console.warn("Gemini quota cooldown active — returning quiz-stage fallback.");
+      return res.status(200).json(buildQuotaFallbackResult(userGender, selfReportedStage, "quota"));
+    }
 
     const labeledImages = parseLabeledImages(images);
 
@@ -1022,6 +1086,7 @@ export const analyzeScalp = async (req, res) => {
       modelConfidence,
       imageQuality: parsed.imageQuality || null,
       imageBased: true,
+      quotaFallback: false,
       aiReasoning: parsed.aiReasoning || "",
       requiresDoctorConsultation: requiresDoctor,
       selfReportedStage: normalizedSelfReported || selfReportedStage || null,
@@ -1054,6 +1119,15 @@ export const analyzeScalp = async (req, res) => {
   } catch (error) {
     console.error("analyzeScalp error:", error);
     const classified = classifyGeminiError(error);
+
+    if (allowFallback && (classified.type === "quota" || classified.type === "rate_limit")) {
+      if (classified.type === "quota") lastQuotaHitAt = Date.now();
+      console.warn(`Gemini ${classified.type} — returning quiz-stage fallback so the quiz can continue.`);
+      return res.status(200).json(
+        buildQuotaFallbackResult(userGender, selfReportedStage, classified.type)
+      );
+    }
+
     return res.status(classified.httpStatus).json({
       error: classified.message,
       code: classified.type,
