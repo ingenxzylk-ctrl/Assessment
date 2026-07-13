@@ -1463,14 +1463,35 @@ export default function Result() {
             <div className="border-t border-gray-100 pt-4">
               {recommendedBundle && !requiresDoctorConsultation ? (
                 <>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-gray-900">₹{recommendedBundle.price}</span>
-                    <span className="text-sm text-gray-400 line-through">₹{recommendedBundle.originalPrice}</span>
+                  <div className="text-left">
+                    <p className="text-xs font-semibold text-gray-500 mb-0.5">
+                      Your treatment plan price
+                    </p>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-gray-900 tracking-tight">
+                        ₹{recommendedBundle.price}
+                      </span>
+                      <span className="text-sm font-bold text-gray-500">/ month</span>
+                    </div>
+                    <p className="text-xs font-bold text-gray-900 mt-1">
+                      (Less than ₹
+                      {Math.max(1, Math.round(Number(recommendedBundle.price || 0) / 30))} / day)
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {savings > 0 && (
+                        <span className="inline-flex items-center rounded-full bg-[#e8f5e9] px-2.5 py-1 text-xs font-bold text-[#1b4332] border border-[#cbe4c5]">
+                          You save ₹{savings}
+                        </span>
+                      )}
+                      {recommendedBundle.originalPrice > recommendedBundle.price && (
+                        <p className="text-sm font-bold text-gray-400 line-through tracking-wide">
+                          ₹{recommendedBundle.originalPrice}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {savings > 0 && (
-                    <p className="text-xs font-semibold text-[#52b788]">You save ₹{savings}</p>
-                  )}
-                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
+
+                  <label className="flex items-center gap-2 mt-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={includeHealthMix}
@@ -1486,13 +1507,35 @@ export default function Result() {
                       )}
                     </span>
                   </label>
+
                   <button
                     type="button"
                     onClick={handleBuyNow}
-                    className="mt-4 w-full bg-[#c6d947] hover:bg-[#b8c93a] text-gray-900 font-black text-base py-3.5 rounded-lg uppercase tracking-wide cursor-pointer transition-colors shadow-sm"
+                    className="mt-4 w-full flex items-center justify-between gap-3 bg-gradient-to-r from-[#388e3c] via-[#2e7d32] to-[#1b5e20] hover:brightness-110 text-white font-bold text-left px-4 py-3.5 rounded-xl cursor-pointer transition-all shadow-[0_4px_14px_rgba(46,125,50,0.3)]"
                   >
-                    Buy Now
+                    <span className="text-sm font-bold leading-tight">
+                      See My Treatment Plan
+                      <br />
+                      <span className="text-white/90 text-xs font-normal">
+                        &amp; Start My Recovery
+                      </span>
+                    </span>
+                    <span className="text-xl font-light shrink-0 opacity-90" aria-hidden="true">
+                      ›
+                    </span>
                   </button>
+
+                  <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[10px] font-bold text-gray-500 tracking-wide uppercase">
+                    <svg
+                      viewBox="0 0 16 16"
+                      className="w-3.5 h-3.5 text-gray-400"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M8 1a3.5 3.5 0 00-3.5 3.5V6H4a1 1 0 00-1 1v6a1 1 0 001 1h8a1 1 0 001-1V7a1 1 0 00-1-1h-.5V4.5A3.5 3.5 0 008 1zm2 5H6V4.5a2 2 0 114 0V6z" />
+                    </svg>
+                    Secure Checkout
+                  </p>
                 </>
               ) : (
                 <button
