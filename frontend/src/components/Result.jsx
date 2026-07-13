@@ -227,10 +227,10 @@ function ResultsSeeingTimeline({ roadmap, ageRange }) {
   const younger = ["18-25", "26-35"].includes(String(ageRange || ""));
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 text-left">
+    <div className="mt-4 md:mt-5 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 md:p-5 text-left">
       <p className="text-sm font-bold text-gray-900 mb-3">Start seeing results</p>
 
-      <div className="relative max-h-[168px] overflow-y-auto pr-1 scrollbar-thin">
+      <div className="relative max-h-[168px] md:max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
         <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[#9ccc65]/70" />
         <ul className="relative space-y-4">
           {roadmap.map((step, index) => {
@@ -373,11 +373,11 @@ function ProgressionTrack({ title, steps, variant }) {
   return (
     <div className={`rounded-2xl border p-3 sm:p-4 ${shell}`}>
       <p className={`text-sm font-bold mb-3 ${titleColor}`}>{title}</p>
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex items-center gap-1 md:gap-2 overflow-x-auto md:overflow-visible pb-1 scrollbar-hide md:justify-between">
         {steps.map((step, index) => (
-          <div key={`${step.label}-${index}`} className="flex items-center gap-1 shrink-0">
-            <div className="flex flex-col items-center w-[72px] sm:w-[78px]">
-              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-white shadow-sm">
+          <div key={`${step.label}-${index}`} className="flex items-center gap-1 md:gap-2 shrink-0 md:shrink">
+            <div className="flex flex-col items-center w-[72px] sm:w-[78px] md:w-[88px]">
+              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] md:w-[80px] md:h-[80px] rounded-full overflow-hidden bg-white border border-white shadow-sm">
                 <img
                   src={step.image}
                   alt={step.label}
@@ -411,15 +411,15 @@ function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-left">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 text-left h-full">
       <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-snug">
         How your hair may change over time
       </h2>
-      <p className="text-sm text-gray-500 mt-1 mb-4">
+      <p className="text-sm text-gray-500 mt-1 mb-4 md:mb-5">
         Based on {isFemale ? "women" : "men"} with similar profile as you
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-2">
         <ProgressionTrack title="If left untreated" steps={untreated} variant="untreated" />
         <ProgressionTrack title="With Zylk Treatment" steps={treated} variant="treated" />
       </div>
@@ -720,13 +720,13 @@ export default function Result() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-10">
-      <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-12">
+      <div className="max-w-lg md:max-w-7xl mx-auto px-3 md:px-8 lg:px-10 pt-4 md:pt-8 md:grid md:grid-cols-[minmax(0,1fr)_400px] lg:grid-cols-[minmax(0,1fr)_440px] md:gap-8 lg:gap-10 md:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
-      <div className="space-y-4 md:min-w-0">
+      <div className="space-y-4 md:space-y-6 lg:space-y-8 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start">
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5 md:p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 md:gap-8 lg:gap-10 items-start">
             <div className="flex-1 min-w-0 text-left space-y-3">
               <h1 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
@@ -755,7 +755,7 @@ export default function Result() {
               </p>
             </div>
 
-            <div className="w-full sm:w-[180px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div className="w-full sm:w-[180px] md:w-[200px] lg:w-[240px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
               <p className="px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">Your Scalp Overview</p>
               <div className="px-3 pb-3">
                 <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-50">
@@ -879,87 +879,89 @@ export default function Result() {
         </section>
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-left">
-            <h2 className="text-base font-bold text-gray-900 mb-3">Your Hair fall Root Causes</h2>
-            <div className="space-y-3">
-              {rootCauses.map((cause) => (
-                <div
-                  key={cause.id}
-                  className="flex items-start gap-3 rounded-2xl bg-[#f7efe6] border border-[#f0e2d2] p-3.5"
-                >
-                  <div className="w-14 shrink-0 flex flex-col items-center gap-1 pt-0.5">
-                    <span className="text-2xl leading-none">{cause.icon}</span>
-                    <span className="text-[11px] font-bold text-gray-800 text-center leading-tight">
-                      {cause.label}
-                    </span>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 xl:gap-8 items-start">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 text-left h-full">
+              <h2 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4">Your Hair fall Root Causes</h2>
+              <div className="space-y-3 md:space-y-4">
+                {rootCauses.map((cause) => (
+                  <div
+                    key={cause.id}
+                    className="flex items-start gap-3 md:gap-4 rounded-2xl bg-[#f7efe6] border border-[#f0e2d2] p-3.5 md:p-4"
+                  >
+                    <div className="w-14 md:w-16 shrink-0 flex flex-col items-center gap-1 pt-0.5">
+                      <span className="text-2xl leading-none">{cause.icon}</span>
+                      <span className="text-[11px] font-bold text-gray-800 text-center leading-tight">
+                        {cause.label}
+                      </span>
+                    </div>
+                    <p className="flex-1 text-xs md:text-sm text-gray-700 leading-relaxed pt-1">
+                      {cause.desc}
+                    </p>
                   </div>
-                  <p className="flex-1 text-xs text-gray-700 leading-relaxed pt-1">
-                    {cause.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!requiresDoctorConsultation && !analysisMissing && (
-          <HairProgressionComparison
-            currentStage={aiPredictedStageNumber}
-            isFemale={isFemale}
-            resultMonths={resultMonths}
-          />
-        )}
-
-        {!requiresDoctorConsultation && (
-          <div className="bg-[#f0faf4] border border-[#b7e4c7] rounded-2xl p-4 flex gap-3 items-center">
-            <div className="flex-1">
-              <p className="text-3xl font-black text-[#064e3b]">3 Times</p>
-              <p className="text-sm font-bold text-gray-800">Better results</p>
-              <p className="text-[10px] text-gray-500 uppercase mt-1">Based on a 5-month study*</p>
-              <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
-                Check Study →
-              </button>
-            </div>
-            <div className="w-28 shrink-0 flex items-end gap-1 h-24">
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-full bg-gray-300 rounded-t h-8" />
-                <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Minoxidil Alone</span>
-              </div>
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-full bg-[#52b788] rounded-t h-20 relative">
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">3x</span>
-                </div>
-                <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Zylk Regimen</span>
+                ))}
               </div>
             </div>
+
+            {!analysisMissing && (
+              <HairProgressionComparison
+                currentStage={aiPredictedStageNumber}
+                isFemale={isFemale}
+                resultMonths={resultMonths}
+              />
+            )}
           </div>
         )}
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <h2 className="text-base font-bold text-gray-900">
-              Here is <span className="text-[#064e3b]">{testimonial.name.split(" ")[0]}</span>
-            </h2>
-            <p className="text-sm text-gray-500 mb-3">Who Matches Your Profile</p>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {testimonial.months.map((label, i) => (
-                <div key={i} className="shrink-0 w-24">
-                  <div className="h-28 rounded-lg bg-gradient-to-b from-gray-200 to-gray-300 overflow-hidden border border-gray-200">
-                    <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">👤</div>
-                  </div>
-                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{label}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
+            <div className="bg-[#f0faf4] border border-[#b7e4c7] rounded-2xl p-4 md:p-6 flex gap-3 md:gap-5 items-center h-full">
+              <div className="flex-1">
+                <p className="text-3xl font-black text-[#064e3b]">3 Times</p>
+                <p className="text-sm font-bold text-gray-800">Better results</p>
+                <p className="text-[10px] text-gray-500 uppercase mt-1">Based on a 5-month study*</p>
+                <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
+                  Check Study →
+                </button>
+              </div>
+              <div className="w-28 shrink-0 flex items-end gap-1 h-24">
+                <div className="flex flex-col items-center flex-1">
+                  <div className="w-full bg-gray-300 rounded-t h-8" />
+                  <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Minoxidil Alone</span>
                 </div>
-              ))}
+                <div className="flex flex-col items-center flex-1">
+                  <div className="w-full bg-[#52b788] rounded-t h-20 relative">
+                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">3x</span>
+                  </div>
+                  <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Zylk Regimen</span>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-center gap-1.5 mt-3">
-              {TESTIMONIALS.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setTestimonialIdx(i)}
-                  className={`w-2 h-2 rounded-full ${i === testimonialIdx ? "bg-gray-800" : "bg-gray-300"}`}
-                />
-              ))}
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 h-full">
+              <h2 className="text-base md:text-lg font-bold text-gray-900">
+                Here is <span className="text-[#064e3b]">{testimonial.name.split(" ")[0]}</span>
+              </h2>
+              <p className="text-sm text-gray-500 mb-3 md:mb-4">Who Matches Your Profile</p>
+              <div className="flex gap-2 md:gap-3 overflow-x-auto pb-1">
+                {testimonial.months.map((label, i) => (
+                  <div key={i} className="shrink-0 w-24 md:w-28">
+                    <div className="h-28 md:h-32 rounded-lg bg-gradient-to-b from-gray-200 to-gray-300 overflow-hidden border border-gray-200">
+                      <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">👤</div>
+                    </div>
+                    <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-center gap-1.5 mt-3 md:mt-4">
+                {TESTIMONIALS.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setTestimonialIdx(i)}
+                    className={`w-2 h-2 rounded-full ${i === testimonialIdx ? "bg-gray-800" : "bg-gray-300"}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -1070,13 +1072,14 @@ export default function Result() {
         )}
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <div className="flex justify-center mb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 h-full">
+            <div className="flex justify-center mb-4 md:mb-5">
               <span className="text-[11px] font-bold uppercase tracking-wider border-2 border-[#064e3b] text-[#064e3b] rounded-full px-4 py-1">
                 Free Add-ons
               </span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 md:space-y-4">
               {FREE_ADDONS.map((addon) => (
                 <div key={addon.id} className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-xl shrink-0">
@@ -1094,19 +1097,17 @@ export default function Result() {
               ))}
             </div>
           </div>
-        )}
 
-        {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden">
-            <div className="flex gap-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 relative overflow-hidden h-full">
+            <div className="flex gap-3 md:gap-5">
               <div className="flex-1">
-                <p className="text-base font-bold text-gray-900">Hair coach unlocked</p>
-                <p className="text-xs text-gray-500 mt-1">Dedicated hair expert just a call away to support you.</p>
+                <p className="text-base md:text-lg font-bold text-gray-900">Hair coach unlocked</p>
+                <p className="text-xs md:text-sm text-gray-500 mt-1">Dedicated hair expert just a call away to support you.</p>
               </div>
-              <div className="w-16 h-16 rounded-full bg-[#e8eede] flex items-center justify-center text-3xl shrink-0">👩‍⚕️</div>
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-[#e8eede] flex items-center justify-center text-3xl md:text-4xl shrink-0">👩‍⚕️</div>
             </div>
-            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-600 flex-1">Opt-in for a call immediately after placing your order</p>
+            <div className="mt-4 md:mt-5 pt-3 md:pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+              <p className="text-xs md:text-sm text-gray-600 flex-1">Opt-in for a call immediately after placing your order</p>
               <button
                 type="button"
                 role="switch"
@@ -1124,10 +1125,11 @@ export default function Result() {
               </button>
             </div>
           </div>
+          </div>
         )}
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
             <h2 className="text-lg font-bold text-gray-900 leading-snug mb-4">
               Your Routine Gets Easier And Cheaper Every Month
             </h2>
@@ -1148,9 +1150,9 @@ export default function Result() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
-          <div className="border border-gray-100 rounded-xl p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+          <h2 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4">Real People, Real Stories</h2>
+          <div className="border border-gray-100 rounded-xl p-4 md:p-5">
             <span className="inline-block text-[10px] font-bold bg-gray-800 text-white px-2 py-0.5 rounded mb-3">
               STAGE {testimonial.stage}
             </span>
@@ -1171,7 +1173,7 @@ export default function Result() {
         </div>
 
         {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && !eligibilityTimeline.needsTransplant && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 text-center">
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 text-xl">₹</div>
             <p className="text-xl font-bold text-[#064e3b]">Congratulations!</p>
             <p className="text-sm font-bold text-gray-600 mt-1">You Are 100% Eligible For The Money Back Policy</p>
@@ -1223,10 +1225,10 @@ export default function Result() {
 
       {/* RIGHT COLUMN — sticky purchase card, desktop only */}
       {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
-        <div className="hidden md:block md:sticky md:top-6">
-          <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 space-y-5">
+        <div className="hidden md:block md:sticky md:top-6 md:self-start">
+          <div className="bg-white rounded-[32px] p-5 md:p-6 lg:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 space-y-5 md:space-y-6">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+              <h2 className="text-lg lg:text-xl font-bold text-gray-900 tracking-tight">
                 Start Your Journey With Just 1 Month Kit
               </h2>
               <p className="text-xs text-gray-400 mt-1">
