@@ -64,9 +64,12 @@ function QuizFlow() {
     }
   }
 
+  const isResultStep = step === 5 || (isLoading && step === 5);
+  const shellMaxWidth = step === 0 ? "max-w-6xl" : isResultStep ? "max-w-screen-2xl" : "max-w-4xl";
+
   return (
-    <div className="min-h-screen bg-[#f4f6f0] text-gray-900 px-4 md:px-8 pb-16 antialiased">
-      <header className="max-w-6xl mx-auto flex items-center justify-between py-5 border-b border-gray-200/60 mb-8">
+    <div className="min-h-screen bg-[#f4f6f0] text-gray-900 px-4 md:px-8 lg:px-10 pb-16 antialiased">
+      <header className={`${shellMaxWidth} mx-auto flex items-center justify-between py-5 border-b border-gray-200/60 mb-8`}>
         <div 
           className="flex items-center gap-2 cursor-pointer select-none active:opacity-80 transition-opacity"
           onClick={() => window.location.reload()}
@@ -121,7 +124,7 @@ function QuizFlow() {
         </div>
       )}
 
-      <main className={`mx-auto flex justify-center items-start ${step === 0 ? "max-w-6xl" : "max-w-4xl"}`}>
+      <main className={`${shellMaxWidth} mx-auto flex justify-center items-start w-full`}>
         <div className="w-full">{content}</div>
       </main>
     </div>
