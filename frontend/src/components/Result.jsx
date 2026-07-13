@@ -720,14 +720,14 @@ export default function Result() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-12">
-      <div className="max-w-lg md:max-w-7xl mx-auto px-3 md:px-8 lg:px-10 pt-4 md:pt-8 md:grid md:grid-cols-[minmax(0,1fr)_400px] lg:grid-cols-[minmax(0,1fr)_440px] md:gap-8 lg:gap-10 md:items-start">
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 lg:-mx-10 -mt-8 pb-36 md:pb-12">
+      <div className="w-full max-w-lg md:max-w-none mx-auto px-3 md:px-6 lg:px-8 pt-4 md:pt-8 md:grid md:grid-cols-[minmax(0,1fr)_400px] lg:grid-cols-[minmax(0,1fr)_460px] xl:grid-cols-[minmax(0,1fr)_500px] 2xl:grid-cols-[minmax(0,1fr)_540px] md:gap-8 lg:gap-10 xl:gap-12 md:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:space-y-6 lg:space-y-8 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5 md:p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 md:gap-8 lg:gap-10 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-3">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 md:gap-8 lg:gap-10 xl:gap-12 items-start">
+            <div className="flex-1 min-w-0 text-left space-y-3 md:space-y-4">
               <h1 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
@@ -755,7 +755,7 @@ export default function Result() {
               </p>
             </div>
 
-            <div className="w-full sm:w-[180px] md:w-[200px] lg:w-[240px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div className="w-full sm:w-[180px] md:w-[220px] lg:w-[260px] xl:w-[300px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
               <p className="px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">Your Scalp Overview</p>
               <div className="px-3 pb-3">
                 <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-50">
