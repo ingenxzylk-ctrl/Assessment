@@ -93,7 +93,7 @@ export const TERMS_AND_CONDITIONS = [
   },
   {
     title: "20. Governing Law; Dispute Resolution; Jurisdiction",
-    body: `These Terms are governed by the laws of India, without regard to conflict-of-law principles. Subject to mandatory consumer protections, you agree that courts in [City — e.g., Bengaluru / Mumbai / Delhi], India shall have exclusive jurisdiction over disputes arising from these Terms or the Service. Before filing a claim, you agree to attempt good-faith resolution by contacting ${TERMS_CONTACT_EMAIL} and allowing thirty (30) days for response. WHERE PERMITTED, YOU AND COMPANY WAIVE ANY RIGHT TO PARTICIPATE IN A CLASS, COLLECTIVE, OR REPRESENTATIVE ACTION. If a waiver is unenforceable, the remainder of this section still applies. Nothing prevents either party from seeking interim injunctive relief for IP or data-security harm.`,
+    body: `These Terms are governed by the laws of India, without regard to conflict-of-law principles. Subject to mandatory consumer protections, you agree that courts in ${TERMS_GOVERNING_CITY} shall have exclusive jurisdiction over disputes arising from these Terms or the Service. Before filing a claim, you agree to attempt good-faith resolution by contacting ${TERMS_CONTACT_EMAIL} and allowing thirty (30) days for response. WHERE PERMITTED, YOU AND COMPANY WAIVE ANY RIGHT TO PARTICIPATE IN A CLASS, COLLECTIVE, OR REPRESENTATIVE ACTION. If a waiver is unenforceable, the remainder of this section still applies. Nothing prevents either party from seeking interim injunctive relief for IP or data-security harm.`,
   },
   {
     title: "21. Export, Sanctions, and Compliance",
