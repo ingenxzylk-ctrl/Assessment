@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
+import { HAIR_FALL_LOCATION } from "../../data/questions";
 
 const HAIR_STAGES = [
   { id: "1", title: "Stage 1", desc: "No visible recession.", img: "/stages/Stage1.png" },
@@ -18,12 +19,7 @@ const HAIR_STAGES = [
   }
 ];
 
-const HAIR_ZONES = [
-  { id: "front", label: "Front hairline / temples", img: "/zones/front_hairline.png" },
-  { id: "crown", label: "Crown area (top back)", img: "/zones/crown_vertex.png" },
-  { id: "all_over", label: "General thinning all over", img: "/zones/general_thinning.png" }
-];
-
+const HAIR_ZONES = HAIR_FALL_LOCATION;
 export default function Section2Male({ onComplete, onBack }) {
   const { state, updateHairHealth } = useQuiz();
   const [subStep, setSubStep] = useSectionStep("section2Male", 5, 0);
@@ -145,7 +141,7 @@ export default function Section2Male({ onComplete, onBack }) {
               <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
                 HAIR HEALTH (2/6)
               </span>
-              <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">Where do you notice hair fall most?</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">Where do you notice hair loss most?</h2>
               <p className="text-gray-400 mt-1 text-xs">Pinpointing the active zones helps isolate root causes.</p>
             </div>
 

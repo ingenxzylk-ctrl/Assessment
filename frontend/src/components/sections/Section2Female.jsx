@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
+import { HAIR_FALL_LOCATION } from "../../data/questions";
 
 // Question 1: Female hair loss options with reference image paths
 const FEMALE_SHEDDING_OPTIONS = [
@@ -9,15 +10,8 @@ const FEMALE_SHEDDING_OPTIONS = [
   { id: "heavy", label: "Heavy shedding", desc: "100+ strands daily", img: "/strands/minimum.png" }
 ];
 
-// Question 2: Female pattern stage options
-const FEMALE_STAGE_OPTIONS = [
-  { id: "1", label: "Stage 1", desc: "Early or unnoticeable shifts", img: "/stagesf/stage1.png" },
-  { id: "2", label: "Stage 2", desc: "Noticeable widening at partition line", img: "/stagesf/stage2.png" },
-  { id: "3", label: "Stage 3", desc: "Advanced structural crown exposure", img: "/stagesf/stage3.png" },
-  { id: "overall-thinning", label: "Overall Thinning", desc: "Diffuse loss across entire scalp", img: "/stagesf/overall.png" },
-
-];
-
+// Question 2: Where hair loss is noticed (same 4 options as male)
+const FEMALE_HAIR_ZONES = HAIR_FALL_LOCATION;
 export default function Section2Female({ onComplete, onBack }) {
   const { state, updateHairHealth } = useQuiz();
   const [subStep, setSubStep] = useSectionStep("section2Female", 5, 0);
@@ -42,7 +36,7 @@ export default function Section2Female({ onComplete, onBack }) {
       return;
     }
     if (subStep === 1 && !localForm.hair_fall_zone) {
-      setErrors("Please select a pattern type profile that matches your current thickness.");
+      setErrors("Please select where you notice your hair loss the most.");
       return;
     }
     if (subStep === 2 && !localForm.daily_loss_amount) {
@@ -139,19 +133,19 @@ export default function Section2Female({ onComplete, onBack }) {
           </div>
         )}
 
-        {/* 2️⃣ QUESTION 2: FEMALE HAIR VOLUME SPECIFICATION GRID */}
+        {/* 2️⃣ QUESTION 2: WHERE DO YOU NOTICE HAIR LOSS MOST */}
         {subStep === 1 && (
           <div className="animate-[fadeIn_0.2s_ease-out]">
             <div className="mb-4">
               <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
                 HAIR HEALTH (2/6)
               </span>
-              <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">What best describes your current volume of hair?</h2>
-              <p className="text-gray-400 mt-1 text-xs">Select the graphic representation that matches your layout framework.</p>
+              <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">Where do you notice hair loss most?</h2>
+              <p className="text-gray-400 mt-1 text-xs">Pinpointing the active zones helps isolate root causes.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 w-full text-left mt-4">
-              {FEMALE_STAGE_OPTIONS.map((opt) => {
+              {FEMALE_HAIR_ZONES.map((opt) => {
                 const isSelected = localForm.hair_fall_zone === opt.id;
                 return (
                   <button
@@ -163,10 +157,7 @@ export default function Section2Female({ onComplete, onBack }) {
                     }`}
                   >
                     <div className="mb-3 w-full flex justify-between items-start gap-1">
-                      <div className="min-w-0">
-                        <h4 className="text-sm font-bold text-gray-900 tracking-tight leading-tight">{opt.label}</h4>
-                        <p className="text-[10px] text-gray-400 font-medium leading-tight mt-0.5">{opt.desc}</p>
-                      </div>
+                      <span className="text-sm font-bold text-gray-900 tracking-tight leading-tight">{opt.label}</span>
                       <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${isSelected ? "border-[#064e3b] bg-[#064e3b]" : "border-gray-300 bg-white"}`}>
                         {isSelected && <div className="w-1 h-1 rounded-full bg-white" />}
                       </div>
@@ -188,7 +179,6 @@ export default function Section2Female({ onComplete, onBack }) {
             </div>
           </div>
         )}
-
         {/* 3️⃣ QUESTION 3: STRAND LOSS QUANTITY VOLUME */}
         {subStep === 2 && (
           <div className="animate-[fadeIn_0.2s_ease-out]">
