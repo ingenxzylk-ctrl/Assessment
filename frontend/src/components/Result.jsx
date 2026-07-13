@@ -11,18 +11,43 @@ import { motion, useMotionValue, animate } from "framer-motion";
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
 
-/** Resolve public/testimonials paths for before/after photos. */
+/** Normalize a pasted path/filename into a public URL under /testimonials. */
+function normalizeTestimonialSrc(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  let value = raw.trim().replace(/^['"]|['"]$/g, "");
+  if (!value) return null;
+
+  // Already a usable web URL / data URI / absolute public path
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
+  if (value.startsWith("/testimonials/")) return value;
+
+  // Windows or Unix absolute/relative paths → keep only the filename
+  // e.g. C:\Users\...\ajay-before.jpg  or  frontend/public/testimonials/ajay-before.jpg
+  value = value.replace(/\\/g, "/");
+  const marker = "/testimonials/";
+  const markerIdx = value.toLowerCase().lastIndexOf(marker);
+  if (markerIdx !== -1) {
+    value = value.slice(markerIdx + marker.length);
+  } else {
+    value = value.split("/").pop() || value;
+  }
+
+  value = value.split("?")[0].split("#")[0];
+  if (!value) return null;
+  if (!value.includes(".")) value = `${value}.jpg`;
+  return `/testimonials/${value}`;
+}
+
+/** Resolve public/testimonials paths for before/after photos. Paste path or filename in `file`. */
 function resolveTestimonialPhotos(photos = []) {
   return photos
     .map((photo) => {
-      const file = typeof photo === "string" ? photo : photo?.file;
-      if (!file) return null;
+      const raw =
+        typeof photo === "string" ? photo : photo?.file || photo?.src || photo?.path || "";
+      const src = normalizeTestimonialSrc(raw);
+      if (!src) return null;
       const label = typeof photo === "string" ? "" : photo.label || "";
-      if (/^https?:\/\//i.test(file) || file.startsWith("/") || file.startsWith("data:")) {
-        return { label, src: file, fallbacks: [] };
-      }
-      const withExt = file.includes(".") ? file : `${file}.jpg`;
-      return { label, src: `/testimonials/${withExt}`, fallbacks: [] };
+      return { label, src, fallbacks: [] };
     })
     .filter(Boolean);
 }
@@ -61,7 +86,8 @@ const TESTIMONIALS = [
     review:
       "I was losing hope with generic oils. Zylk's stage-based kit actually reduced my shedding in the first month. My hairline looks fuller now.",
     date: "Reviewed on 25th Feb 2025",
-    // Drop matching files in frontend/public/testimonials/
+    // 1) Copy images into: frontend/public/testimonials/
+    // 2) Paste filename or full path below (Windows paths OK — filename is used)
     photos: [
       { label: "Before", file: "ajay-before.jpg" },
       { label: "Month 4", file: "ajay-month-4.jpg" },

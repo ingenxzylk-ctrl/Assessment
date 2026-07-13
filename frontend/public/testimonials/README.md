@@ -1,8 +1,24 @@
 # Testimonial before / after photos
 
-Drop JPG/PNG/WebP files here. They are served at `/testimonials/<filename>`.
+## Steps (copy → paste path)
 
-## Expected filenames (used by Result page)
+1. Copy your images into this folder:
+   `frontend/public/testimonials/`
+2. Open `frontend/src/components/Result.jsx`
+3. Find `TESTIMONIALS` → `photos`
+4. Paste your path or filename into `file:`
+
+Examples that all work:
+
+```js
+{ label: "Before", file: "ajay-before.jpg" }
+{ label: "Before", file: "/testimonials/ajay-before.jpg" }
+{ label: "Before", file: "C:\\Users\\DELL\\Desktop\\hair-scalp-quiz\\frontend\\public\\testimonials\\ajay-before.jpg" }
+```
+
+Windows full paths are fine — only the **filename** is used, so the file must still live in this folder.
+
+## Suggested filenames
 
 | Person | Files |
 |--------|--------|
@@ -10,8 +26,6 @@ Drop JPG/PNG/WebP files here. They are served at `/testimonials/<filename>`.
 | Rahul Mehta | `rahul-before.jpg`, `rahul-after.jpg` (optional: `rahul-month-3.jpg`) |
 
 Tips:
-- Use the same crop/framing for before and after (head/scalp close-up works best).
-- Prefer square or 3:4, around 800–1200px wide.
-- After adding files, restart `npm run dev` if images do not show.
-
-To add another story, put new files here and add a matching entry in `TESTIMONIALS` inside `frontend/src/components/Result.jsx`.
+- Same crop/framing for before and after works best
+- Square or 3:4, ~800–1200px wide
+- Restart `npm run dev` if a new image does not show
