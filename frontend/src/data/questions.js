@@ -9,11 +9,12 @@ export const NORWOOD_STAGES = [
   { id: "8", label: "Stage 8", desc: "Near-total baldness with only a narrow band of hair remaining on the sides and back." }
 ];
 
-// Location targets
+// Location targets — Question 2 (male & female)
 export const HAIR_FALL_LOCATION = [
-  { id: "front", label: "Front hairline / temples" },
-  { id: "crown", label: "Crown area (top back of head)" },
-  { id: "overall", label: "General uniform thinning all over" },
+  { id: "front", label: "Front hairline / temples", img: "/zones/front_hairline.png" },
+  { id: "crown", label: "Crown area (top of head)", img: "/zones/crown_vertex.png" },
+  { id: "parting", label: "Both Front hairline & Crown area  ", img: "/zones/both.png" },
+  { id: "all_over", label: "General thinning all over", img: "/zones/general_thinning.png" },
 ];
 
 // Scalp Health Choices

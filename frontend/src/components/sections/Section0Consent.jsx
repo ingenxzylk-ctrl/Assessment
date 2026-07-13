@@ -73,19 +73,7 @@ export default function Section0Consent({ onComplete, onBack }) {
             className="mt-0.5 w-5 h-5 rounded accent-[#064e3b] text-[#064e3b] focus:ring-[#064e3b] shrink-0"
           />
           <div className="text-sm text-gray-700 font-medium leading-relaxed">
-            I have read and agree to all{" "}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setShowTerms(true);
-              }}
-              className="text-[#064e3b] font-bold underline underline-offset-2 hover:text-[#043427] cursor-pointer"
-            >
-              Terms & Conditions
-            </button>
-            , including WhatsApp notifications, contact updates, data processing, and AI scalp
+            I have read and agree to all terms and conditions,including WhatsApp notifications, contact updates, data processing, and AI scalp
             analysis authorization.
           </div>
         </label>

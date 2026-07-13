@@ -41,8 +41,8 @@ export const BUNDLE_CONFIG = {
   },
     99: {
     label: "₹1 Test Bundle",
-    wooProductId: 9999, // Replace with your real WooCommerce test product ID
-    wooProductIdNoMix: 9999,
+    wooProductId: 8363 , // Replace with your real WooCommerce test product ID
+    wooProductIdNoMix: 8363 ,
     priceWithMix: 1,
     priceWithoutMix: 1,
     originalPrice: 1,
