@@ -434,6 +434,138 @@ function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
   );
 }
 
+const TREATMENT_PLAN_FEATURES = [
+  "3-Step Personalized Treatment Delivered Monthly",
+  "Doctor Guidance & Follow-up",
+  "Progress Tracking",
+  "Access to Zylk Support",
+];
+
+function SproutIcon({ className = "w-8 h-8" }) {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M16 28V16"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16 18c0-5 3.5-9 9-10-1 6-4.5 10-9 10Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 20c0-4-3-7.5-8-8.5C9 17 12.5 20 16 20Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11 28h10"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Desktop pricing + CTA strip (matches treatment-plan conversion bar). */
+function TreatmentPlanPricingStrip({ price, originalPrice, savings, onBuy }) {
+  const perDay = Math.max(1, Math.round(Number(price || 0) / 30));
+
+  return (
+    <div className="hidden lg:block fixed bottom-0 left-0 right-0 z-50 px-6 xl:px-10 pb-4 pt-2 pointer-events-none">
+      <div className="max-w-[1600px] mx-auto pointer-events-auto space-y-2.5">
+        <div className="bg-white rounded-2xl shadow-[0_-4px_28px_rgba(0,0,0,0.1)] border border-gray-100 px-6 xl:px-8 py-5">
+          <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1fr)] gap-6 xl:gap-10 items-center">
+            {/* Price */}
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500 mb-1">Your treatment plan price</p>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="text-3xl xl:text-4xl font-black text-gray-900 tracking-tight">
+                  ₹{price}
+                  <span className="text-lg xl:text-xl font-bold text-gray-700"> / month</span>
+                </p>
+              </div>
+              <p className="text-sm text-gray-500 mt-0.5">(Less than ₹{perDay} / day)</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {savings > 0 && (
+                  <span className="inline-flex items-center rounded-full bg-[#e8f5e9] px-2.5 py-1 text-xs font-bold text-[#1b4332]">
+                    You save ₹{savings}
+                  </span>
+                )}
+                {originalPrice > price && (
+                  <span className="text-sm text-gray-400 line-through">₹{originalPrice}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Features */}
+            <ul className="space-y-2 min-w-0">
+              {TREATMENT_PLAN_FEATURES.map((feature) => (
+                <li key={feature} className="flex items-start gap-2.5 text-sm text-gray-800">
+                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#52b788] text-white">
+                    <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="none" aria-hidden="true">
+                      <path
+                        d="M2.5 6.2l2.2 2.2 4.8-4.8"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="leading-snug">{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* CTA */}
+            <div className="min-w-0">
+              <button
+                type="button"
+                onClick={onBuy}
+                className="w-full flex items-center justify-between gap-3 bg-[#2d6a4f] hover:bg-[#1b4332] text-white font-bold text-sm xl:text-base px-5 py-4 rounded-xl cursor-pointer transition-colors shadow-sm"
+              >
+                <span className="text-left leading-snug">
+                  See My Treatment Plan &amp; Start My Recovery
+                </span>
+                <span className="text-xl font-light shrink-0" aria-hidden="true">
+                  ›
+                </span>
+              </button>
+              <p className="mt-2.5 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-gray-400" fill="currentColor" aria-hidden="true">
+                  <path d="M8 1a3.5 3.5 0 00-3.5 3.5V6H4a1 1 0 00-1 1v6a1 1 0 001 1h8a1 1 0 001-1V7a1 1 0 00-1-1h-.5V4.5A3.5 3.5 0 008 1zm2 5H6V4.5a2 2 0 114 0V6z" />
+                </svg>
+                Secure Checkout
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Motivational banner */}
+        <div className="rounded-2xl bg-[#e8f5e9] border border-[#cfe8d5] px-5 xl:px-6 py-3.5 flex items-center gap-4">
+          <div className="shrink-0 text-[#2d6a4f]">
+            <SproutIcon className="w-9 h-9" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm xl:text-base font-bold text-[#1b4332] leading-snug">
+              Your follicles are still active. This is your best window to regain your hair.
+            </p>
+            <p className="text-xs xl:text-sm text-[#2d6a4f] mt-0.5">
+              Take the first step today. Future you will thank you.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Roadmap timeline — hair-follicle growth icon                        */
 /* ------------------------------------------------------------------ */
@@ -720,7 +852,7 @@ export default function Result() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 sm:-mx-6 lg:-mx-10 xl:-mx-14 -mt-8 pb-36 lg:pb-12">
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 sm:-mx-6 lg:-mx-10 xl:-mx-14 -mt-8 pb-36 lg:pb-56">
       <div className="w-full max-w-lg lg:max-w-none mx-auto px-3 sm:px-5 lg:px-8 pt-4 md:pt-6 lg:pt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_440px] lg:gap-8 xl:gap-10 2xl:gap-12 lg:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:space-y-6 lg:space-y-8 md:min-w-0">
@@ -1225,7 +1357,7 @@ export default function Result() {
 
       {/* RIGHT COLUMN — sticky purchase card, desktop only */}
       {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
-        <div className="hidden lg:block lg:sticky lg:top-6 lg:self-start">
+        <div className="hidden lg:block lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-15rem)] lg:overflow-y-auto">
           <div className="bg-white rounded-[32px] p-5 md:p-6 lg:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 space-y-5 md:space-y-6">
             <div>
               <h2 className="text-lg lg:text-xl font-bold text-gray-900 tracking-tight">
@@ -1396,6 +1528,15 @@ export default function Result() {
       )}
       </div>
       {/* END GRID */}
+
+      {!requiresDoctorConsultation && recommendedBundle && (
+        <TreatmentPlanPricingStrip
+          price={recommendedBundle.price}
+          originalPrice={recommendedBundle.originalPrice}
+          savings={savings}
+          onBuy={handleBuyNow}
+        />
+      )}
 
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         <div className="bg-gray-100 text-center py-1.5">
