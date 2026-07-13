@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuiz } from "../context/QuizContext";
 import { useCart } from "../context/CartContext";
 import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
+import { motion, useMotionValue, animate } from "framer-motion";
 
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
@@ -144,24 +145,172 @@ function buildRootCauses(state, hasDandruff, isFemale) {
   return causes.length ? causes : causes;
 }
 
-function buildRoadmapMonths(totalMonths) {
-  const m = totalMonths || 8;
-  const all = [
-    { month: 1, label: "Month 1", desc: "Control Dandruff", icon: "🌱" },
-    { month: 2, label: "Month 2", desc: "Improve Follicular Health", icon: "💧" },
-    { month: 3, label: "Month 3", desc: "Hair Fall Control", icon: "📉" },
-    { month: 4, label: "Month 4", desc: "Hair Fall Control", icon: "🛡️" },
-    { month: 5, label: "Month 5", desc: "Hair Growth", icon: "📈" },
-    { month: 6, label: "Month 6", desc: "Hair Growth", icon: "✨" },
-    { month: 7, label: "Month 7", desc: "Hair Growth", icon: "💪" },
-    { month: 8, label: "Month 8", desc: "Maintaining Awesome Hair", icon: "🌟" },
-    { month: 9, label: "Month 9", desc: "Maintaining Awesome Hair", icon: "👑" },
-    { month: 12, label: "Month 12", desc: "Full Density Results", icon: "🏆" },
-  ];
+// Maps a month number to its recovery "phase" — used to generate a
+// description + icon for every single month, not just checkpoints.
+function getMonthPhase(month, totalMonths) {
+  if (month === 1) return { desc: "Control Dandruff", icon: "🌱" };
+  if (month === totalMonths && totalMonths >= 9) {
+    return { desc: "Full Density Results", icon: "🏆" };
+  }
 
-  if (m <= 5) return all.filter((x) => [1, 2, 3, 4, 5].includes(x.month)).slice(0, 5);
-  if (m <= 8) return all.filter((x) => [1, 2, 3, 4, 5, 6, 7, 8].includes(x.month));
-  return all.filter((x) => [1, 3, 5, 8, 12].includes(x.month));
+  const progress = month / totalMonths;
+  if (progress <= 0.2) return { desc: "Improve Follicular Health", icon: "💧" };
+  if (progress <= 0.4) return { desc: "Hair Fall Control", icon: "🛡️" };
+  if (progress <= 0.6) return { desc: "Hair Growth", icon: "✨" };
+  return { desc: "Maintaining Awesome Hair", icon: "🌟" };
+}
+
+// Builds the FULL month-by-month roadmap, from Month 1 all the way to
+// resultMonths — no skipped months, however long the timeline is.
+function buildRoadmapMonths(totalMonths) {
+  const m = Math.max(1, Math.round(totalMonths) || 8);
+  const months = [];
+  for (let month = 1; month <= m; month++) {
+    const phase = getMonthPhase(month, m);
+    months.push({
+      month,
+      label: `Month ${month}`,
+      desc: phase.desc,
+      icon: phase.icon,
+    });
+  }
+  return months;
+}
+
+/* ------------------------------------------------------------------ */
+/* Roadmap timeline — hair-follicle growth icon                        */
+/* ------------------------------------------------------------------ */
+
+function FollicleIcon({ stage }) {
+  // stage: 0 (just a root) -> 4 (full growth), drawn as a simple line icon
+  const s = Math.min(4, Math.max(0, stage));
+  return (
+    <svg viewBox="0 0 40 40" className="w-6 h-6 md:w-7 md:h-7" fill="none">
+      <circle cx="20" cy="27" r="9" stroke="currentColor" strokeWidth="1.6" />
+      {s >= 1 && (
+        <path d="M20 18 Q19 10 22 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      )}
+      {s >= 2 && (
+        <path d="M16 19 Q13 12 15 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      )}
+      {s >= 3 && (
+        <path d="M24 19 Q27 12 26 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      )}
+      {s >= 4 && (
+        <>
+          <path d="M14 20 L10 24" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M26 20 L30 24" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="17" cy="27" r="1" fill="currentColor" />
+          <circle cx="23" cy="27" r="1" fill="currentColor" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function RoadmapTimeline({ roadmap, resultMonths }) {
+  const containerRef = useRef(null);
+  const trackRef = useRef(null);
+  const itemRefs = useRef([]);
+
+  const x = useMotionValue(0);
+  const [itemWidth, setItemWidth] = useState(84);
+  const [maxOffset, setMaxOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [autoPlayDone, setAutoPlayDone] = useState(false);
+
+  // Measure item width so spacing holds up on any screen size.
+  useEffect(() => {
+    function measureItemWidth() {
+      if (itemRefs.current[0]) setItemWidth(itemRefs.current[0].offsetWidth);
+    }
+    measureItemWidth();
+    window.addEventListener("resize", measureItemWidth);
+    return () => window.removeEventListener("resize", measureItemWidth);
+  }, [roadmap.length]);
+
+  // Work out how far the track can slide (track width minus visible width).
+  useEffect(() => {
+    function measureBounds() {
+      if (trackRef.current && containerRef.current) {
+        const trackWidth = trackRef.current.scrollWidth;
+        const containerWidth = containerRef.current.offsetWidth;
+        setMaxOffset(Math.max(0, trackWidth - containerWidth));
+      }
+    }
+    measureBounds();
+    window.addEventListener("resize", measureBounds);
+    return () => window.removeEventListener("resize", measureBounds);
+  }, [itemWidth, roadmap.length]);
+
+  // Auto-advance like the reference video, then stop at the end.
+  // Stops immediately if the person grabs the timeline themselves.
+  useEffect(() => {
+    if (isDragging || autoPlayDone || maxOffset === 0) return undefined;
+
+    let step = 0;
+    const timer = setInterval(() => {
+      step += 1;
+      const next = Math.min(maxOffset, step * itemWidth);
+      animate(x, -next, { type: "spring", stiffness: 90, damping: 18 });
+      if (next >= maxOffset) {
+        clearInterval(timer);
+        setAutoPlayDone(true);
+      }
+    }, 1300);
+
+    return () => clearInterval(timer);
+  }, [isDragging, autoPlayDone, maxOffset, itemWidth, x]);
+
+  return (
+    <div className="bg-[#e8f5e9] rounded-2xl p-4 overflow-hidden">
+      <p className="text-center text-sm text-gray-700 mb-4">
+        Start Seeing Results In{" "}
+        <span className="font-black text-[#064e3b] text-lg">{resultMonths} Months</span>
+      </p>
+
+      <div ref={containerRef} className="relative overflow-hidden">
+        <div className="absolute top-[30px] md:top-[34px] left-2 right-2 h-0.5 bg-[#52b788] z-0" />
+
+        <motion.div
+          ref={trackRef}
+          className="flex relative z-10 cursor-grab active:cursor-grabbing select-none"
+          style={{ x }}
+          drag="x"
+          dragConstraints={{ left: -maxOffset, right: 0 }}
+          dragElastic={0.05}
+          dragMomentum={false}
+          onDragStart={() => {
+            setIsDragging(true);
+            setAutoPlayDone(true); // hand control over to the user for good
+          }}
+          onDragEnd={() => setIsDragging(false)}
+        >
+          {roadmap.map((step, index) => {
+            const stage = Math.round((index / Math.max(1, roadmap.length - 1)) * 4);
+            return (
+              <div
+                key={step.month}
+                ref={(el) => (itemRefs.current[index] = el)}
+                className="flex flex-col items-center shrink-0 w-[76px] md:w-[110px] px-1"
+              >
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white border-2 border-gray-700 text-gray-700 flex items-center justify-center pointer-events-none">
+                  <FollicleIcon stage={stage} />
+                </div>
+                <div className="w-2.5 h-2.5 rounded-full bg-[#2d6a4f] mt-2 border-2 border-white shadow pointer-events-none" />
+                <p className="text-[11px] md:text-xs font-bold text-gray-900 mt-2 text-center leading-tight pointer-events-none">
+                  {step.label}
+                </p>
+                <p className="text-[9px] md:text-[10px] text-gray-500 text-center leading-tight mt-0.5 pointer-events-none">
+                  {step.desc}
+                </p>
+              </div>
+            );
+          })}
+        </motion.div>
+      </div>
+    </div>
+  );
 }
 
 export default function Result() {
@@ -173,7 +322,6 @@ export default function Result() {
   const [coachCallOptIn, setCoachCallOptIn] = useState(false);
   const [faqOpen, setFaqOpen] = useState(false);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
-
   const rawAnalysis = state?.scalpAnalysis || {};
   const gender = state?.aboutMe?.gender || "male";
   const isFemale = gender === "female";
@@ -183,7 +331,7 @@ export default function Result() {
   const analysisMissing = !aiPredictedStageNumber;
   const stageDiscrepancy = Boolean(rawAnalysis.stageDiscrepancy);
   const reportedStage = isFemale
-    ? null // Female Q2 is hair-loss location, not Ludwig stage; stage comes from AI photos
+    ? state?.hairHealth?.hair_fall_zone
     : state?.hairHealth?.norwood_stage;
 
   const extractImageUrl = (img) => {
@@ -287,92 +435,23 @@ export default function Result() {
     else window.history.back();
   };
 
-  const reportDate = useMemo(
-    () =>
-      new Date().toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-    []
-  );
-
-  const reportId = useMemo(() => {
-    const seed = `${userName}|${state?.aboutMe?.email || ""}|${state?.aboutMe?.whatsapp || ""}|${aiPredictedStageNumber || ""}`;
-    let hash = 0;
-    for (let i = 0; i < seed.length; i += 1) {
-      hash = (hash << 5) - hash + seed.charCodeAt(i);
-      hash |= 0;
-    }
-    const n = (Math.abs(hash) % 9000) + 1000;
-    const yy = String(new Date().getFullYear()).slice(-2);
-    return `TR-${n}-${yy}`;
-  }, [userName, state?.aboutMe?.email, state?.aboutMe?.whatsapp, aiPredictedStageNumber]);
-
-  const confidencePhrase = (() => {
-    if (analysisMissing || rawAnalysis.quotaFallback) return "moderate confidence";
-    const c = Number(rawAnalysis.aiConfidence);
-    if (Number.isNaN(c) || c >= 0.8) return "high confidence";
-    if (c >= 0.65) return "good confidence";
-    return "moderate confidence";
-  })();
-
   return (
-    <div className="min-h-screen bg-[#f5f6f2] -mx-4 md:-mx-8 -mt-8 pb-36">
-      <header className="sticky top-0 z-40 bg-[#2b2b2b] px-4 py-3 flex items-center justify-between shadow-md">
-        <span className="text-white text-xl font-bold tracking-tight">Zylk<span className="text-[#b8d86e]">.</span></span>
-        <button
-          type="button"
-          onClick={() => setIsCartOpen(true)}
-          className="relative text-white p-1 cursor-pointer"
-          aria-label="Open cart"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          {cartCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
-              {cartCount}
-            </span>
-          )}
-        </button>
-      </header>
-
-      <div className="max-w-lg mx-auto px-4 pt-8 space-y-5">
-        {/* Report intro — matches Hair Assessment Report header UI */}
-        <section className="text-left space-y-4 animate-[fadeIn_0.35s_ease-out]">
-          <h1 className="text-[2rem] sm:text-[2.35rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
-            Hello {userName},
-          </h1>
-
-          <h2 className="text-[1.65rem] sm:text-[2rem] font-bold leading-[1.25] tracking-tight">
-            <span className="text-[#6f8f3d]">Here is</span>{" "}
-            <span className="text-gray-900">your personalized</span>{" "}
-            <span className="text-[#6f8f3d]">Hair Assessment Report</span>
-          </h2>
-
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5">
-            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#6f8f3d] text-white shrink-0">
-              <svg className="h-2.5 w-2.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M2.5 6.2L4.8 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <span className="text-[12px] font-medium text-[#555555]">
-              Report ID: {reportId} • {reportDate}
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-10">
+      <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
+      {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
+      <div className="space-y-4 md:min-w-0">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 pt-3">
+            <span className="inline-block text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-3 py-1 rounded-t-lg border border-b-0 border-gray-100">
+              Assessment Report
             </span>
           </div>
 
-          <p className="text-[15px] text-[#555555] leading-relaxed max-w-md">
-            Our AI scan + expert analysis of 14 key parameters gives us{" "}
-            <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
-          </p>
-        </section>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-4 pb-4 pt-4">
+          <div className="px-4 pb-4 pt-2">
             <div className="flex gap-3 items-start">
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-500">You Are Currently On</p>
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">Hello {userName},</h1>
+                <p className="text-sm text-gray-500 mt-1">You Are Currently On</p>
                 <p className="text-base font-bold text-gray-900 leading-snug mt-0.5">{getStageTitle()}</p>
 
                 {!analysisMissing && (
@@ -552,8 +631,8 @@ export default function Result() {
           </div>
         )}
 
-                {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
-          <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
+        {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
+          <div className="md:hidden bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
             <div>
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">
                 Start Your Journey With Just 1 Month Kit
@@ -569,86 +648,86 @@ export default function Result() {
             </div>
 
             <div className="space-y-3">
-  {coreKitProducts.map((product, index) => (
-    <div
-      key={product.id || index}
-      className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
-    >
-      <div className="flex items-center flex-1 min-w-0">
-        <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
-          <ProductImage
-            src={product.imgUrl}
-            fallbacks={product.imgFallbacks}
-            alt={product.shortName}
-            className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
-          />
-        </div>
-        <div className="flex-1 min-w-0 pr-2">
-          <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
-            {product.shortName}
-          </h3>
-          {product.subtitle && (
-            <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
-              {product.subtitle}
-            </p>
-          )}
-        </div>
-      </div>
-      <span className="text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border text-emerald-800 bg-emerald-50 border-emerald-100/40">
-        Included
-      </span>
-    </div>
-  ))}
+              {coreKitProducts.map((product, index) => (
+                <div
+                  key={product.id || index}
+                  className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
+                >
+                  <div className="flex items-center flex-1 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                      <ProductImage
+                        src={product.imgUrl}
+                        fallbacks={product.imgFallbacks}
+                        alt={product.shortName}
+                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
+                        {product.shortName}
+                      </h3>
+                      {product.subtitle && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                          {product.subtitle}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border text-emerald-800 bg-emerald-50 border-emerald-100/40">
+                    Included
+                  </span>
+                </div>
+              ))}
 
-  {healthMixProduct && (
-    <div
-      className={`p-4 border rounded-2xl transition-all flex items-center justify-between gap-4 group ${
-        includeHealthMix
-          ? "border-[#064e3b]/30 bg-[#f4f6f0] shadow-[0_2px_12px_rgba(0,0,0,0.01)]"
-          : "border-dashed border-gray-200 bg-gray-50"
-      }`}
-    >
-      <div className="flex items-center flex-1 min-w-0">
-        <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
-          <ProductImage
-            src={healthMixProduct.imgUrl}
-            fallbacks={healthMixProduct.imgFallbacks}
-            alt={healthMixProduct.shortName}
-            className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
-              includeHealthMix ? "" : "opacity-60"
-            }`}
-          />
-        </div>
-        <div className="flex-1 min-w-0 pr-2">
-          <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
-            {healthMixProduct.shortName}
-          </h3>
-          {healthMixProduct.subtitle && (
-            <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
-              {healthMixProduct.subtitle}
-            </p>
-          )}
-          <p className="text-xs font-semibold text-[#064e3b] mt-1">
-            {includeHealthMix
-              ? `Included · −₹${healthMixDelta} if removed`
-              : `Add for +₹${healthMixDelta}`}
-          </p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => setIncludeHealthMix(!includeHealthMix)}
-        className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${
-          includeHealthMix
-            ? "text-emerald-800 bg-emerald-50 border-emerald-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-            : "text-white bg-[#064e3b] border-[#064e3b] hover:bg-[#043427]"
-        }`}
-      >
-        {includeHealthMix ? "Remove" : "Add"}
-      </button>
-    </div>
-  )}
-</div>
+              {healthMixProduct && (
+                <div
+                  className={`p-4 border rounded-2xl transition-all flex items-center justify-between gap-4 group ${
+                    includeHealthMix
+                      ? "border-[#064e3b]/30 bg-[#f4f6f0] shadow-[0_2px_12px_rgba(0,0,0,0.01)]"
+                      : "border-dashed border-gray-200 bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center flex-1 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                      <ProductImage
+                        src={healthMixProduct.imgUrl}
+                        fallbacks={healthMixProduct.imgFallbacks}
+                        alt={healthMixProduct.shortName}
+                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                          includeHealthMix ? "" : "opacity-60"
+                        }`}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
+                        {healthMixProduct.shortName}
+                      </h3>
+                      {healthMixProduct.subtitle && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                          {healthMixProduct.subtitle}
+                        </p>
+                      )}
+                      <p className="text-xs font-semibold text-[#064e3b] mt-1">
+                        {includeHealthMix
+                          ? `Included · −₹${healthMixDelta} if removed`
+                          : `Add for +₹${healthMixDelta}`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIncludeHealthMix(!includeHealthMix)}
+                    className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${
+                      includeHealthMix
+                        ? "text-emerald-800 bg-emerald-50 border-emerald-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                        : "text-white bg-[#064e3b] border-[#064e3b] hover:bg-[#043427]"
+                    }`}
+                  >
+                    {includeHealthMix ? "Remove" : "Add"}
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
               <span>🌿</span>
@@ -656,6 +735,7 @@ export default function Result() {
             </div>
           </div>
         )}
+
         {!requiresDoctorConsultation && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
             <div className="flex justify-center mb-4">
@@ -714,24 +794,7 @@ export default function Result() {
         )}
 
         {!requiresDoctorConsultation && !eligibilityTimeline.needsTransplant && (
-          <div className="bg-[#e8f5e9] rounded-2xl p-4 overflow-x-auto">
-            <p className="text-center text-sm text-gray-700 mb-4">
-              Start Seeing Results In <span className="font-black text-[#064e3b] text-lg">{resultMonths} Months</span>
-            </p>
-            <div className="relative min-w-[320px]">
-              <div className="absolute top-[52px] left-4 right-4 h-0.5 bg-[#52b788]" />
-              <div className="flex justify-between relative z-10">
-                {roadmap.map((step) => (
-                  <div key={step.month} className="flex flex-col items-center w-16 shrink-0">
-                    <span className="text-xl mb-1">{step.icon}</span>
-                    <div className="w-3 h-3 rounded-full bg-[#2d6a4f] border-2 border-white shadow" />
-                    <p className="text-[10px] font-bold text-gray-800 mt-2 text-center">{step.label}</p>
-                    <p className="text-[9px] text-gray-500 text-center leading-tight mt-0.5">{step.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <RoadmapTimeline roadmap={roadmap} resultMonths={resultMonths} />
         )}
 
         {!requiresDoctorConsultation && (
@@ -827,8 +890,183 @@ export default function Result() {
           </button>
         </div>
       </div>
+      {/* END LEFT COLUMN */}
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      {/* RIGHT COLUMN — sticky purchase card, desktop only */}
+      {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
+        <div className="hidden md:block md:sticky md:top-6">
+          <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 space-y-5">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                Start Your Journey With Just 1 Month Kit
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">
+                Personalized Zylk Health bundle for your stage
+              </p>
+              {recommendedBundle?.bundleTitle && (
+                <p className="text-sm font-bold text-[#064e3b] mt-2">
+                  {recommendedBundle.bundleTitle}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              {coreKitProducts.map((product, index) => (
+                <div
+                  key={product.id || index}
+                  className="p-3 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
+                >
+                  <div className="flex items-center flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                      <ProductImage
+                        src={product.imgUrl}
+                        fallbacks={product.imgFallbacks}
+                        alt={product.shortName}
+                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h3 className="text-xs font-bold text-gray-800 leading-snug tracking-tight break-words">
+                        {product.shortName}
+                      </h3>
+                      {product.subtitle && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                          {product.subtitle}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap shrink-0 border text-emerald-800 bg-emerald-50 border-emerald-100/40">
+                    Included
+                  </span>
+                </div>
+              ))}
+
+              {healthMixProduct && (
+                <div
+                  className={`p-3 border rounded-2xl transition-all flex items-center justify-between gap-3 group ${
+                    includeHealthMix
+                      ? "border-[#064e3b]/30 bg-[#f4f6f0] shadow-[0_2px_12px_rgba(0,0,0,0.01)]"
+                      : "border-dashed border-gray-200 bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                      <ProductImage
+                        src={healthMixProduct.imgUrl}
+                        fallbacks={healthMixProduct.imgFallbacks}
+                        alt={healthMixProduct.shortName}
+                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                          includeHealthMix ? "" : "opacity-60"
+                        }`}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2">
+                      <h3 className="text-xs font-bold text-gray-800 leading-snug tracking-tight break-words">
+                        {healthMixProduct.shortName}
+                      </h3>
+                      {healthMixProduct.subtitle && (
+                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                          {healthMixProduct.subtitle}
+                        </p>
+                      )}
+                      <p className="text-xs font-semibold text-[#064e3b] mt-1">
+                        {includeHealthMix
+                          ? `Included · −₹${healthMixDelta} if removed`
+                          : `Add for +₹${healthMixDelta}`}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIncludeHealthMix(!includeHealthMix)}
+                    className={`text-[10px] font-bold px-2 py-1.5 rounded-full whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${
+                      includeHealthMix
+                        ? "text-emerald-800 bg-emerald-50 border-emerald-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                        : "text-white bg-[#064e3b] border-[#064e3b] hover:bg-[#043427]"
+                    }`}
+                  >
+                    {includeHealthMix ? "Remove" : "Add"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
+              <span>🌿</span>
+              <span>Supplements &amp; Oil are 100% Ayurvedic with no side effects.</span>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              {recommendedBundle && !requiresDoctorConsultation ? (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-gray-900">₹{recommendedBundle.price}</span>
+                    <span className="text-sm text-gray-400 line-through">₹{recommendedBundle.originalPrice}</span>
+                  </div>
+                  {savings > 0 && (
+                    <p className="text-xs font-semibold text-[#52b788]">You save ₹{savings}</p>
+                  )}
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeHealthMix}
+                      onChange={(e) => setIncludeHealthMix(e.target.checked)}
+                      className="rounded border-gray-300 w-3.5 h-3.5"
+                    />
+                    <span className="text-[10px] text-gray-500">
+                      Include Hair Health Mix
+                      {healthMixDelta > 0 && (
+                        <span className="font-semibold text-[#064e3b]">
+                          {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleBuyNow}
+                    className="mt-4 w-full bg-[#c6d947] hover:bg-[#b8c93a] text-gray-900 font-black text-base py-3.5 rounded-lg uppercase tracking-wide cursor-pointer transition-colors shadow-sm"
+                  >
+                    Buy Now
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  className="w-full bg-[#c6d947] hover:bg-[#b8c93a] text-gray-900 font-black text-base py-3.5 rounded-lg uppercase tracking-wide cursor-pointer"
+                >
+                  {requiresDoctorConsultation ? "Schedule Consultation" : "Continue"}
+                </button>
+              )}
+              <p className="text-[10px] text-gray-400 text-center mt-3">
+                All of our products are GMP &amp; ISO 9001 certified
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {requiresDoctorConsultation && (
+        <div className="hidden md:block md:sticky md:top-6">
+          <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 text-center space-y-3">
+            <p className="text-sm font-bold text-gray-900">Your hair loss needs clinical intervention.</p>
+            <p className="text-xs text-gray-500">Speak with a Zylk trichology specialist to explore next steps.</p>
+            <button
+              type="button"
+              onClick={handleBuyNow}
+              className="w-full bg-[#c6d947] hover:bg-[#b8c93a] text-gray-900 font-black text-base py-3.5 rounded-lg uppercase tracking-wide cursor-pointer"
+            >
+              Schedule Consultation
+            </button>
+          </div>
+        </div>
+      )}
+      </div>
+      {/* END GRID */}
+
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         <div className="bg-gray-100 text-center py-1.5">
           <p className="text-[10px] text-gray-600 font-medium">All of our products are GMP &amp; ISO 9001 certified</p>
         </div>
