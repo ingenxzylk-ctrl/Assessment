@@ -65,10 +65,11 @@ function QuizFlow() {
   }
 
   const isResultStep = step === 5 || (isLoading && step === 5);
-  const shellMaxWidth = step === 0 ? "max-w-6xl" : isResultStep ? "max-w-screen-2xl" : "max-w-4xl";
+  // Results page uses the full viewport; other quiz steps stay narrow.
+  const shellMaxWidth = step === 0 ? "max-w-6xl" : isResultStep ? "w-full max-w-none" : "max-w-4xl";
 
   return (
-    <div className="min-h-screen bg-[#f4f6f0] text-gray-900 px-4 md:px-8 lg:px-10 pb-16 antialiased">
+    <div className={`min-h-screen bg-[#f4f6f0] text-gray-900 pb-16 antialiased ${isResultStep ? "px-4 sm:px-6 lg:px-10 xl:px-14" : "px-4 md:px-8"}`}>
       <header className={`${shellMaxWidth} mx-auto flex items-center justify-between py-5 border-b border-gray-200/60 mb-8`}>
         <div 
           className="flex items-center gap-2 cursor-pointer select-none active:opacity-80 transition-opacity"

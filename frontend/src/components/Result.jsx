@@ -720,14 +720,14 @@ export default function Result() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 lg:-mx-10 -mt-8 pb-36 md:pb-12">
-      <div className="w-full max-w-lg md:max-w-none mx-auto px-3 md:px-6 lg:px-8 pt-4 md:pt-8 md:grid md:grid-cols-[minmax(0,1fr)_400px] lg:grid-cols-[minmax(0,1fr)_460px] xl:grid-cols-[minmax(0,1fr)_500px] 2xl:grid-cols-[minmax(0,1fr)_540px] md:gap-8 lg:gap-10 xl:gap-12 md:items-start">
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 sm:-mx-6 lg:-mx-10 xl:-mx-14 -mt-8 pb-36 lg:pb-12">
+      <div className="w-full max-w-lg lg:max-w-none mx-auto px-3 sm:px-5 lg:px-8 pt-4 md:pt-6 lg:pt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_440px] lg:gap-8 xl:gap-10 2xl:gap-12 lg:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:space-y-6 lg:space-y-8 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5 md:p-6 lg:p-8">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 md:gap-8 lg:gap-10 xl:gap-12 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-3 md:space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(180px,240px)] xl:grid-cols-[minmax(0,1fr)_minmax(200px,280px)] gap-5 md:gap-6 lg:gap-8 items-start">
+            <div className="min-w-0 text-left space-y-3 md:space-y-4">
               <h1 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
@@ -749,13 +749,13 @@ export default function Result() {
                 </span>
               </div>
 
-              <p className="text-[14px] sm:text-[15px] text-[#555555] leading-relaxed">
+              <p className="text-[14px] sm:text-[15px] text-[#555555] leading-relaxed max-w-2xl">
                 Our AI scan + expert analysis of 14 key parameters gives us{" "}
                 <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
               </p>
             </div>
 
-            <div className="w-full sm:w-[180px] md:w-[220px] lg:w-[260px] xl:w-[300px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div className="w-full max-w-[240px] mx-auto lg:mx-0 lg:max-w-none rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
               <p className="px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">Your Scalp Overview</p>
               <div className="px-3 pb-3">
                 <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-50">
@@ -967,7 +967,7 @@ export default function Result() {
         )}
 
         {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
-          <div className="md:hidden bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
+          <div className="lg:hidden bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
             <div>
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">
                 Start Your Journey With Just 1 Month Kit
@@ -1225,7 +1225,7 @@ export default function Result() {
 
       {/* RIGHT COLUMN — sticky purchase card, desktop only */}
       {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
-        <div className="hidden md:block md:sticky md:top-6 md:self-start">
+        <div className="hidden lg:block lg:sticky lg:top-6 lg:self-start">
           <div className="bg-white rounded-[32px] p-5 md:p-6 lg:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 space-y-5 md:space-y-6">
             <div>
               <h2 className="text-lg lg:text-xl font-bold text-gray-900 tracking-tight">
@@ -1380,7 +1380,7 @@ export default function Result() {
       )}
 
       {requiresDoctorConsultation && (
-        <div className="hidden md:block md:sticky md:top-6">
+        <div className="hidden lg:block lg:sticky lg:top-6">
           <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 text-center space-y-3">
             <p className="text-sm font-bold text-gray-900">Your hair loss needs clinical intervention.</p>
             <p className="text-xs text-gray-500">Speak with a Zylk trichology specialist to explore next steps.</p>
@@ -1397,7 +1397,7 @@ export default function Result() {
       </div>
       {/* END GRID */}
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         <div className="bg-gray-100 text-center py-1.5">
           <p className="text-[10px] text-gray-600 font-medium">All of our products are GMP &amp; ISO 9001 certified</p>
         </div>
