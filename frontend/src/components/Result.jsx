@@ -5,6 +5,7 @@ import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
+import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
 
 const AVATAR_FALLBACK =
@@ -695,6 +696,56 @@ export default function Result() {
     ].join("|");
     return getOrCreateDailyReportMeta(fingerprint);
   }, [userName, state?.aboutMe?.email, state?.aboutMe?.whatsapp, aiPredictedStageNumber, rawAnalysis?.model]);
+
+  // Persist quiz + report as PDF → storage → org email (once per Result visit).
+  const reportSubmitRef = useRef(false);
+  useEffect(() => {
+    if (reportSubmitRef.current) return;
+    if (!state?.aboutMe || !rawAnalysis || analysisMissing) return;
+    reportSubmitRef.current = true;
+
+    submitAssessmentReport({
+      aboutMe: state.aboutMe,
+      hairHealth: state.hairHealth || {},
+      internalHealth: state.internalHealth || {},
+      scalpAnalysis: rawAnalysis,
+      scalpImages: (state.scalpImages || []).map((img) => ({
+        type: img.type,
+        label: img.label,
+        // Omit full dataUrl from wire payload size; metadata is enough for archive.
+        // Backend PDF v1 is text-based; images stay on the client Result UI.
+        hasImage: Boolean(img.dataUrl || img.previewUrl || img.url),
+      })),
+      gender,
+      clientReportId: reportId,
+      reportMeta: {
+        rootCauses,
+        eligibilityTimeline,
+        recommendedBundle: recommendedBundle
+          ? {
+              bundleId: recommendedBundle.bundleId,
+              bundleTitle: recommendedBundle.bundleTitle,
+              price: recommendedBundle.price,
+              originalPrice: recommendedBundle.originalPrice,
+            }
+          : null,
+      },
+    }).catch((err) => {
+      console.warn("[report] submit failed:", err?.message || err);
+    });
+  }, [
+    state?.aboutMe,
+    state?.hairHealth,
+    state?.internalHealth,
+    state?.scalpImages,
+    rawAnalysis,
+    analysisMissing,
+    gender,
+    reportId,
+    rootCauses,
+    eligibilityTimeline,
+    recommendedBundle,
+  ]);
 
   const confidencePhrase = (() => {
     if (analysisMissing || rawAnalysis.quotaFallback) return "moderate confidence";

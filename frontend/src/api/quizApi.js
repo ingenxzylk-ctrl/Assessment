@@ -50,6 +50,7 @@ export async function analyzeScalp({ gender, selfReportedStage, images }) {
 
   return data;
 }
+
 export async function generateResult({ aboutMe, hairHealth, internalHealth, scalpAnalysis }) {
   const res = await fetch(`${API_URL}/result`, {
     method: "POST",
@@ -60,6 +61,37 @@ export async function generateResult({ aboutMe, hairHealth, internalHealth, scal
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error || "Something went wrong. Please try again.");
+  }
+  return data;
+}
+
+/**
+ * Persist quiz Q&A + assessment as PDF, store it, and email the org.
+ * Non-blocking for the user UI — callers should catch errors.
+ */
+export async function submitAssessmentReport(payload) {
+  let res;
+  try {
+    res = await fetch(`${API_URL}/report/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error(
+      "Cannot reach backend server to save assessment report. Make sure backend is running."
+    );
+  }
+
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error("Backend returned an invalid response while saving the report.");
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to save assessment report.");
   }
   return data;
 }
