@@ -275,6 +275,165 @@ function ResultsSeeingTimeline({ roadmap, ageRange }) {
   );
 }
 
+const MALE_STAGE_IMAGE = {
+  1: "/stages/Stage1.png",
+  2: "/stages/Stage2.png",
+  3: "/stages/Stage3.png",
+  4: "/stages/Stage4.png",
+  5: "/stages/Stage5.png",
+  6: "/stages/Stage6.png",
+  7: "/stages/Stage7.png",
+  "overall-thinning": "/stages/overall_thinning.png",
+};
+
+const FEMALE_STAGE_IMAGE = {
+  1: "/stagesf/stage1.png",
+  2: "/stagesf/stage2.png",
+  3: "/stagesf/stage3.png",
+  "overall-thinning": "/stagesf/overall.png",
+  "patchy-bald": "/stagesf/stage4.png",
+};
+
+const clampMaleStage = (n) => Math.min(7, Math.max(1, n));
+const clampFemaleStage = (n) => Math.min(3, Math.max(1, n));
+
+function stageImageFor(stageKey, isFemale) {
+  const key = String(stageKey || (isFemale ? "1" : "2"));
+  if (isFemale) return FEMALE_STAGE_IMAGE[key] || FEMALE_STAGE_IMAGE["1"];
+  return MALE_STAGE_IMAGE[key] || MALE_STAGE_IMAGE["2"];
+}
+
+/** Build untreated vs Zylk-treated progression from the user's current stage. */
+function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8) {
+  const stage = String(currentStage || (isFemale ? "1" : "2")).toLowerCase();
+  const untreatedLabels = ["Today", "6 Months", "1 Year", "2 Years"];
+  const treatedLabels = ["Today", "2 Months", "5 Months", `${Math.max(6, resultMonths)} Months`];
+
+  if (isFemale) {
+    if (stage === "overall-thinning") {
+      return {
+        untreated: untreatedLabels.map((label, i) => ({
+          label,
+          image: stageImageFor(i <= 1 ? "overall-thinning" : String(Math.min(3, i)), true),
+        })),
+        treated: treatedLabels.map((label, i) => ({
+          label,
+          image: stageImageFor(i === 0 ? "overall-thinning" : String(Math.max(1, 3 - i)), true),
+        })),
+      };
+    }
+
+    const base = clampFemaleStage(parseInt(stage, 10) || 1);
+    return {
+      untreated: untreatedLabels.map((label, i) => ({
+        label,
+        image: stageImageFor(String(clampFemaleStage(base + i)), true),
+      })),
+      treated: treatedLabels.map((label, i) => ({
+        label,
+        image: stageImageFor(String(clampFemaleStage(base - Math.floor(i * 0.75))), true),
+      })),
+    };
+  }
+
+  if (stage === "overall-thinning") {
+    return {
+      untreated: untreatedLabels.map((label, i) => ({
+        label,
+        image: stageImageFor(i === 0 ? "overall-thinning" : String(clampMaleStage(3 + i)), false),
+      })),
+      treated: treatedLabels.map((label, i) => ({
+        label,
+        image: stageImageFor(i === 0 ? "overall-thinning" : String(Math.max(1, 3 - i)), false),
+      })),
+    };
+  }
+
+  const base = clampMaleStage(parseInt(stage, 10) || 2);
+  return {
+    untreated: untreatedLabels.map((label, i) => ({
+      label,
+      image: stageImageFor(String(clampMaleStage(base + i)), false),
+    })),
+    treated: treatedLabels.map((label, i) => ({
+      label,
+      image: stageImageFor(String(clampMaleStage(base - Math.floor(i * 0.85))), false),
+    })),
+  };
+}
+
+function ProgressionTrack({ title, steps, variant }) {
+  const isTreated = variant === "treated";
+  const shell = isTreated
+    ? "bg-[#eef6e8] border-[#cfe3bc]"
+    : "bg-[#fdf0ee] border-[#f3d4cf]";
+  const titleColor = isTreated ? "text-[#3d5f24]" : "text-[#b42318]";
+  const arrowColor = isTreated ? "text-[#6f8f3d]" : "text-gray-700";
+
+  return (
+    <div className={`rounded-2xl border p-3 sm:p-4 ${shell}`}>
+      <p className={`text-sm font-bold mb-3 ${titleColor}`}>{title}</p>
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-hide">
+        {steps.map((step, index) => (
+          <div key={`${step.label}-${index}`} className="flex items-center gap-1 shrink-0">
+            <div className="flex flex-col items-center w-[72px] sm:w-[78px]">
+              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-white shadow-sm">
+                <img
+                  src={step.image}
+                  alt={step.label}
+                  className="w-full h-full object-cover object-top"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "/stages/Stage2.png";
+                  }}
+                />
+              </div>
+              <span className="mt-2 text-[10px] font-semibold text-gray-700 text-center leading-tight">
+                {step.label}
+              </span>
+            </div>
+            {index < steps.length - 1 && (
+              <span className={`text-base font-bold pb-5 ${arrowColor}`} aria-hidden="true">
+                →
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
+  const { untreated, treated } = useMemo(
+    () => buildHairProgressionComparison(currentStage, isFemale, resultMonths),
+    [currentStage, isFemale, resultMonths]
+  );
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-left">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-snug">
+        How your hair may change over time
+      </h2>
+      <p className="text-sm text-gray-500 mt-1 mb-4">
+        Based on {isFemale ? "women" : "men"} with similar profile as you
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <ProgressionTrack title="If left untreated" steps={untreated} variant="untreated" />
+        <ProgressionTrack title="With Zylk Treatment" steps={treated} variant="treated" />
+      </div>
+
+      <p className="mt-4 flex items-start gap-2 text-[11px] text-gray-500 leading-relaxed">
+        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold mt-0.5">
+          i
+        </span>
+        Results vary for each individual. Consistent use for minimum 4–6 months is essential.
+      </p>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Roadmap timeline — hair-follicle growth icon                        */
 /* ------------------------------------------------------------------ */
@@ -741,6 +900,14 @@ export default function Result() {
               ))}
             </div>
           </div>
+        )}
+
+        {!requiresDoctorConsultation && !analysisMissing && (
+          <HairProgressionComparison
+            currentStage={aiPredictedStageNumber}
+            isFemale={isFemale}
+            resultMonths={resultMonths}
+          />
         )}
 
         {!requiresDoctorConsultation && (
