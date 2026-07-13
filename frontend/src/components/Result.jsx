@@ -757,13 +757,13 @@ export default function Result() {
 
   return (
     <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-10">
-      <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
+      <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-2 md:pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-3.5 sm:p-5">
-          <div className="flex flex-row gap-3 sm:gap-5 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-2 sm:space-y-3">
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden px-3 pt-2.5 pb-3.5 sm:p-5">
+          <div className="flex flex-row gap-2.5 sm:gap-5 items-start">
+            <div className="flex-1 min-w-0 text-left space-y-1.5 sm:space-y-3">
               <h1 className="text-[1.25rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
@@ -793,7 +793,7 @@ export default function Result() {
             </div>
 
             <div className="w-[112px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
-              <p className="px-2 sm:px-3 pt-2 sm:pt-3 pb-1 sm:pb-2 text-[10px] sm:text-sm font-semibold text-gray-900 leading-tight">
+              <p className="px-2 sm:px-3 pt-1.5 sm:pt-3 pb-1 sm:pb-2 text-[10px] sm:text-sm font-semibold text-gray-900 leading-tight">
                 Your Scalp Overview
               </p>
               <div className="px-2 sm:px-3 pb-2 sm:pb-3">
