@@ -5,12 +5,27 @@ import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
-import { resolveTestimonialPhotos } from "../config/testimonialImages";
 import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
 
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
+
+/** Resolve public/testimonials paths for before/after photos. */
+function resolveTestimonialPhotos(photos = []) {
+  return photos
+    .map((photo) => {
+      const file = typeof photo === "string" ? photo : photo?.file;
+      if (!file) return null;
+      const label = typeof photo === "string" ? "" : photo.label || "";
+      if (/^https?:\/\//i.test(file) || file.startsWith("/") || file.startsWith("data:")) {
+        return { label, src: file, fallbacks: [] };
+      }
+      const withExt = file.includes(".") ? file : `${file}.jpg`;
+      return { label, src: `/testimonials/${withExt}`, fallbacks: [] };
+    })
+    .filter(Boolean);
+}
 
 const FREE_ADDONS = [
   {
