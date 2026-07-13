@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { getTestBundle } from "../config/bundles";
 import { useCart } from "../context/CartContext";
 import { redirectToWordPressCheckout } from "../utils/wordpressCheckout";
+import TermsModal from "./legal/TermsModal";
 
 export default function Home({ onStart }) {
   const { addToCart } = useCart();
+  const [showTerms, setShowTerms] = useState(false);
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-20 animate-[fadeIn_0.4s_ease-out]">
       
@@ -167,8 +169,20 @@ export default function Home({ onStart }) {
         >
           Begin Your Assessment
         </button>
+        <p className="text-xs text-gray-400 pt-4">
+          By continuing you agree to our{" "}
+          <button
+            type="button"
+            onClick={() => setShowTerms(true)}
+            className="text-[#064e3b] font-semibold underline underline-offset-2 hover:text-[#043427] cursor-pointer"
+          >
+            Terms & Conditions
+          </button>
+          . Assessment is informational only — not a medical diagnosis.
+        </p>
       </div>
 
+      <TermsModal open={showTerms} onClose={() => setShowTerms(false)} />
     </div>
   );
 }
