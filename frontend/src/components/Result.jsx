@@ -287,8 +287,38 @@ export default function Result() {
     else window.history.back();
   };
 
+  const reportDate = useMemo(
+    () =>
+      new Date().toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    []
+  );
+
+  const reportId = useMemo(() => {
+    const seed = `${userName}|${state?.aboutMe?.email || ""}|${state?.aboutMe?.whatsapp || ""}|${aiPredictedStageNumber || ""}`;
+    let hash = 0;
+    for (let i = 0; i < seed.length; i += 1) {
+      hash = (hash << 5) - hash + seed.charCodeAt(i);
+      hash |= 0;
+    }
+    const n = (Math.abs(hash) % 9000) + 1000;
+    const yy = String(new Date().getFullYear()).slice(-2);
+    return `TR-${n}-${yy}`;
+  }, [userName, state?.aboutMe?.email, state?.aboutMe?.whatsapp, aiPredictedStageNumber]);
+
+  const confidencePhrase = (() => {
+    if (analysisMissing || rawAnalysis.quotaFallback) return "moderate confidence";
+    const c = Number(rawAnalysis.aiConfidence);
+    if (Number.isNaN(c) || c >= 0.8) return "high confidence";
+    if (c >= 0.65) return "good confidence";
+    return "moderate confidence";
+  })();
+
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36">
+    <div className="min-h-screen bg-[#f5f6f2] -mx-4 md:-mx-8 -mt-8 pb-36">
       <header className="sticky top-0 z-40 bg-[#2b2b2b] px-4 py-3 flex items-center justify-between shadow-md">
         <span className="text-white text-xl font-bold tracking-tight">Zylk<span className="text-[#b8d86e]">.</span></span>
         <button
@@ -308,19 +338,41 @@ export default function Result() {
         </button>
       </header>
 
-      <div className="max-w-lg mx-auto px-3 pt-4 space-y-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-4 pt-3">
-            <span className="inline-block text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-3 py-1 rounded-t-lg border border-b-0 border-gray-100">
-              Assessment Report
+      <div className="max-w-lg mx-auto px-4 pt-8 space-y-5">
+        {/* Report intro — matches Hair Assessment Report header UI */}
+        <section className="text-left space-y-4 animate-[fadeIn_0.35s_ease-out]">
+          <h1 className="text-[2rem] sm:text-[2.35rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
+            Hello {userName},
+          </h1>
+
+          <h2 className="text-[1.65rem] sm:text-[2rem] font-bold leading-[1.25] tracking-tight">
+            <span className="text-[#6f8f3d]">Here is</span>{" "}
+            <span className="text-gray-900">your personalized</span>{" "}
+            <span className="text-[#6f8f3d]">Hair Assessment Report</span>
+          </h2>
+
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#6f8f3d] text-white shrink-0">
+              <svg className="h-2.5 w-2.5" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M2.5 6.2L4.8 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="text-[12px] font-medium text-[#555555]">
+              Report ID: {reportId} • {reportDate}
             </span>
           </div>
 
-          <div className="px-4 pb-4 pt-2">
+          <p className="text-[15px] text-[#555555] leading-relaxed max-w-md">
+            Our AI scan + expert analysis of 14 key parameters gives us{" "}
+            <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
+          </p>
+        </section>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 pb-4 pt-4">
             <div className="flex gap-3 items-start">
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-gray-900 leading-tight">{userName},</h1>
-                <p className="text-sm text-gray-500 mt-1">You Are Currently On</p>
+                <p className="text-sm text-gray-500">You Are Currently On</p>
                 <p className="text-base font-bold text-gray-900 leading-snug mt-0.5">{getStageTitle()}</p>
 
                 {!analysisMissing && (
