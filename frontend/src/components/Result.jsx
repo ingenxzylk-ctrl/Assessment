@@ -88,6 +88,37 @@ function getProductPurpose(name = "") {
   return "For Hair Health";
 }
 
+/** Report ID: TR-DDMMYYYY-NN (NN = reports generated that calendar day). */
+function getOrCreateDailyReportMeta(fingerprint) {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(now.getFullYear());
+  const dateKey = `${dd}${mm}${yyyy}`;
+  const reportDate = now.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  if (typeof window === "undefined") {
+    return { reportId: `TR-${dateKey}-01`, reportDate };
+  }
+
+  const assignedKey = `zylk_report_assigned_${dateKey}_${fingerprint}`;
+  const existing = window.localStorage.getItem(assignedKey);
+  if (existing) {
+    return { reportId: existing, reportDate };
+  }
+
+  const countKey = `zylk_report_count_${dateKey}`;
+  const next = Number(window.localStorage.getItem(countKey) || "0") + 1;
+  window.localStorage.setItem(countKey, String(next));
+  const reportId = `TR-${dateKey}-${String(next).padStart(2, "0")}`;
+  window.localStorage.setItem(assignedKey, reportId);
+  return { reportId, reportDate };
+}
+
 function buildRootCauses(state, hasDandruff, isFemale) {
   const dump = JSON.stringify(state || {}).toLowerCase();
   const causes = [];
@@ -435,11 +466,59 @@ export default function Result() {
     else window.history.back();
   };
 
+  const { reportId, reportDate } = useMemo(() => {
+    const fingerprint = [
+      userName,
+      state?.aboutMe?.email || "",
+      state?.aboutMe?.whatsapp || "",
+      aiPredictedStageNumber || "",
+      rawAnalysis?.model || "",
+    ].join("|");
+    return getOrCreateDailyReportMeta(fingerprint);
+  }, [userName, state?.aboutMe?.email, state?.aboutMe?.whatsapp, aiPredictedStageNumber, rawAnalysis?.model]);
+
+  const confidencePhrase = (() => {
+    if (analysisMissing || rawAnalysis.quotaFallback) return "moderate confidence";
+    const c = Number(rawAnalysis.aiConfidence);
+    if (Number.isNaN(c) || c >= 0.8) return "high confidence";
+    if (c >= 0.65) return "good confidence";
+    return "moderate confidence";
+  })();
+
   return (
     <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-10">
       <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:min-w-0">
+        {/* Hair Assessment Report intro (design section only) */}
+        <section className="text-left space-y-4 px-1 pt-2">
+          <h1 className="text-[2rem] sm:text-[2.35rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
+            Hello {userName},
+          </h1>
+
+          <h2 className="text-[1.65rem] sm:text-[2rem] font-bold leading-[1.25] tracking-tight text-gray-900">
+            <span className="text-[#6f8f3d]">Here is</span> your personalized{" "}
+            <span className="text-[#6f8f3d]">Hair</span> Assessment Report
+          </h2>
+
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5">
+            <span className="inline-flex h-4 w-4 items-center justify-center shrink-0" aria-hidden="true">
+              <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
+                <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="text-[12px] font-medium text-[#555555]">
+              Report ID: {reportId} • {reportDate}
+            </span>
+          </div>
+
+          <p className="text-[15px] text-[#555555] leading-relaxed max-w-md">
+            Our AI scan + expert analysis of 14 key parameters gives us{" "}
+            <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
+          </p>
+        </section>
+
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-4 pt-3">
             <span className="inline-block text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 px-3 py-1 rounded-t-lg border border-b-0 border-gray-100">
@@ -450,7 +529,6 @@ export default function Result() {
           <div className="px-4 pb-4 pt-2">
             <div className="flex gap-3 items-start">
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-gray-900 leading-tight">Hello {userName},</h1>
                 <p className="text-sm text-gray-500 mt-1">You Are Currently On</p>
                 <p className="text-base font-bold text-gray-900 leading-snug mt-0.5">{getStageTitle()}</p>
 
