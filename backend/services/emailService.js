@@ -68,8 +68,11 @@ export async function sendReportToOrganisation({
       `WhatsApp: ${aboutMe.whatsapp || "—"}`,
       `Gender: ${aboutMe.gender || "—"}`,
       `AI Stage: ${stage}`,
-      storageInfo.pdfUrl ? `PDF URL: ${storageInfo.pdfUrl}` : "",
-      storageInfo.pdfPath ? `Storage path: ${storageInfo.pdfPath}` : "",
+      storageInfo.pdfUrl ? `Google Drive / storage link: ${storageInfo.pdfUrl}` : "",
+      storageInfo.drive?.pdfName ? `Drive file: ${storageInfo.drive.pdfName}` : "",
+      storageInfo.pdfPath && storageInfo.storage === "local"
+        ? `Local path: ${storageInfo.pdfPath}`
+        : "",
       "",
       "The PDF is attached to this email.",
     ]
@@ -87,10 +90,10 @@ export async function sendReportToOrganisation({
         <strong>AI Stage:</strong> ${stage}</p>
         ${
           storageInfo.pdfUrl
-            ? `<p><a href="${storageInfo.pdfUrl}">Open PDF in storage</a></p>`
+            ? `<p><a href="${storageInfo.pdfUrl}" style="color:#064e3b;font-weight:bold">Open PDF in Google Drive</a></p>`
             : ""
         }
-        <p>The PDF is attached to this email.</p>
+        <p>The PDF is also attached to this email.</p>
       </div>
     `,
     attachments: [

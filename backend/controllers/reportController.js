@@ -106,6 +106,7 @@ export async function submitAssessmentReport(req, res) {
       reportId,
       pdfBuffer,
       jsonData: archive,
+      patientName: aboutMe.fullName || "Guest",
     });
 
     let emailResult;
@@ -130,6 +131,7 @@ export async function submitAssessmentReport(req, res) {
       storage: storageInfo.storage,
       pdfPath: storageInfo.pdfPath,
       pdfUrl: storageInfo.pdfUrl,
+      drive: storageInfo.drive || null,
       email: emailResult,
     });
   } catch (err) {
