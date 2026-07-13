@@ -128,7 +128,6 @@ function buildRootCauses(state, hasDandruff, isFemale) {
       id: "dandruff",
       label: "Dandruff",
       icon: "🧴",
-      activeBg: "bg-orange-50 border-orange-200",
       desc: "Dandruff irritates your scalp and weakens hair roots. We clear it in 1 month for long-term regrowth.",
     });
   }
@@ -137,29 +136,33 @@ function buildRootCauses(state, hasDandruff, isFemale) {
     id: "genetic",
     label: "Genetics",
     icon: "🧬",
-    activeBg: "bg-orange-50 border-orange-200",
     desc: isFemale
       ? "Hormonal shifts along the hair part line cause progressive thinning. Our kit targets receptors internally and topically."
       : "DHT sensitivity shrinks follicles over time. Our dual-action serum blocks DHT locally while nourishing roots.",
   });
 
-  if (dump.includes("stress") || dump.includes("anxiety")) {
+  if (dump.includes("stress") || dump.includes("anxiety") || dump.includes("sleep") || dump.includes("poor")) {
     causes.push({
-      id: "stress",
-      label: "Stress",
-      icon: "⚖️",
-      activeBg: "bg-orange-50 border-orange-200",
-      desc: "Elevated cortisol pushes follicles into telogen (resting) phase. Adaptogens in your mix help rebalance stress response.",
+      id: "lifestyle",
+      label: "Lifestyle",
+      icon: "❤️",
+      desc: "High stress levels and poor sleep can accelerate hair fall. This plan includes strategies to manage these environmental triggers.",
     });
   }
 
-  if (dump.includes("diet") || dump.includes("nutrition") || dump.includes("iron") || dump.includes("veg")) {
+  if (dump.includes("diet") || dump.includes("nutrition") || dump.includes("iron") || dump.includes("veg") || dump.includes("food")) {
     causes.push({
       id: "nutrition",
       label: "Nutrition",
-      icon: "🥬",
-      activeBg: "bg-orange-50 border-orange-200",
-      desc: "Micronutrient gaps weaken hair shaft production. Your supplement blend restores proteins, iron, and collagen support.",
+      icon: "🍎",
+      desc: "Optimizing your intake is key to healthy growth. Our analysis identifies nutritional gaps to support your hair health from the inside out.",
+    });
+  } else {
+    causes.push({
+      id: "nutrition",
+      label: "Nutrition",
+      icon: "🍎",
+      desc: "Optimizing your intake is key to healthy growth. Our analysis identifies nutritional gaps to support your hair health from the inside out.",
     });
   }
 
@@ -168,26 +171,37 @@ function buildRootCauses(state, hasDandruff, isFemale) {
       id: "hormonal",
       label: "Hormonal",
       icon: "💊",
-      activeBg: "bg-orange-50 border-orange-200",
       desc: "Internal hormonal imbalance accelerates shedding. We address this with targeted internal + topical therapy.",
     });
   }
 
-  return causes.length ? causes : causes;
+  if (!causes.some((c) => c.id === "lifestyle")) {
+    causes.push({
+      id: "lifestyle",
+      label: "Lifestyle",
+      icon: "❤️",
+      desc: "High stress levels and poor sleep can accelerate hair fall. This plan includes strategies to manage these environmental triggers.",
+    });
+  }
+
+  return causes;
 }
 
 // Maps a month number to its recovery "phase" — used to generate a
 // description + icon for every single month, not just checkpoints.
 function getMonthPhase(month, totalMonths) {
-  if (month === 1) return { desc: "Control Dandruff", icon: "🌱" };
+  if (month === 1) return { desc: "Scalp Cleared & Fall Reduced", icon: "🌱" };
+  if (month === 2) return { desc: "Follicle Health Improving", icon: "💧" };
+  if (month === 3) return { desc: "Stronger Roots & Better Texture", icon: "🛡️" };
+  if (month === 4) return { desc: "Shedding Stabilises", icon: "✨" };
+  if (month === 5) return { desc: "Visible New Growth", icon: "🌿" };
   if (month === totalMonths && totalMonths >= 9) {
     return { desc: "Full Density Results", icon: "🏆" };
   }
 
   const progress = month / totalMonths;
-  if (progress <= 0.2) return { desc: "Improve Follicular Health", icon: "💧" };
-  if (progress <= 0.4) return { desc: "Hair Fall Control", icon: "🛡️" };
-  if (progress <= 0.6) return { desc: "Hair Growth", icon: "✨" };
+  if (progress <= 0.45) return { desc: "Hair Fall Control", icon: "🛡️" };
+  if (progress <= 0.7) return { desc: "Hair Growth Building", icon: "✨" };
   return { desc: "Maintaining Awesome Hair", icon: "🌟" };
 }
 
@@ -206,6 +220,59 @@ function buildRoadmapMonths(totalMonths) {
     });
   }
   return months;
+}
+
+/** Vertical scrollable “Start seeing results” timeline (shows ~3 months, scroll for more). */
+function ResultsSeeingTimeline({ roadmap, ageRange }) {
+  const younger = ["18-25", "26-35"].includes(String(ageRange || ""));
+
+  return (
+    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 text-left">
+      <p className="text-sm font-bold text-gray-900 mb-3">Start seeing results</p>
+
+      <div className="relative max-h-[168px] overflow-y-auto pr-1 scrollbar-thin">
+        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[#9ccc65]/70" />
+        <ul className="relative space-y-4">
+          {roadmap.map((step, index) => {
+            const isFirst = index === 0;
+            const isEarly = index < 3;
+            return (
+              <li key={step.month} className="flex items-start gap-3 pl-0">
+                <span
+                  className={`relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                    isFirst
+                      ? "border-[#5a7a2f] bg-[#6f8f3d]"
+                      : isEarly
+                        ? "border-[#6f8f3d] bg-[#6f8f3d]"
+                        : "border-[#b7d48a] bg-[#dcecc0]"
+                  }`}
+                >
+                  {isFirst && <span className="h-2 w-2 rounded-full bg-[#2f4514]" />}
+                </span>
+                <p className={`text-sm leading-snug pt-0.5 ${isEarly ? "text-gray-800" : "text-gray-500"}`}>
+                  <span className="font-bold">Month {step.month}:</span> {step.desc}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <p className="mt-2 text-[10px] text-center text-gray-400">Scroll to see later months</p>
+
+      <div className="mt-3 rounded-xl bg-[#e5f0d4] px-3 py-2.5 text-xs text-[#3d5a1f] leading-relaxed">
+        {younger ? (
+          <>
+            <span className="font-bold">At your age, results come faster</span> since hair follicles are most active &amp; responsive.
+          </>
+        ) : (
+          <>
+            <span className="font-bold">Consistency matters most at your age</span> — follicles respond steadily when the routine is followed.
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -348,7 +415,6 @@ export default function Result() {
   const { state, resetQuiz, prevStep, setLoading, setError } = useQuiz();
   const { addToCart, cartCount, setIsCartOpen } = useCart();
 
-  const [activeCause, setActiveCause] = useState(null);
   const [includeHealthMix, setIncludeHealthMix] = useState(true);
   const [coachCallOptIn, setCoachCallOptIn] = useState(false);
   const [faqOpen, setFaqOpen] = useState(false);
@@ -387,8 +453,6 @@ export default function Result() {
   const hasDandruff = stateDump.includes("dandruff") && !stateDump.includes("no-dandruff");
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
-  const selectedCause = rootCauses.find((c) => c.id === (activeCause || rootCauses[0]?.id)) || rootCauses[0];
-
   const rootCauseTags = [];
   if (stateDump.includes("stress")) rootCauseTags.push("Cortisol Control");
   if (stateDump.includes("diet") || stateDump.includes("nutrition")) rootCauseTags.push("Nutrient Sync");
@@ -617,6 +681,13 @@ export default function Result() {
               </div>
             )}
 
+            {!requiresDoctorConsultation && !eligibilityTimeline.needsTransplant && (
+              <ResultsSeeingTimeline
+                roadmap={roadmap}
+                ageRange={state?.aboutMe?.ageRange}
+              />
+            )}
+
             <div className="mt-4 bg-[#e8f5e9] rounded-xl p-4 text-sm text-[#1b4332] leading-relaxed">
               <p className="font-bold mb-2">
                 {requiresDoctorConsultation
@@ -649,31 +720,26 @@ export default function Result() {
         </section>
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <h2 className="text-base font-bold text-gray-900 mb-3">Your Hair Fall Root Causes</h2>
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {rootCauses.map((cause) => {
-                const isActive = (activeCause || rootCauses[0]?.id) === cause.id;
-                return (
-                  <button
-                    key={cause.id}
-                    type="button"
-                    onClick={() => setActiveCause(cause.id)}
-                    className={`shrink-0 w-20 flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all cursor-pointer ${
-                      isActive ? "bg-orange-50 border-orange-200" : "bg-white border-gray-100"
-                    }`}
-                  >
-                    <span className="text-2xl">{cause.icon}</span>
-                    <span className="text-[11px] font-semibold text-gray-700">{cause.label}</span>
-                  </button>
-                );
-              })}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-left">
+            <h2 className="text-base font-bold text-gray-900 mb-3">Your Hair fall Root Causes</h2>
+            <div className="space-y-3">
+              {rootCauses.map((cause) => (
+                <div
+                  key={cause.id}
+                  className="flex items-start gap-3 rounded-2xl bg-[#f7efe6] border border-[#f0e2d2] p-3.5"
+                >
+                  <div className="w-14 shrink-0 flex flex-col items-center gap-1 pt-0.5">
+                    <span className="text-2xl leading-none">{cause.icon}</span>
+                    <span className="text-[11px] font-bold text-gray-800 text-center leading-tight">
+                      {cause.label}
+                    </span>
+                  </div>
+                  <p className="flex-1 text-xs text-gray-700 leading-relaxed pt-1">
+                    {cause.desc}
+                  </p>
+                </div>
+              ))}
             </div>
-            {selectedCause && (
-              <div className="mt-3 bg-orange-50 border border-orange-100 rounded-xl p-3 text-xs text-gray-700 leading-relaxed">
-                {selectedCause.desc}
-              </div>
-            )}
           </div>
         )}
 
@@ -891,10 +957,6 @@ export default function Result() {
               </button>
             </div>
           </div>
-        )}
-
-        {!requiresDoctorConsultation && !eligibilityTimeline.needsTransplant && (
-          <RoadmapTimeline roadmap={roadmap} resultMonths={resultMonths} />
         )}
 
         {!requiresDoctorConsultation && (
