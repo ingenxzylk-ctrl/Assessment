@@ -227,10 +227,10 @@ function ResultsSeeingTimeline({ roadmap, ageRange }) {
   const younger = ["18-25", "26-35"].includes(String(ageRange || ""));
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 text-left">
+    <div className="mt-4 md:mt-5 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 md:p-5 text-left">
       <p className="text-sm font-bold text-gray-900 mb-3">Start seeing results</p>
 
-      <div className="relative max-h-[168px] overflow-y-auto pr-1 scrollbar-thin">
+      <div className="relative max-h-[168px] md:max-h-[200px] overflow-y-auto pr-1 scrollbar-thin">
         <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[#9ccc65]/70" />
         <ul className="relative space-y-4">
           {roadmap.map((step, index) => {
@@ -373,11 +373,11 @@ function ProgressionTrack({ title, steps, variant }) {
   return (
     <div className={`rounded-2xl border p-3 sm:p-4 ${shell}`}>
       <p className={`text-sm font-bold mb-3 ${titleColor}`}>{title}</p>
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex items-center gap-1 md:gap-2 overflow-x-auto md:overflow-visible pb-1 scrollbar-hide md:justify-between">
         {steps.map((step, index) => (
-          <div key={`${step.label}-${index}`} className="flex items-center gap-1 shrink-0">
-            <div className="flex flex-col items-center w-[72px] sm:w-[78px]">
-              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-white shadow-sm">
+          <div key={`${step.label}-${index}`} className="flex items-center gap-1 md:gap-2 shrink-0 md:shrink">
+            <div className="flex flex-col items-center w-[72px] sm:w-[78px] md:w-[88px]">
+              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] md:w-[80px] md:h-[80px] rounded-full overflow-hidden bg-white border border-white shadow-sm">
                 <img
                   src={step.image}
                   alt={step.label}
@@ -411,15 +411,15 @@ function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-left">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 text-left h-full">
       <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-snug">
         How your hair may change over time
       </h2>
-      <p className="text-sm text-gray-500 mt-1 mb-4">
+      <p className="text-sm text-gray-500 mt-1 mb-4 md:mb-5">
         Based on {isFemale ? "women" : "men"} with similar profile as you
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-2">
         <ProgressionTrack title="If left untreated" steps={untreated} variant="untreated" />
         <ProgressionTrack title="With Zylk Treatment" steps={treated} variant="treated" />
       </div>
@@ -430,6 +430,138 @@ function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
         </span>
         Results vary for each individual. Consistent use for minimum 4–6 months is essential.
       </p>
+    </div>
+  );
+}
+
+const TREATMENT_PLAN_FEATURES = [
+  "3-Step Personalized Treatment Delivered Monthly",
+  "Doctor Guidance & Follow-up",
+  "Progress Tracking",
+  "Access to Zylk Support",
+];
+
+function SproutIcon({ className = "w-8 h-8" }) {
+  return (
+    <svg viewBox="0 0 32 32" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M16 28V16"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16 18c0-5 3.5-9 9-10-1 6-4.5 10-9 10Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 20c0-4-3-7.5-8-8.5C9 17 12.5 20 16 20Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M11 28h10"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Desktop pricing + CTA strip (matches treatment-plan conversion bar). */
+function TreatmentPlanPricingStrip({ price, originalPrice, savings, onBuy }) {
+  const perDay = Math.max(1, Math.round(Number(price || 0) / 30));
+
+  return (
+    <div className="hidden lg:block fixed bottom-0 left-0 right-0 z-50 px-6 xl:px-10 pb-4 pt-2 pointer-events-none">
+      <div className="max-w-[1600px] mx-auto pointer-events-auto space-y-2.5">
+        <div className="bg-white rounded-2xl shadow-[0_-4px_28px_rgba(0,0,0,0.1)] border border-gray-100 px-6 xl:px-8 py-5">
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-6 xl:gap-10 items-center">
+            {/* Price */}
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500 mb-1">Your treatment plan price</p>
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="text-3xl xl:text-4xl font-black text-gray-900 tracking-tight">
+                  ₹{price}
+                  <span className="text-lg xl:text-xl font-bold text-gray-700"> / month</span>
+                </p>
+              </div>
+              <p className="text-sm text-gray-500 mt-0.5">(Less than ₹{perDay} / day)</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {savings > 0 && (
+                  <span className="inline-flex items-center rounded-full bg-[#e8f5e9] px-2.5 py-1 text-xs font-bold text-[#1b4332]">
+                    You save ₹{savings}
+                  </span>
+                )}
+                {originalPrice > price && (
+                  <span className="text-sm text-gray-400 line-through">₹{originalPrice}</span>
+                )}
+              </div>
+            </div>
+
+            {/* CTA */}
+            <div className="min-w-0">
+              <button
+                type="button"
+                onClick={onBuy}
+                className="w-full flex items-center justify-between gap-3 bg-[#2d6a4f] hover:bg-[#1b4332] text-white font-bold text-sm xl:text-base px-5 py-4 rounded-xl cursor-pointer transition-colors shadow-sm"
+              >
+                <span className="text-left leading-snug">
+                  See My Treatment Plan &amp; Start My Recovery
+                </span>
+                <span className="text-xl font-light shrink-0" aria-hidden="true">
+                  ›
+                </span>
+              </button>
+              <p className="mt-2.5 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-gray-400" fill="currentColor" aria-hidden="true">
+                  <path d="M8 1a3.5 3.5 0 00-3.5 3.5V6H4a1 1 0 00-1 1v6a1 1 0 001 1h8a1 1 0 001-1V7a1 1 0 00-1-1h-.5V4.5A3.5 3.5 0 008 1zm2 5H6V4.5a2 2 0 114 0V6z" />
+                </svg>
+                Secure Checkout
+              </p>
+            </div>
+          </div>
+
+          {/* Features — single line at the bottom of the card */}
+          <ul className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-x-6 gap-y-2">
+            {TREATMENT_PLAN_FEATURES.map((feature) => (
+              <li key={feature} className="flex items-center gap-2 text-sm text-gray-800">
+                <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#52b788] text-white">
+                  <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="none" aria-hidden="true">
+                    <path
+                      d="M2.5 6.2l2.2 2.2 4.8-4.8"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                <span className="leading-snug whitespace-nowrap">{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Motivational banner */}
+        <div className="rounded-2xl bg-[#e8f5e9] border border-[#cfe8d5] px-5 xl:px-6 py-3.5 flex items-center gap-4">
+          <div className="shrink-0 text-[#2d6a4f]">
+            <SproutIcon className="w-9 h-9" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm xl:text-base font-bold text-[#1b4332] leading-snug">
+              Your follicles are still active. This is your best window to regain your hair.
+            </p>
+            <p className="text-xs xl:text-sm text-[#2d6a4f] mt-0.5">
+              Take the first step today. Future you will thank you.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -720,14 +852,14 @@ export default function Result() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-10">
-      <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 sm:-mx-6 lg:-mx-10 xl:-mx-14 -mt-8 pb-36 lg:pb-56">
+      <div className="w-full max-w-lg lg:max-w-none mx-auto px-3 sm:px-5 lg:px-8 pt-4 md:pt-6 lg:pt-8 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_440px] lg:gap-8 xl:gap-10 2xl:gap-12 lg:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
-      <div className="space-y-4 md:min-w-0">
+      <div className="space-y-4 md:space-y-6 lg:space-y-8 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-3">
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5 md:p-6 lg:p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(180px,240px)] xl:grid-cols-[minmax(0,1fr)_minmax(200px,280px)] gap-5 md:gap-6 lg:gap-8 items-start">
+            <div className="min-w-0 text-left space-y-3 md:space-y-4">
               <h1 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
@@ -749,13 +881,13 @@ export default function Result() {
                 </span>
               </div>
 
-              <p className="text-[14px] sm:text-[15px] text-[#555555] leading-relaxed">
+              <p className="text-[14px] sm:text-[15px] text-[#555555] leading-relaxed max-w-2xl">
                 Our AI scan + expert analysis of 14 key parameters gives us{" "}
                 <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
               </p>
             </div>
 
-            <div className="w-full sm:w-[180px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div className="w-full max-w-[240px] mx-auto lg:mx-0 lg:max-w-none rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
               <p className="px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">Your Scalp Overview</p>
               <div className="px-3 pb-3">
                 <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-50">
@@ -879,93 +1011,95 @@ export default function Result() {
         </section>
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-left">
-            <h2 className="text-base font-bold text-gray-900 mb-3">Your Hair fall Root Causes</h2>
-            <div className="space-y-3">
-              {rootCauses.map((cause) => (
-                <div
-                  key={cause.id}
-                  className="flex items-start gap-3 rounded-2xl bg-[#f7efe6] border border-[#f0e2d2] p-3.5"
-                >
-                  <div className="w-14 shrink-0 flex flex-col items-center gap-1 pt-0.5">
-                    <span className="text-2xl leading-none">{cause.icon}</span>
-                    <span className="text-[11px] font-bold text-gray-800 text-center leading-tight">
-                      {cause.label}
-                    </span>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6 xl:gap-8 items-start">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 text-left h-full">
+              <h2 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4">Your Hair fall Root Causes</h2>
+              <div className="space-y-3 md:space-y-4">
+                {rootCauses.map((cause) => (
+                  <div
+                    key={cause.id}
+                    className="flex items-start gap-3 md:gap-4 rounded-2xl bg-[#f7efe6] border border-[#f0e2d2] p-3.5 md:p-4"
+                  >
+                    <div className="w-14 md:w-16 shrink-0 flex flex-col items-center gap-1 pt-0.5">
+                      <span className="text-2xl leading-none">{cause.icon}</span>
+                      <span className="text-[11px] font-bold text-gray-800 text-center leading-tight">
+                        {cause.label}
+                      </span>
+                    </div>
+                    <p className="flex-1 text-xs md:text-sm text-gray-700 leading-relaxed pt-1">
+                      {cause.desc}
+                    </p>
                   </div>
-                  <p className="flex-1 text-xs text-gray-700 leading-relaxed pt-1">
-                    {cause.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!requiresDoctorConsultation && !analysisMissing && (
-          <HairProgressionComparison
-            currentStage={aiPredictedStageNumber}
-            isFemale={isFemale}
-            resultMonths={resultMonths}
-          />
-        )}
-
-        {!requiresDoctorConsultation && (
-          <div className="bg-[#f0faf4] border border-[#b7e4c7] rounded-2xl p-4 flex gap-3 items-center">
-            <div className="flex-1">
-              <p className="text-3xl font-black text-[#064e3b]">3 Times</p>
-              <p className="text-sm font-bold text-gray-800">Better results</p>
-              <p className="text-[10px] text-gray-500 uppercase mt-1">Based on a 5-month study*</p>
-              <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
-                Check Study →
-              </button>
-            </div>
-            <div className="w-28 shrink-0 flex items-end gap-1 h-24">
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-full bg-gray-300 rounded-t h-8" />
-                <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Minoxidil Alone</span>
-              </div>
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-full bg-[#52b788] rounded-t h-20 relative">
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">3x</span>
-                </div>
-                <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Zylk Regimen</span>
+                ))}
               </div>
             </div>
+
+            {!analysisMissing && (
+              <HairProgressionComparison
+                currentStage={aiPredictedStageNumber}
+                isFemale={isFemale}
+                resultMonths={resultMonths}
+              />
+            )}
           </div>
         )}
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <h2 className="text-base font-bold text-gray-900">
-              Here is <span className="text-[#064e3b]">{testimonial.name.split(" ")[0]}</span>
-            </h2>
-            <p className="text-sm text-gray-500 mb-3">Who Matches Your Profile</p>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {testimonial.months.map((label, i) => (
-                <div key={i} className="shrink-0 w-24">
-                  <div className="h-28 rounded-lg bg-gradient-to-b from-gray-200 to-gray-300 overflow-hidden border border-gray-200">
-                    <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">👤</div>
-                  </div>
-                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{label}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
+            <div className="bg-[#f0faf4] border border-[#b7e4c7] rounded-2xl p-4 md:p-6 flex gap-3 md:gap-5 items-center h-full">
+              <div className="flex-1">
+                <p className="text-3xl font-black text-[#064e3b]">3 Times</p>
+                <p className="text-sm font-bold text-gray-800">Better results</p>
+                <p className="text-[10px] text-gray-500 uppercase mt-1">Based on a 5-month study*</p>
+                <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
+                  Check Study →
+                </button>
+              </div>
+              <div className="w-28 shrink-0 flex items-end gap-1 h-24">
+                <div className="flex flex-col items-center flex-1">
+                  <div className="w-full bg-gray-300 rounded-t h-8" />
+                  <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Minoxidil Alone</span>
                 </div>
-              ))}
+                <div className="flex flex-col items-center flex-1">
+                  <div className="w-full bg-[#52b788] rounded-t h-20 relative">
+                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">3x</span>
+                  </div>
+                  <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Zylk Regimen</span>
+                </div>
+              </div>
             </div>
-            <div className="flex justify-center gap-1.5 mt-3">
-              {TESTIMONIALS.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setTestimonialIdx(i)}
-                  className={`w-2 h-2 rounded-full ${i === testimonialIdx ? "bg-gray-800" : "bg-gray-300"}`}
-                />
-              ))}
+
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 h-full">
+              <h2 className="text-base md:text-lg font-bold text-gray-900">
+                Here is <span className="text-[#064e3b]">{testimonial.name.split(" ")[0]}</span>
+              </h2>
+              <p className="text-sm text-gray-500 mb-3 md:mb-4">Who Matches Your Profile</p>
+              <div className="flex gap-2 md:gap-3 overflow-x-auto pb-1">
+                {testimonial.months.map((label, i) => (
+                  <div key={i} className="shrink-0 w-24 md:w-28">
+                    <div className="h-28 md:h-32 rounded-lg bg-gradient-to-b from-gray-200 to-gray-300 overflow-hidden border border-gray-200">
+                      <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">👤</div>
+                    </div>
+                    <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-center gap-1.5 mt-3 md:mt-4">
+                {TESTIMONIALS.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setTestimonialIdx(i)}
+                    className={`w-2 h-2 rounded-full ${i === testimonialIdx ? "bg-gray-800" : "bg-gray-300"}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         )}
 
         {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
-          <div className="md:hidden bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
+          <div className="lg:hidden bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
             <div>
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">
                 Start Your Journey With Just 1 Month Kit
@@ -1070,13 +1204,14 @@ export default function Result() {
         )}
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <div className="flex justify-center mb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 h-full">
+            <div className="flex justify-center mb-4 md:mb-5">
               <span className="text-[11px] font-bold uppercase tracking-wider border-2 border-[#064e3b] text-[#064e3b] rounded-full px-4 py-1">
                 Free Add-ons
               </span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 md:space-y-4">
               {FREE_ADDONS.map((addon) => (
                 <div key={addon.id} className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-xl shrink-0">
@@ -1094,19 +1229,17 @@ export default function Result() {
               ))}
             </div>
           </div>
-        )}
 
-        {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden">
-            <div className="flex gap-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 relative overflow-hidden h-full">
+            <div className="flex gap-3 md:gap-5">
               <div className="flex-1">
-                <p className="text-base font-bold text-gray-900">Hair coach unlocked</p>
-                <p className="text-xs text-gray-500 mt-1">Dedicated hair expert just a call away to support you.</p>
+                <p className="text-base md:text-lg font-bold text-gray-900">Hair coach unlocked</p>
+                <p className="text-xs md:text-sm text-gray-500 mt-1">Dedicated hair expert just a call away to support you.</p>
               </div>
-              <div className="w-16 h-16 rounded-full bg-[#e8eede] flex items-center justify-center text-3xl shrink-0">👩‍⚕️</div>
+              <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-[#e8eede] flex items-center justify-center text-3xl md:text-4xl shrink-0">👩‍⚕️</div>
             </div>
-            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-600 flex-1">Opt-in for a call immediately after placing your order</p>
+            <div className="mt-4 md:mt-5 pt-3 md:pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+              <p className="text-xs md:text-sm text-gray-600 flex-1">Opt-in for a call immediately after placing your order</p>
               <button
                 type="button"
                 role="switch"
@@ -1124,10 +1257,11 @@ export default function Result() {
               </button>
             </div>
           </div>
+          </div>
         )}
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
             <h2 className="text-lg font-bold text-gray-900 leading-snug mb-4">
               Your Routine Gets Easier And Cheaper Every Month
             </h2>
@@ -1148,9 +1282,9 @@ export default function Result() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
-          <div className="border border-gray-100 rounded-xl p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+          <h2 className="text-base md:text-lg font-bold text-gray-900 mb-3 md:mb-4">Real People, Real Stories</h2>
+          <div className="border border-gray-100 rounded-xl p-4 md:p-5">
             <span className="inline-block text-[10px] font-bold bg-gray-800 text-white px-2 py-0.5 rounded mb-3">
               STAGE {testimonial.stage}
             </span>
@@ -1171,7 +1305,7 @@ export default function Result() {
         </div>
 
         {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && !eligibilityTimeline.needsTransplant && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 text-center">
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 text-xl">₹</div>
             <p className="text-xl font-bold text-[#064e3b]">Congratulations!</p>
             <p className="text-sm font-bold text-gray-600 mt-1">You Are 100% Eligible For The Money Back Policy</p>
@@ -1223,10 +1357,10 @@ export default function Result() {
 
       {/* RIGHT COLUMN — sticky purchase card, desktop only */}
       {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
-        <div className="hidden md:block md:sticky md:top-6">
-          <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 space-y-5">
+        <div className="hidden lg:block lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-15rem)] lg:overflow-y-auto">
+          <div className="bg-white rounded-[32px] p-5 md:p-6 lg:p-7 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 space-y-5 md:space-y-6">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+              <h2 className="text-lg lg:text-xl font-bold text-gray-900 tracking-tight">
                 Start Your Journey With Just 1 Month Kit
               </h2>
               <p className="text-xs text-gray-400 mt-1">
@@ -1378,7 +1512,7 @@ export default function Result() {
       )}
 
       {requiresDoctorConsultation && (
-        <div className="hidden md:block md:sticky md:top-6">
+        <div className="hidden lg:block lg:sticky lg:top-6">
           <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 text-center space-y-3">
             <p className="text-sm font-bold text-gray-900">Your hair loss needs clinical intervention.</p>
             <p className="text-xs text-gray-500">Speak with a Zylk trichology specialist to explore next steps.</p>
@@ -1395,7 +1529,16 @@ export default function Result() {
       </div>
       {/* END GRID */}
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      {!requiresDoctorConsultation && recommendedBundle && (
+        <TreatmentPlanPricingStrip
+          price={recommendedBundle.price}
+          originalPrice={recommendedBundle.originalPrice}
+          savings={savings}
+          onBuy={handleBuyNow}
+        />
+      )}
+
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         <div className="bg-gray-100 text-center py-1.5">
           <p className="text-[10px] text-gray-600 font-medium">All of our products are GMP &amp; ISO 9001 certified</p>
         </div>
