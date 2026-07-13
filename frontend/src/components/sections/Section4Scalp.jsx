@@ -200,8 +200,9 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
       setAnalysisStatus("Uploading & running AI analysis (20–60 sec)...");
       const aiResponse = await analyzeScalp({
         gender: state?.aboutMe?.gender || "male",
+        // Male: Norwood self-report. Female: AI is primary; zone is not a Ludwig stage.
         selfReportedStage: isFemale
-          ? state?.hairHealth?.hair_fall_zone || "1"
+          ? "1"
           : state?.hairHealth?.norwood_stage || "1",
         images: imagePayloads,
       });

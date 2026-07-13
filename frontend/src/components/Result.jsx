@@ -183,7 +183,7 @@ export default function Result() {
   const analysisMissing = !aiPredictedStageNumber;
   const stageDiscrepancy = Boolean(rawAnalysis.stageDiscrepancy);
   const reportedStage = isFemale
-    ? state?.hairHealth?.hair_fall_zone
+    ? null // Female Q2 is hair-loss location, not Ludwig stage; stage comes from AI photos
     : state?.hairHealth?.norwood_stage;
 
   const extractImageUrl = (img) => {
