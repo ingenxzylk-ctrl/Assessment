@@ -221,40 +221,160 @@ function buildRoadmapMonths(totalMonths) {
 
 function ResultsSeeingTimeline({ roadmap, ageRange }) {
   const younger = ["18-25", "26-35"].includes(String(ageRange || ""));
+  const [activeIdx, setActiveIdx] = useState(0);
+  const itemRefs = useRef([]);
+  const listRef = useRef(null);
+  const pausedRef = useRef(false);
+
+  useEffect(() => {
+    if (!roadmap?.length) return undefined;
+    const id = setInterval(() => {
+      if (pausedRef.current) return;
+      setActiveIdx((prev) => (prev + 1) % roadmap.length);
+    }, 7000);
+    return () => clearInterval(id);
+  }, [roadmap.length]);
+
+  useEffect(() => {
+    const el = itemRefs.current[activeIdx];
+    if (!el || !listRef.current) return;
+    const container = listRef.current;
+    const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }, [activeIdx]);
+
+  const darkGreen = "#064e3b";
+  const darkGreenSoft = "#1b4332";
+  const progressPct =
+    roadmap.length <= 1 ? 0 : (activeIdx / Math.max(1, roadmap.length - 1)) * 100;
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 text-left">
-      <p className="text-sm font-bold text-gray-900 mb-3">Start seeing results</p>
+    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 sm:p-5 text-left">
+      <div className="flex items-center justify-between gap-2 mb-3.5">
+        <p className="text-base sm:text-lg font-bold text-gray-900">Start seeing results</p>
+        <span className="text-[10px] font-semibold text-[#064e3b]/80 bg-white/70 px-2 py-1 rounded-full border border-[#d8e8c8]">
+          Month {roadmap[activeIdx]?.month ?? 1}
+        </span>
+      </div>
 
-      <div className="relative max-h-[168px] overflow-y-auto pr-1 scrollbar-thin">
-        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[#9ccc65]/70" />
-        <ul className="relative space-y-4">
+      <div
+        ref={listRef}
+        className="relative max-h-[220px] overflow-y-auto pr-1 scrollbar-thin"
+        onMouseEnter={() => {
+          pausedRef.current = true;
+        }}
+        onMouseLeave={() => {
+          pausedRef.current = false;
+        }}
+        onTouchStart={() => {
+          pausedRef.current = true;
+        }}
+        onTouchEnd={() => {
+          // Resume shortly after interaction so autoplay continues
+          window.setTimeout(() => {
+            pausedRef.current = false;
+          }, 2500);
+        }}
+      >
+        <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-[#c5ddb0]" />
+        <motion.div
+          className="absolute left-[15px] top-3 w-0.5 bg-[#064e3b]"
+          initial={false}
+          animate={{ height: `${progressPct}%` }}
+          transition={{ duration: 0.65, ease: "easeInOut" }}
+          style={{ maxHeight: "calc(100% - 24px)" }}
+        />
+
+        <ul className="relative space-y-5 py-1">
           {roadmap.map((step, index) => {
-            const isFirst = index === 0;
             const isEarly = index < 3;
+            const isActive = index === activeIdx;
+            const isPast = index < activeIdx;
+
             return (
-              <li key={step.month} className="flex items-start gap-3 pl-0">
-                <span
-                  className={`relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-                    isFirst
-                      ? "border-[#5a7a2f] bg-[#6f8f3d]"
-                      : isEarly
-                        ? "border-[#6f8f3d] bg-[#6f8f3d]"
-                        : "border-[#b7d48a] bg-[#dcecc0]"
-                  }`}
-                >
-                  {isFirst && <span className="h-2 w-2 rounded-full bg-[#2f4514]" />}
+              <li
+                key={step.month}
+                ref={(node) => {
+                  itemRefs.current[index] = node;
+                }}
+                className="flex items-start gap-3.5 pl-0 cursor-pointer"
+                onClick={() => setActiveIdx(index)}
+              >
+                <span className="relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center">
+                  <motion.span
+                    className="flex h-8 w-8 items-center justify-center rounded-full border-2"
+                    animate={{
+                      scale: isActive ? 1.08 : 1,
+                      backgroundColor: isEarly
+                        ? darkGreen
+                        : isActive || isPast
+                          ? "#6f8f3d"
+                          : "#dcecc0",
+                      borderColor: isEarly
+                        ? darkGreenSoft
+                        : isActive || isPast
+                          ? "#5a7a2f"
+                          : "#b7d48a",
+                    }}
+                    transition={{ duration: 0.45, ease: "easeInOut" }}
+                  >
+                    {isActive ? (
+                      <motion.span
+                        className="h-2.5 w-2.5 rounded-full bg-white"
+                        layoutId="results-timeline-dot"
+                        transition={{ type: "spring", stiffness: 320, damping: 28 }}
+                      />
+                    ) : isPast ? (
+                      <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
+                    ) : null}
+                  </motion.span>
                 </span>
-                <p className={`text-sm leading-snug pt-0.5 ${isEarly ? "text-gray-800" : "text-gray-500"}`}>
-                  <span className="font-bold">Month {step.month}:</span> {step.desc}
-                </p>
+
+                <motion.p
+                  className="text-[15px] sm:text-base leading-snug pt-1"
+                  animate={{
+                    opacity: isActive ? 1 : isEarly || isPast ? 0.85 : 0.45,
+                    x: isActive ? 0 : 2,
+                    color: isActive
+                      ? darkGreenSoft
+                      : isEarly
+                        ? "#1f2937"
+                        : "#6b7280",
+                  }}
+                  transition={{ duration: 0.45 }}
+                >
+                  <span className={`font-bold ${isActive ? "text-[#064e3b]" : ""}`}>
+                    Month {step.month}:
+                  </span>{" "}
+                  {step.desc}
+                </motion.p>
               </li>
             );
           })}
         </ul>
       </div>
 
-      <p className="mt-2 text-[10px] text-center text-gray-400">Scroll to see later months</p>
+      <div className="mt-3 flex items-center justify-center gap-1.5">
+        {roadmap.map((step, index) => (
+          <button
+            key={`dot-${step.month}`}
+            type="button"
+            aria-label={`Go to month ${step.month}`}
+            onClick={() => setActiveIdx(index)}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              index === activeIdx
+                ? "w-5 bg-[#064e3b]"
+                : index < 3
+                  ? "w-1.5 bg-[#064e3b]/35"
+                  : "w-1.5 bg-[#9ccc65]/70"
+            }`}
+          />
+        ))}
+      </div>
+
+      <p className="mt-2 text-[10px] text-center text-gray-400">
+        Advances every 7 seconds · tap a month to jump
+      </p>
 
       <div className="mt-3 rounded-xl bg-[#e5f0d4] px-3 py-2.5 text-xs text-[#3d5a1f] leading-relaxed">
         {younger ? (
