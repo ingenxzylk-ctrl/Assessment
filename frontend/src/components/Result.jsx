@@ -953,15 +953,12 @@ export default function Result() {
   };
 
   const findScalpImage = (type) => state?.scalpImages?.find((img) => img.type === type);
-  const frontScalpPhoto = extractImageUrl(findScalpImage("front"));
   const displayUserPhoto =
-    frontScalpPhoto ||
+    extractImageUrl(findScalpImage("front")) ||
     extractImageUrl(findScalpImage("top")) ||
     extractImageUrl(findScalpImage("side")) ||
     extractImageUrl(findScalpImage("back")) ||
     extractImageUrl(state?.scalpImages?.[0]);
-  // Front uploads are typically full-face — blur below eyebrows for privacy
-  const isFullFaceUpload = Boolean(frontScalpPhoto && displayUserPhoto === frontScalpPhoto);
 
   const requiresDoctorConsultation =
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
@@ -1148,43 +1145,42 @@ export default function Result() {
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5">
-          <div className="flex flex-row gap-3 sm:gap-5 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-2 sm:space-y-3">
-              <h1 className="text-[1.35rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-3.5 sm:p-5">
+          <div className="flex flex-row gap-2.5 sm:gap-5 items-start">
+            <div className="flex-1 min-w-0 text-left space-y-1.5 sm:space-y-3">
+              <h1 className="text-[1.2rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
 
-              <h2 className="text-[1.05rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
+              <h2 className="text-[0.95rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
                 <span className="text-[#6f8f3d]">Here is</span> your personalized{" "}
                 <span className="text-[#6f8f3d]">Hair Assessment Report</span>
               </h2>
 
-              {/* Desktop: report ID stays under the title */}
-              <div className="hidden sm:inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5 max-w-full">
-                <span className="inline-flex h-4 w-4 items-center justify-center shrink-0" aria-hidden="true">
-                  <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
+              <div className="inline-flex items-start gap-1.5 sm:gap-2 rounded-2xl sm:rounded-full bg-[#ececec] px-2.5 sm:px-3.5 py-1.5 max-w-full">
+                <span className="inline-flex h-3.5 w-3.5 sm:h-4 sm:w-4 items-center justify-center shrink-0 mt-0.5" aria-hidden="true">
+                  <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
                     <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <span className="text-[12px] font-medium text-[#555555]">
+                <span className="text-[10px] sm:text-[12px] font-medium text-[#555555] leading-snug break-words">
                   Report ID: {reportId} • {reportDate}
                 </span>
               </div>
 
-              <p className="hidden sm:block text-[15px] text-[#555555] leading-relaxed">
+              <p className="text-[12px] sm:text-[15px] text-[#555555] leading-relaxed">
                 Our AI scan + expert analysis of 14 key parameters gives us{" "}
                 <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
               </p>
             </div>
 
-            <div className="w-[96px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
-              <p className="px-1.5 pt-1.5 pb-1 sm:px-3 sm:pt-3 sm:pb-2 text-[9px] sm:text-sm font-semibold text-gray-900 leading-tight text-center sm:text-left">
+            <div className="w-[84px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+              <p className="px-1 pt-1.5 pb-0.5 sm:px-3 sm:pt-3 sm:pb-2 text-[8px] sm:text-sm font-semibold text-gray-900 leading-tight text-center sm:text-left">
                 Your Scalp Overview
               </p>
-              <div className="px-1.5 pb-1.5 sm:px-3 sm:pb-3">
-                <div className="relative w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-gray-100">
+              <div className="px-1 pb-1 sm:px-3 sm:pb-3">
+                <div className="relative w-full aspect-square rounded-md sm:rounded-xl overflow-hidden bg-gray-100">
                   <img
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt="Your scalp overview"
@@ -1194,45 +1190,12 @@ export default function Result() {
                       e.target.src = AVATAR_FALLBACK;
                     }}
                   />
-                  {/* Full-face front uploads: blur eyes/face below the eyebrows */}
-                  {isFullFaceUpload && displayUserPhoto && (
-                    <img
-                      src={displayUserPhoto}
-                      alt=""
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-0 h-full w-full object-contain object-center blur-[5px] sm:blur-md"
-                      style={{
-                        WebkitMaskImage:
-                          "linear-gradient(to bottom, transparent 42%, rgba(0,0,0,0.35) 52%, black 62%)",
-                        maskImage:
-                          "linear-gradient(to bottom, transparent 42%, rgba(0,0,0,0.35) 52%, black 62%)",
-                      }}
-                    />
-                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Mobile: full-width Report ID so it is never clipped beside the thumbnail */}
-          <div className="sm:hidden mt-3 flex items-start gap-2 rounded-full bg-[#ececec] px-3 py-1.5 w-full">
-            <span className="inline-flex h-4 w-4 items-center justify-center shrink-0 mt-0.5" aria-hidden="true">
-              <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
-                <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-medium text-[#555555] leading-snug break-words">
-              Report ID: {reportId} • {reportDate}
-            </span>
-          </div>
-
-          <p className="sm:hidden mt-2.5 text-[13px] text-[#555555] leading-relaxed">
-            Our AI scan + expert analysis of 14 key parameters gives us{" "}
-            <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
-          </p>
-
-          <div className="mt-5 pt-4 border-t border-gray-100 text-left">
+          <div className="mt-4 sm:mt-5 pt-3.5 sm:pt-4 border-t border-gray-100 text-left">
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
               Your Assessment
             </p>
