@@ -1185,7 +1185,7 @@ export default function Result() {
                   <img
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt="Your scalp overview"
-                    className="absolute inset-0 h-full w-full object-cover object-[center_18%] scale-[1.35] origin-top"
+                    className="absolute inset-0 h-full w-full object-cover object-[center_8%] scale-[1.55] origin-top"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = AVATAR_FALLBACK;
@@ -1196,12 +1196,12 @@ export default function Result() {
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt=""
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_18%] scale-[1.35] origin-top blur-[6px] sm:blur-md"
+                    className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_8%] scale-[1.55] origin-top blur-[7px] sm:blur-md"
                     style={{
                       WebkitMaskImage:
-                        "linear-gradient(to bottom, transparent 42%, rgba(0,0,0,0.55) 62%, black 82%)",
+                        "linear-gradient(to bottom, transparent 38%, rgba(0,0,0,0.45) 55%, black 78%)",
                       maskImage:
-                        "linear-gradient(to bottom, transparent 42%, rgba(0,0,0,0.55) 62%, black 82%)",
+                        "linear-gradient(to bottom, transparent 38%, rgba(0,0,0,0.45) 55%, black 78%)",
                     }}
                     onError={(e) => {
                       e.target.onerror = null;
@@ -1209,30 +1209,37 @@ export default function Result() {
                     }}
                   />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#6f8f3d]/20 via-transparent to-[#e67e22]/15" />
-                  {/* M-shaped hairline + temple hair-loss highlight (male pattern) */}
+                  {/* Frontline overlay: M-shaped male recession along the hair edge */}
                   <svg
                     className="pointer-events-none absolute inset-0 h-full w-full"
                     viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
+                    preserveAspectRatio="xMidYMid slice"
                     aria-hidden="true"
                   >
                     {!isFemale && (
                       <>
-                        {/* Soft fills over temple recession zones */}
+                        {/*
+                          Hair-loss zones at the temples (between a youthful frontline
+                          and the recessed M hairline).
+                        */}
                         <path
-                          d="M5 22 C16 24 20 46 26 58 C14 52 8 38 5 22Z"
-                          fill="rgba(239,68,68,0.2)"
+                          d="M6 36 C14 38 22 40 30 38 L24 22 C16 18 10 24 6 36Z"
+                          fill="rgba(239,68,68,0.28)"
                         />
                         <path
-                          d="M95 22 C84 24 80 46 74 58 C86 52 92 38 95 22Z"
-                          fill="rgba(239,68,68,0.2)"
+                          d="M94 36 C86 38 78 40 70 38 L76 22 C84 18 90 24 94 36Z"
+                          fill="rgba(239,68,68,0.28)"
                         />
-                        {/* M-shaped hairline following receding temples + central peak */}
+                        {/*
+                          Accurate M frontline:
+                          temple peaks go UP (recession), valleys sit on the forehead
+                          edge, center peak follows the residual frontal hair.
+                        */}
                         <path
-                          d="M7 40 C15 54 23 66 31 57 C39 47 45 35 50 30 C55 35 61 47 69 57 C77 66 85 54 93 40"
+                          d="M5 34 C11 24 17 16 25 20 C31 24 35 34 39 38 C44 32 47 24 50 22 C53 24 56 32 61 38 C65 34 69 24 75 20 C83 16 89 24 95 34"
                           fill="none"
-                          stroke="rgba(239,68,68,0.9)"
-                          strokeWidth="2.2"
+                          stroke="rgba(220,38,38,0.95)"
+                          strokeWidth="2.4"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           vectorEffect="non-scaling-stroke"
@@ -1241,10 +1248,10 @@ export default function Result() {
                     )}
                     {isFemale && (
                       <path
-                        d="M10 44 C28 52 40 54 50 48 C60 54 72 52 90 44"
+                        d="M8 34 C26 40 40 42 50 36 C60 42 74 40 92 34"
                         fill="none"
-                        stroke="rgba(239,68,68,0.85)"
-                        strokeWidth="2"
+                        stroke="rgba(220,38,38,0.9)"
+                        strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         vectorEffect="non-scaling-stroke"
