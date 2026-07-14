@@ -1359,35 +1359,16 @@ export default function Result() {
                 Your Scalp Overview
               </p>
               <div className="px-1.5 pb-1.5 sm:px-3 sm:pb-3">
-                <div className="relative w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-gray-50">
-                  {/* Sharp scalp focus — crop toward the top/head region */}
+                <div className="relative w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-gray-100">
                   <img
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt="Your scalp overview"
-                    className="absolute inset-0 h-full w-full object-cover object-[center_8%] scale-[1.55] origin-top"
+                    className="absolute inset-0 h-full w-full object-contain object-center"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = AVATAR_FALLBACK;
                     }}
                   />
-                  {/* Soft-blur lower band to de-emphasize face / lower features */}
-                  <img
-                    src={displayUserPhoto || AVATAR_FALLBACK}
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_8%] scale-[1.55] origin-top blur-[7px] sm:blur-md"
-                    style={{
-                      WebkitMaskImage:
-                        "linear-gradient(to bottom, transparent 38%, rgba(0,0,0,0.45) 55%, black 78%)",
-                      maskImage:
-                        "linear-gradient(to bottom, transparent 38%, rgba(0,0,0,0.45) 55%, black 78%)",
-                    }}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = AVATAR_FALLBACK;
-                    }}
-                  />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#6f8f3d]/20 via-transparent to-[#e67e22]/15" />
                   <ScalpHairLossOverlay
                     isFemale={isFemale}
                     stage={aiPredictedStageNumber}
