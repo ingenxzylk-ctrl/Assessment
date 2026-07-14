@@ -281,13 +281,15 @@ const MALE_STAGE_IMAGE = {
   "overall-thinning": "/stages/overall_thinning.png",
 };
 
-/** Zylk-treated male visuals — Stage 1–5 only (6–7 need transplant). */
+/** Zylk-treated male visuals — Stage 1–5 only (6–7 need transplant).
+ *  Files expected: frontend/public/stages/treated/mstage1.png … mstage5.png
+ */
 const MALE_TREATED_STAGE_IMAGE = {
-  1: "/stages/treated/Stage1.png",
-  2: "/stages/treated/Stage2.png",
-  3: "/stages/treated/Stage3.png",
-  4: "/stages/treated/Stage4.png",
-  5: "/stages/treated/Stage5.png",
+  1: "/stages/treated/mstage1.png",
+  2: "/stages/treated/mstage2.png",
+  3: "/stages/treated/mstage3.png",
+  4: "/stages/treated/mstage4.png",
+  5: "/stages/treated/mstage5.png",
 };
 
 const FEMALE_STAGE_IMAGE = {
@@ -328,17 +330,15 @@ function maleStageCandidates(stageKey, treated = false) {
   const n = treated
     ? clampMaleTreatableStage(parseInt(key, 10) || 2)
     : clampMaleStage(parseInt(key, 10) || 2);
-  const baseName = `Stage${n}`;
   if (treated) {
     return [
-      `/stages/treated/${baseName}.png`,
-      `/stages/treated/${baseName}.jpg`,
-      `/stages/treated/${baseName}.jpeg`,
-      `/stages/treated/${baseName}.webp`,
-      `/stages/${baseName}.png`,
+      `/stages/treated/mstage${n}.png`,
+      `/stages/treated/mstage${n}.jpg`,
+      `/stages/treated/Stage${n}.png`,
+      `/stages/Stage${n}.png`,
     ];
   }
-  return [`/stages/${baseName}.png`, `/stages/${baseName}.jpg`];
+  return [`/stages/Stage${n}.png`, `/stages/Stage${n}.jpg`];
 }
 
 function maleStepImage(stageKey, treated = false) {
@@ -405,19 +405,11 @@ function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8
     return {
       untreated: untreatedLabels.map((label, i) => {
         const key = i === 0 ? "overall-thinning" : String(maleUntreatedStageAt(3, i));
-        return {
-          label,
-          image: stageImageFor(key, false),
-          fallback: maleStageFallback(key, false),
-        };
+        return { label, ...maleStepImage(key, false) };
       }),
       treated: treatedLabels.map((label, i) => {
         const key = i === 0 ? "overall-thinning" : String(maleTreatedStageAt(3, i));
-        return {
-          label,
-          image: i === 0 ? stageImageFor("overall-thinning", false) : stageImageFor(key, false, { treated: true }),
-          fallback: maleStageFallback(key, true),
-        };
+        return { label, ...maleStepImage(key, i !== 0) };
       }),
     };
   }
@@ -430,19 +422,11 @@ function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8
   return {
     untreated: untreatedLabels.map((label, i) => {
       const key = String(maleUntreatedStageAt(untreatedBase, i));
-      return {
-        label,
-        image: stageImageFor(key, false),
-        fallback: maleStageFallback(key, false),
-      };
+      return { label, ...maleStepImage(key, false) };
     }),
     treated: treatedLabels.map((label, i) => {
       const key = String(maleTreatedStageAt(treatedBase, i));
-      return {
-        label,
-        image: stageImageFor(key, false, { treated: true }),
-        fallback: maleStageFallback(key, true),
-      };
+      return { label, ...maleStepImage(key, true) };
     }),
   };
 }
