@@ -1006,57 +1006,70 @@ function ScalpHairLossOverlay({ isFemale, stage, observations = {}, hairFallLoca
     return null;
   }
 
-  // Build asymmetric frontline from left/right temple severity (only when temples matter)
-  const leftPeakY = 34 - left * 6; // 34 / 28 / 22 / 16
-  const rightPeakY = 34 - right * 6;
-  const leftValleyY = 34 + Math.min(left, 2) * 3;
-  const rightValleyY = 34 + Math.min(right, 2) * 3;
-  const centerY = 30 - Math.min(templeDepth, 2) * 2;
-  const sideY = 36 - Math.min(templeDepth, 1);
+  // Frontline sits on the forehead/hair boundary (lower on the frame),
+  // not up in the hair. Temple peaks rise from that line into recession.
+  const frontlineY = 58;
+  const leftPeakY = frontlineY - 6 - left * 5; // 52 / 47 / 42 / 37
+  const rightPeakY = frontlineY - 6 - right * 5;
+  const leftValleyY = frontlineY + Math.min(left, 2) * 2;
+  const rightValleyY = frontlineY + Math.min(right, 2) * 2;
+  const centerY = frontlineY - 2 - Math.min(templeDepth, 2);
+  const sideY = frontlineY + 1;
 
   const frontlinePath = showTemples
     ? `M 4 ${sideY}
-       C 10 ${leftPeakY - 2} 16 ${leftPeakY} 24 ${leftPeakY + 2}
-       C 30 ${leftValleyY} 38 ${centerY + 6} 50 ${centerY}
-       C 62 ${centerY + 6} 70 ${rightValleyY} 76 ${rightPeakY + 2}
-       C 84 ${rightPeakY} 90 ${rightPeakY - 2} 96 ${sideY}`
+       C 10 ${leftPeakY + 2} 16 ${leftPeakY} 24 ${leftPeakY + 3}
+       C 32 ${leftValleyY} 40 ${centerY + 4} 50 ${centerY}
+       C 60 ${centerY + 4} 68 ${rightValleyY} 76 ${rightPeakY + 3}
+       C 84 ${rightPeakY} 90 ${rightPeakY + 2} 96 ${sideY}`
     : null;
 
+  // Hair-loss fills sit on the exposed temple/forehead skin (below the peaks)
   const leftFill =
     left > 0
-      ? `M 5 ${sideY + 2} C 12 ${sideY + 2} 20 ${leftValleyY} 28 ${leftValleyY - 2}
-         L 24 ${leftPeakY} C 16 ${leftPeakY - 4} 10 ${leftPeakY + 2} 5 ${sideY + 2}Z`
+      ? `M 8 ${sideY + 4} C 16 ${sideY + 6} 22 ${leftValleyY + 2} 30 ${leftValleyY}
+         L 24 ${leftPeakY + 4} C 16 ${leftPeakY + 2} 10 ${sideY} 8 ${sideY + 4}Z`
       : null;
   const rightFill =
     right > 0
-      ? `M 95 ${sideY + 2} C 88 ${sideY + 2} 80 ${rightValleyY} 72 ${rightValleyY - 2}
-         L 76 ${rightPeakY} C 84 ${rightPeakY - 4} 90 ${rightPeakY + 2} 95 ${sideY + 2}Z`
+      ? `M 92 ${sideY + 4} C 84 ${sideY + 6} 78 ${rightValleyY + 2} 70 ${rightValleyY}
+         L 76 ${rightPeakY + 4} C 84 ${rightPeakY + 2} 90 ${sideY} 92 ${sideY + 4}Z`
       : null;
 
   const crownRadius = 10 + crown * 5;
   const crownOpacity = 0.14 + crown * 0.06;
+  // Don't paint a crown blob into the hair on front temple-focused photos
+  const showCrownBlob =
+    showCrown &&
+    (isFemale ||
+      zone === "crown" ||
+      zone === "all_over" ||
+      zone === "parting" ||
+      (!Number.isNaN(stageNum) && stageNum >= 4) ||
+      stageKey === "overall-thinning" ||
+      stageKey === "patchy-bald");
 
   return (
     <svg
       className="pointer-events-none absolute inset-0 h-full w-full"
       viewBox="0 0 100 100"
-      preserveAspectRatio="xMidYMid slice"
+      preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
     >
       {showDiffuse && (
         <ellipse
           cx="50"
-          cy="42"
-          rx="36"
-          ry="28"
+          cy="48"
+          rx="34"
+          ry="26"
           fill={`rgba(220,38,38,${0.12 + crown * 0.04})`}
         />
       )}
 
-      {showCrown && !showDiffuse && (
+      {showCrownBlob && !showDiffuse && (
         <ellipse
           cx="50"
-          cy={isFemale ? 36 : 28}
+          cy={isFemale ? 40 : 22}
           rx={crownRadius}
           ry={crownRadius * 0.85}
           fill={`rgba(220,38,38,${crownOpacity})`}
@@ -1067,17 +1080,17 @@ function ScalpHairLossOverlay({ isFemale, stage, observations = {}, hairFallLoca
         <path
           d={
             stageKey === "3"
-              ? "M 48 12 C 46 28 44 40 42 52 C 50 54 58 52 58 52 C 56 40 54 28 52 12Z"
+              ? "M 48 18 C 46 32 44 44 42 56 C 50 58 58 56 58 56 C 56 44 54 32 52 18Z"
               : stageKey === "2"
-                ? "M 49 14 C 48 30 47 42 46 52 C 50 53 54 52 54 52 C 53 40 52 28 51 14Z"
-                : "M 49.5 16 C 49 32 48.5 44 48 52 C 50 52.5 52 52 52 52 C 51.5 40 51 28 50.5 16Z"
+                ? "M 49 20 C 48 34 47 46 46 56 C 50 57 54 56 54 56 C 53 44 52 32 51 20Z"
+                : "M 49.5 22 C 49 36 48.5 46 48 56 C 50 56.5 52 56 52 56 C 51.5 44 51 32 50.5 22Z"
           }
           fill={`rgba(220,38,38,${stageKey === "3" ? 0.28 : stageKey === "2" ? 0.22 : 0.16})`}
         />
       )}
 
-      {leftFill && <path d={leftFill} fill={`rgba(220,38,38,${0.16 + left * 0.06})`} />}
-      {rightFill && <path d={rightFill} fill={`rgba(220,38,38,${0.16 + right * 0.06})`} />}
+      {leftFill && <path d={leftFill} fill={`rgba(220,38,38,${0.18 + left * 0.06})`} />}
+      {rightFill && <path d={rightFill} fill={`rgba(220,38,38,${0.18 + right * 0.06})`} />}
 
       {frontlinePath && (
         <path
@@ -1091,9 +1104,9 @@ function ScalpHairLossOverlay({ isFemale, stage, observations = {}, hairFallLoca
         />
       )}
 
-      {isFemale && !showPartLine && showCrown && (
+      {isFemale && !showPartLine && showCrownBlob && (
         <path
-          d="M 12 34 C 30 40 40 42 50 38 C 60 42 70 40 88 34"
+          d="M 12 52 C 30 58 40 60 50 56 C 60 60 70 58 88 52"
           fill="none"
           stroke="rgba(220,38,38,0.75)"
           strokeWidth="2"
