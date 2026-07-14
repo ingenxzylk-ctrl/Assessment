@@ -99,9 +99,9 @@ const TESTIMONIALS = [
     date: "Reviewed on 25th Feb 2025",
     // Put files in frontend/public/testimonials/ (jpg/png/webp OK)
     photos: [
-      { label: "Before", file: "ajay-before.jpg" },
-      { label: "Month 4", file: "ajay-month-4.jpg" },
-      { label: "After", file: "ajay-after.jpg" },
+      { label: "Before", file: "Harish-before.png" },
+     
+      { label: "After", file: "Harish-after.png" },
     ],
   },
   {
@@ -114,9 +114,9 @@ const TESTIMONIALS = [
       "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
     date: "Reviewed on 12th Jan 2025",
     photos: [
-      { label: "Before", file: "rahul-before.jpg" },
-      { label: "Month 3", file: "rahul-month-3.jpg" },
-      { label: "After", file: "rahul-after.jpg" },
+      { label: "Before", file: "Arun-before.png" },
+    
+      { label: "After", file: "Arun-after.png" },
     ],
   },
 ];
