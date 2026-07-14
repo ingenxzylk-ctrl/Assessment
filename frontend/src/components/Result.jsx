@@ -11,6 +11,47 @@ import { motion, useMotionValue, animate } from "framer-motion";
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
 
+/** Normalize a pasted path/filename into a public URL under /testimonials. */
+function normalizeTestimonialSrc(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  let value = raw.trim().replace(/^['"]|['"]$/g, "");
+  if (!value) return null;
+
+  // Already a usable web URL / data URI / absolute public path
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
+  if (value.startsWith("/testimonials/")) return value;
+
+  // Windows or Unix absolute/relative paths → keep only the filename
+  // e.g. C:\Users\...\ajay-before.jpg  or  frontend/public/testimonials/ajay-before.jpg
+  value = value.replace(/\\/g, "/");
+  const marker = "/testimonials/";
+  const markerIdx = value.toLowerCase().lastIndexOf(marker);
+  if (markerIdx !== -1) {
+    value = value.slice(markerIdx + marker.length);
+  } else {
+    value = value.split("/").pop() || value;
+  }
+
+  value = value.split("?")[0].split("#")[0];
+  if (!value) return null;
+  if (!value.includes(".")) value = `${value}.jpg`;
+  return `/testimonials/${value}`;
+}
+
+/** Resolve public/testimonials paths for before/after photos. Paste path or filename in `file`. */
+function resolveTestimonialPhotos(photos = []) {
+  return photos
+    .map((photo) => {
+      const raw =
+        typeof photo === "string" ? photo : photo?.file || photo?.src || photo?.path || "";
+      const src = normalizeTestimonialSrc(raw);
+      if (!src) return null;
+      const label = typeof photo === "string" ? "" : photo.label || "";
+      return { label, src, fallbacks: [] };
+    })
+    .filter(Boolean);
+}
+
 const FREE_ADDONS = [
   {
     id: "coach",
@@ -45,7 +86,13 @@ const TESTIMONIALS = [
     review:
       "I was losing hope with generic oils. Zylk's stage-based kit actually reduced my shedding in the first month. My hairline looks fuller now.",
     date: "Reviewed on 25th Feb 2025",
-    months: ["Month 1", "Month 4", "Month 9"],
+    // 1) Copy images into: frontend/public/testimonials/
+    // 2) Paste filename or full path below (Windows paths OK — filename is used)
+    photos: [
+      { label: "Before", file: "ajay-before.jpg" },
+      { label: "Month 4", file: "ajay-month-4.jpg" },
+      { label: "After", file: "ajay-after.jpg" },
+    ],
   },
   {
     name: "Rahul Mehta",
@@ -56,7 +103,11 @@ const TESTIMONIALS = [
     review:
       "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
     date: "Reviewed on 12th Jan 2025",
-    months: ["Month 1", "Month 3", "Month 8"],
+    photos: [
+      { label: "Before", file: "rahul-before.jpg" },
+      { label: "Month 3", file: "rahul-month-3.jpg" },
+      { label: "After", file: "rahul-after.jpg" },
+    ],
   },
 ];
 
@@ -72,6 +123,39 @@ function ProductImage({ src, fallbacks = [], alt, className }) {
       className={className}
       onError={() => {
         if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
+      }}
+    />
+  );
+}
+
+function TestimonialPhoto({ src, fallbacks = [], alt, label, className, imgClassName }) {
+  const [urlIndex, setUrlIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const allUrls = [src, ...fallbacks].filter(Boolean);
+  const currentUrl = allUrls[urlIndex];
+
+  if (failed || !currentUrl) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 text-gray-400 ${className || ""}`}
+        aria-label={alt || label || "Photo coming soon"}
+      >
+        <span className="text-lg opacity-50" aria-hidden="true">
+          👤
+        </span>
+        {label ? <span className="mt-1 text-[9px] font-semibold uppercase tracking-wide">{label}</span> : null}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt || label || "Customer progress photo"}
+      className={imgClassName || className}
+      onError={() => {
+        if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
+        else setFailed(true);
       }}
     />
   );
@@ -655,6 +739,10 @@ export default function Result() {
     : 0;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
+  const testimonialPhotos = useMemo(
+    () => resolveTestimonialPhotos(testimonial.photos || []),
+    [testimonial]
+  );
   
   const handleBuyNow = () => {
     if (requiresDoctorConsultation) {
@@ -757,44 +845,48 @@ export default function Result() {
 
   return (
     <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-10">
-      <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
+      <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-2 md:pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-3">
-              <h1 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden px-3 pt-2.5 pb-3.5 sm:p-5">
+          <div className="flex flex-row gap-2.5 sm:gap-5 items-start">
+            <div className="flex-1 min-w-0 text-left space-y-1.5 sm:space-y-3">
+              <h1 className="text-[1.25rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
 
-              <h2 className="text-[1.35rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
+              <h2 className="text-[0.95rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
                 <span className="text-[#6f8f3d]">Here is</span> your personalized{" "}
                 <span className="text-[#6f8f3d]">Hair Assessment Report</span>
               </h2>
 
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5">
-                <span className="inline-flex h-4 w-4 items-center justify-center shrink-0" aria-hidden="true">
-                  <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
+              {/* Report ID sits under the title (beside scalp card on mobile) to avoid a large empty gap */}
+              <div className="inline-flex items-center gap-1 sm:gap-2 rounded-full bg-[#ececec] px-2 py-0.5 sm:px-3.5 sm:py-1.5 max-w-full">
+                <span className="inline-flex h-3 w-3 sm:h-4 sm:w-4 items-center justify-center shrink-0" aria-hidden="true">
+                  <svg className="h-3 w-3 sm:h-4 sm:w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
                     <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <span className="text-[12px] font-medium text-[#555555]">
-                  Report ID: {reportId} • {reportDate}
+                <span className="text-[9px] sm:text-[12px] font-medium text-[#555555] leading-none truncate">
+                  Report ID: {reportId}
+                  <span className="text-[#888888]"> • {reportDate}</span>
                 </span>
               </div>
 
-              <p className="text-[14px] sm:text-[15px] text-[#555555] leading-relaxed">
+              <p className="hidden sm:block text-[15px] text-[#555555] leading-relaxed">
                 Our AI scan + expert analysis of 14 key parameters gives us{" "}
                 <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
               </p>
             </div>
 
-            <div className="w-full sm:w-[180px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
-              <p className="px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">Your Scalp Overview</p>
-              <div className="px-3 pb-3">
-                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-50">
+            <div className="w-[112px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+              <p className="px-2 sm:px-3 pt-1.5 sm:pt-3 pb-1 sm:pb-2 text-[10px] sm:text-sm font-semibold text-gray-900 leading-tight">
+                Your Scalp Overview
+              </p>
+              <div className="px-2 sm:px-3 pb-2 sm:pb-3">
+                <div className="relative w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-gray-50">
                   <img
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt="Your scalp overview"
@@ -811,7 +903,13 @@ export default function Result() {
             </div>
           </div>
 
-          <div className="mt-5 pt-4 border-t border-gray-100 text-left">
+          {/* Mobile: confidence under the header row, tight to the scalp card */}
+          <p className="sm:hidden mt-1.5 text-[11px] text-[#555555] leading-snug text-left">
+            Our AI scan + expert analysis of 14 key parameters gives us{" "}
+            <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
+          </p>
+
+          <div className="mt-3 sm:mt-5 pt-3 sm:pt-4 border-t border-gray-100 text-left">
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
               Your Assessment
             </p>
@@ -977,12 +1075,19 @@ export default function Result() {
             </h2>
             <p className="text-sm text-gray-500 mb-3">Who Matches Your Profile</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {testimonial.months.map((label, i) => (
-                <div key={i} className="shrink-0 w-24">
-                  <div className="h-28 rounded-lg bg-gradient-to-b from-gray-200 to-gray-300 overflow-hidden border border-gray-200">
-                    <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">👤</div>
+              {testimonialPhotos.map((photo, i) => (
+                <div key={`${photo.label}-${i}`} className="shrink-0 w-24">
+                  <div className="h-28 rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                    <TestimonialPhoto
+                      src={photo.src}
+                      fallbacks={photo.fallbacks}
+                      label={photo.label}
+                      alt={`${testimonial.name} — ${photo.label}`}
+                      className="w-full h-full"
+                      imgClassName="w-full h-full object-cover"
+                    />
                   </div>
-                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{label}</p>
+                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{photo.label}</p>
                 </div>
               ))}
             </div>
@@ -1189,11 +1294,65 @@ export default function Result() {
             <span className="inline-block text-[10px] font-bold bg-gray-800 text-white px-2 py-0.5 rounded mb-3">
               STAGE {testimonial.stage}
             </span>
-            <div className="flex gap-2 mb-3">
-              {testimonial.months.map((m, i) => (
-                <div key={i} className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center text-lg">📷</div>
-              ))}
-            </div>
+            {(() => {
+              const beforeAfter = testimonialPhotos.filter((photo) =>
+                /before|after/i.test(photo.label)
+              );
+              const gallery = beforeAfter.length >= 2 ? beforeAfter : testimonialPhotos;
+              const midPhotos =
+                beforeAfter.length >= 2
+                  ? testimonialPhotos.filter((photo) => !/before|after/i.test(photo.label))
+                  : [];
+
+              return (
+                <>
+                  <div
+                    className={`grid gap-2 mb-3 ${
+                      gallery.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                    }`}
+                  >
+                    {gallery.map((photo, i) => (
+                      <div key={`${photo.label}-${i}`} className="min-w-0">
+                        <div className="aspect-[3/4] rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                          <TestimonialPhoto
+                            src={photo.src}
+                            fallbacks={photo.fallbacks}
+                            label={photo.label}
+                            alt={`${testimonial.name} — ${photo.label}`}
+                            className="w-full h-full"
+                            imgClassName="w-full h-full object-cover"
+                          />
+                        </div>
+                        <p className="text-[10px] text-center font-semibold text-gray-600 mt-1.5 uppercase tracking-wide">
+                          {photo.label}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {midPhotos.length > 0 && (
+                    <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
+                      {midPhotos.map((photo, i) => (
+                        <div key={`${photo.label}-mid-${i}`} className="shrink-0 w-16">
+                          <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                            <TestimonialPhoto
+                              src={photo.src}
+                              fallbacks={photo.fallbacks}
+                              label={photo.label}
+                              alt={`${testimonial.name} — ${photo.label}`}
+                              className="w-full h-full"
+                              imgClassName="w-full h-full object-cover"
+                            />
+                          </div>
+                          <p className="text-[9px] text-center text-gray-500 mt-1 leading-tight">
+                            {photo.label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <div className="flex items-center justify-between">
               <p className="font-bold text-sm">{testimonial.name}, {testimonial.age}</p>
               <span className="text-xs text-[#52b788] font-semibold flex items-center gap-1">✓ Verified</span>
