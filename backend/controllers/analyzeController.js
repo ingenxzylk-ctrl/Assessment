@@ -167,11 +167,35 @@ const toInlineImagePart = (input) => {
   return { inlineData: { mimeType: match[1], data: match[2].trim() } };
 };
 
+/** Print Gemini token usage to the backend terminal. */
+const logGeminiTokenUsage = (response, { model, label = "request" } = {}) => {
+  const usage = response?.usageMetadata;
+  if (!usage) {
+    console.log(`[Gemini tokens] ${label} model=${model || "?"} — usageMetadata not returned`);
+    return;
+  }
+
+  const prompt = usage.promptTokenCount ?? 0;
+  const output = usage.candidatesTokenCount ?? 0;
+  const thoughts = usage.thoughtsTokenCount ?? 0;
+  const cached = usage.cachedContentTokenCount ?? 0;
+  const total = usage.totalTokenCount ?? prompt + output + thoughts;
+
+  console.log(
+    `[Gemini tokens] ${label} model=${model || "?"} | prompt=${prompt} output=${output}` +
+      (thoughts ? ` thoughts=${thoughts}` : "") +
+      (cached ? ` cached=${cached}` : "") +
+      ` total=${total}`
+  );
+};
+
 const callGemini = async (ai, model, payload, retries = GEMINI_RETRIES) => {
   let lastError;
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      return await ai.models.generateContent({ ...payload, model });
+      const response = await ai.models.generateContent({ ...payload, model });
+      logGeminiTokenUsage(response, { model, label: "generateContent" });
+      return response;
     } catch (err) {
       lastError = err;
       const kind = classifyGeminiError(err).type;

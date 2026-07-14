@@ -36,6 +36,24 @@ async function main() {
 
   console.log("SUCCESS:");
   console.log(response.text);
+
+  const usage = response.usageMetadata;
+  if (usage) {
+    console.log("\n--- Token usage ---");
+    console.log("prompt tokens:    ", usage.promptTokenCount ?? 0);
+    console.log("output tokens:    ", usage.candidatesTokenCount ?? 0);
+    console.log("thoughts tokens:  ", usage.thoughtsTokenCount ?? 0);
+    console.log("cached tokens:    ", usage.cachedContentTokenCount ?? 0);
+    console.log(
+      "total tokens:     ",
+      usage.totalTokenCount ??
+        (usage.promptTokenCount || 0) +
+          (usage.candidatesTokenCount || 0) +
+          (usage.thoughtsTokenCount || 0)
+    );
+  } else {
+    console.log("\n(No usageMetadata in response)");
+  }
 }
 
 main().catch((err) => {
