@@ -413,7 +413,7 @@ function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
         Based on {isFemale ? "women" : "men"} with similar profile as you
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="flex flex-col gap-3">
         <ProgressionTrack title="If left untreated" steps={untreated} variant="untreated" />
         <ProgressionTrack title="With Zylk Treatment" steps={treated} variant="treated" />
       </div>
