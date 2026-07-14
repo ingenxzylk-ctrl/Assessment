@@ -24,10 +24,22 @@ function createTransport() {
   });
 }
 
+/** Prefer Google Drive webViewLink; fall back to file-id URL or other storage URL. */
+function resolveDrivePdfLink(storageInfo = {}) {
+  const drive = storageInfo.drive || {};
+  if (drive.pdfUrl) return drive.pdfUrl;
+  if (drive.pdfFileId) {
+    return `https://drive.google.com/file/d/${drive.pdfFileId}/view`;
+  }
+  if (storageInfo.storage === "google_drive" && storageInfo.pdfUrl) {
+    return storageInfo.pdfUrl;
+  }
+  return storageInfo.pdfUrl || null;
+}
+
 /**
  * Send a short org notification when a new assessment is submitted.
- * Does not attach the PDF — the report remains in storage / Drive.
- * Skips (returns { skipped: true }) when SMTP/ORG_REPORT_EMAIL are not configured.
+ * No PDF attachment — includes the Google Drive PDF link when available.
  */
 export async function sendReportToOrganisation({
   reportId,
@@ -52,13 +64,14 @@ export async function sendReportToOrganisation({
   const stage =
     scalpAnalysis.aiPredictedStage || scalpAnalysis.finalStage || "—";
   const name = aboutMe.fullName || "Guest";
-  const storageLink = storageInfo.pdfUrl || null;
+  const drivePdfLink = resolveDrivePdfLink(storageInfo);
+  const driveFileName = storageInfo.drive?.pdfName || null;
 
   const transporter = createTransport();
   const info = await transporter.sendMail({
     from,
     to,
-    subject: `[Zylk] New assessment notification — ${reportId}`,
+    subject: `[Zylk] New assessment — ${reportId} (${name})`,
     text: [
       "New Hair & Scalp Assessment submitted.",
       "",
@@ -68,9 +81,13 @@ export async function sendReportToOrganisation({
       `Stage: ${stage}`,
       aboutMe.whatsapp ? `WhatsApp: ${aboutMe.whatsapp}` : "",
       aboutMe.email ? `Email: ${aboutMe.email}` : "",
-      storageLink ? `Report link: ${storageLink}` : "",
       "",
-      "This is a notification only — the PDF is not attached.",
+      drivePdfLink
+        ? `Open PDF in Google Drive:\n${drivePdfLink}`
+        : "Google Drive PDF link is not available yet. Check the Drive assessment folder.",
+      driveFileName ? `Drive file: ${driveFileName}` : "",
+      "",
+      "PDF is not attached to this email — use the Drive link above.",
     ]
       .filter(Boolean)
       .join("\n"),
@@ -78,7 +95,7 @@ export async function sendReportToOrganisation({
       <div style="font-family:Arial,sans-serif;color:#111;line-height:1.5">
         <h2 style="color:#064e3b;margin:0 0 12px">New assessment notification</h2>
         <p style="margin:0 0 12px">A new Hair &amp; Scalp Assessment was submitted.</p>
-        <p style="margin:0 0 12px">
+        <p style="margin:0 0 16px">
           <strong>Report ID:</strong> ${reportId}<br/>
           <strong>Date:</strong> ${reportDate || "—"}<br/>
           <strong>Patient:</strong> ${name}<br/>
@@ -87,11 +104,26 @@ export async function sendReportToOrganisation({
           ${aboutMe.email ? `<br/><strong>Email:</strong> ${aboutMe.email}` : ""}
         </p>
         ${
-          storageLink
-            ? `<p style="margin:0 0 12px"><a href="${storageLink}" style="color:#064e3b;font-weight:bold">Open report</a></p>`
-            : ""
+          drivePdfLink
+            ? `<p style="margin:0 0 8px">
+                <a href="${drivePdfLink}"
+                   style="display:inline-block;background:#064e3b;color:#fff;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:8px">
+                  Open PDF in Google Drive
+                </a>
+              </p>
+              <p style="margin:0 0 12px;font-size:13px;color:#555;word-break:break-all">
+                ${drivePdfLink}
+              </p>
+              ${
+                driveFileName
+                  ? `<p style="margin:0 0 12px;font-size:13px;color:#555"><strong>Drive file:</strong> ${driveFileName}</p>`
+                  : ""
+              }`
+            : `<p style="margin:0 0 12px;color:#b45309">
+                 Google Drive PDF link is not available. Check the Drive assessment folder for report <strong>${reportId}</strong>.
+               </p>`
         }
-        <p style="margin:0;color:#666;font-size:13px">Notification only — PDF is not attached.</p>
+        <p style="margin:0;color:#666;font-size:13px">PDF is not attached — use the Google Drive link.</p>
       </div>
     `,
   });
@@ -101,6 +133,7 @@ export async function sendReportToOrganisation({
     messageId: info.messageId,
     to,
     notificationOnly: true,
+    drivePdfLink,
   };
 }
 
