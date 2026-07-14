@@ -1214,12 +1214,12 @@ export default function Result() {
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
               Your Assessment
             </p>
-            <div className="mt-2 flex flex-row flex-wrap items-center gap-2">
-              <h3 className="text-lg sm:text-2xl font-bold text-gray-900 leading-snug">
+            <div className="mt-2 flex flex-nowrap items-center gap-1.5 sm:gap-2">
+              <h3 className="min-w-0 text-[15px] sm:text-2xl font-bold text-gray-900 leading-tight">
                 {getStageTitle()}
               </h3>
               {getScaleBadge() && (
-                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-[#555555] shrink-0">
+                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-[#555555] shrink-0 whitespace-nowrap">
                   {getScaleBadge()}
                 </span>
               )}
