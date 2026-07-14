@@ -1,5 +1,6 @@
 import { useCart } from "../../context/CartContext";
 import { redirectToWordPressCheckout } from "../../utils/wordpressCheckout";
+import { HAIR_HEALTH_MIX_PRICE } from "../../data/zylkProductCatalog";
 
 export default function CartDrawer() {
   const {
@@ -61,7 +62,7 @@ export default function CartDrawer() {
                       onChange={(e) => toggleHealthMix(item.id, e.target.checked)}
                       className="rounded border-gray-300"
                     />
-                    Include Hair Health Mix (+₹{(item.priceWithMix ?? 0) - (item.priceWithoutMix ?? 0)})
+                    Include Hair Health Mix (₹{item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE})
                   </label>
                 )}
               </div>
