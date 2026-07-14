@@ -1140,45 +1140,47 @@ export default function Result() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-10">
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-32 md:pb-10">
       <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-3">
-              <h1 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
+          <div className="flex flex-row gap-3 sm:gap-5 items-start">
+            <div className="flex-1 min-w-0 text-left space-y-2 sm:space-y-3">
+              <h1 className="text-[1.35rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
 
-              <h2 className="text-[1.35rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
+              <h2 className="text-[1.05rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
                 <span className="text-[#6f8f3d]">Here is</span> your personalized{" "}
                 <span className="text-[#6f8f3d]">Hair Assessment Report</span>
               </h2>
 
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-2.5 sm:px-3.5 py-1 sm:py-1.5 max-w-full">
                 <span className="inline-flex h-4 w-4 items-center justify-center shrink-0" aria-hidden="true">
                   <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
                     <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <span className="text-[12px] font-medium text-[#555555]">
+                <span className="text-[10px] sm:text-[12px] font-medium text-[#555555] truncate">
                   Report ID: {reportId} • {reportDate}
                 </span>
               </div>
 
-              <p className="text-[14px] sm:text-[15px] text-[#555555] leading-relaxed">
+              <p className="text-[13px] sm:text-[15px] text-[#555555] leading-relaxed">
                 Our AI scan + expert analysis of 14 key parameters gives us{" "}
                 <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
               </p>
             </div>
 
-            <div className="w-full sm:w-[180px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
-              <p className="px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">Your Scalp Overview</p>
-              <div className="px-3 pb-3">
-                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-50">
+            <div className="w-[72px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+              <p className="hidden sm:block px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">
+                Your Scalp Overview
+              </p>
+              <div className="p-1 sm:px-3 sm:pb-3">
+                <div className="relative w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-gray-50">
                   <img
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt="Your scalp overview"
@@ -1883,10 +1885,6 @@ export default function Result() {
                 </svg>
                 Secure Checkout
               </div>
-
-              <p className="text-[10px] text-gray-400 text-center mt-1">
-                All of our products are GMP &amp; ISO 9001 certified
-              </p>
             </div>
           </div>
         </div>
@@ -1911,34 +1909,31 @@ export default function Result() {
       {/* END GRID */}
 
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        <div className="bg-gray-100 text-center py-1.5">
-          <p className="text-[10px] text-gray-600 font-medium">All of our products are GMP &amp; ISO 9001 certified</p>
-        </div>
-        <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-3">
+        <div className="max-w-lg mx-auto px-4 py-3 flex flex-col gap-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {recommendedBundle && !requiresDoctorConsultation ? (
             <>
-              <div className="flex flex-col gap-1">
-                <span className="text-[11px] font-medium text-gray-500 tracking-wide uppercase">Your treatment plan price</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-medium text-gray-500 tracking-wide uppercase">Your treatment plan price</span>
                 
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-[26px] font-black text-gray-900 leading-none">₹{recommendedBundle.price}</span>
-                  <span className="text-xs font-semibold text-gray-500">/ month</span>
+                  <span className="text-xl font-extrabold text-gray-900 leading-none">₹{recommendedBundle.price}</span>
+                  <span className="text-[11px] font-semibold text-gray-500">/ month</span>
                 </div>
                 
-                <p className="text-xs font-medium text-gray-700">
+                <p className="text-[11px] font-medium text-gray-700">
                   (Less than ₹{Math.round(recommendedBundle.price / 30)} / day)
                 </p>
 
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-0.5">
                   {savings > 0 && (
-                    <span className="inline-block bg-[#e8f5e9] text-[#1b5e20] text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                    <span className="inline-block bg-[#e8f5e9] text-[#1b5e20] text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
                       You save ₹{savings}
                     </span>
                   )}
-                  <span className="text-xs text-gray-400 line-through font-medium">₹{recommendedBundle.originalPrice}</span>
+                  <span className="text-[11px] text-gray-400 line-through font-medium">₹{recommendedBundle.originalPrice}</span>
                 </div>
 
-                <label className="flex items-center gap-2 mt-2 cursor-pointer bg-gray-50 p-2 rounded-md border border-gray-100">
+                <label className="flex items-center gap-2 mt-1.5 cursor-pointer bg-gray-50 p-2 rounded-md border border-gray-100">
                   <input
                     type="checkbox"
                     checked={includeHealthMix}
