@@ -227,7 +227,7 @@ function ResultsSeeingTimeline({ roadmap, ageRange }) {
   const itemRefs = useRef([]);
   const listRef = useRef(null);
   const pausedRef = useRef(false);
-  const AUTO_MS = 7000;
+  const AUTO_MS = 2000;
 
   const jumpTo = (index) => {
     setActiveIdx(index);
@@ -300,20 +300,6 @@ function ResultsSeeingTimeline({ roadmap, ageRange }) {
           }, 2000);
         }}
       >
-        <div className="absolute left-[15px] top-4 bottom-4 w-px bg-[#cfe3bc]" />
-        <motion.div
-          className="absolute left-[15px] top-4 w-px origin-top bg-[#6f8f3d]"
-          initial={false}
-          animate={{
-            height:
-              roadmap.length <= 1
-                ? "0%"
-                : `${(activeIdx / Math.max(1, roadmap.length - 1)) * 100}%`,
-          }}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          style={{ maxHeight: "calc(100% - 32px)" }}
-        />
-
         <ul className="relative space-y-2 py-1">
           {roadmap.map((step, index) => {
             const isActive = index === activeIdx;
@@ -1064,7 +1050,30 @@ export default function Result() {
               />
             )}
 
-            
+            <div className="mt-4 bg-[#e8f5e9] rounded-xl p-4 text-sm text-[#1b4332] leading-relaxed">
+              <p className="font-bold mb-2">
+                {requiresDoctorConsultation
+                  ? "Your hair loss needs clinical intervention."
+                  : hasDandruff
+                    ? "Your hair fall has multiple root causes, but don't worry!"
+                    : "Your hair fall is genetic, but don't worry!"}
+              </p>
+              <ul className="list-disc pl-4 space-y-1 text-xs text-[#2d6a4f]">
+                {requiresDoctorConsultation ? (
+                  <>
+                    <li>Advanced follicular depletion at this stage needs specialist evaluation.</li>
+                    <li>Topical kits alone may not restore significant density.</li>
+                    <li>Book a consultation to explore transplant or clinical therapies.</li>
+                  </>
+                ) : (
+                  <>
+                    <li>This is caused by internal hormones and scalp environment working together.</li>
+                    <li>At your stage, most hair follicles are still active and can be revived.</li>
+                    <li>With consistent use of your customised Zylk kit, regrowth is achievable.</li>
+                  </>
+                )}
+              </ul>
+            </div>
 
             <p className="text-[10px] text-gray-400 mt-3 italic">
               *Based on internal Zylk user outcomes for profiles matching your stage and age group.
@@ -1319,8 +1328,6 @@ export default function Result() {
             </div>
           </div>
         )}
-
-       
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
