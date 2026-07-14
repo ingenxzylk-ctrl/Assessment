@@ -1175,23 +1175,41 @@ export default function Result() {
               </p>
             </div>
 
-            <div className="w-[72px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
-              <p className="hidden sm:block px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">
+            <div className="w-[88px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+              <p className="px-1.5 pt-1.5 pb-1 sm:px-3 sm:pt-3 sm:pb-2 text-[9px] sm:text-sm font-semibold text-gray-900 leading-tight text-center sm:text-left">
                 Your Scalp Overview
               </p>
-              <div className="p-1 sm:px-3 sm:pb-3">
+              <div className="px-1.5 pb-1.5 sm:px-3 sm:pb-3">
                 <div className="relative w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-gray-50">
+                  {/* Sharp scalp focus — crop toward the top/head region */}
                   <img
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt="Your scalp overview"
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 h-full w-full object-cover object-[center_18%] scale-[1.35] origin-top"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = AVATAR_FALLBACK;
                     }}
                   />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#6f8f3d]/25 via-transparent to-[#e67e22]/20" />
-                  <div className="pointer-events-none absolute left-[12%] right-[12%] top-[58%] h-[2px] bg-red-500/70" />
+                  {/* Soft-blur lower band to de-emphasize face / lower features */}
+                  <img
+                    src={displayUserPhoto || AVATAR_FALLBACK}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_18%] scale-[1.35] origin-top blur-[6px] sm:blur-md"
+                    style={{
+                      WebkitMaskImage:
+                        "linear-gradient(to bottom, transparent 42%, rgba(0,0,0,0.55) 62%, black 82%)",
+                      maskImage:
+                        "linear-gradient(to bottom, transparent 42%, rgba(0,0,0,0.55) 62%, black 82%)",
+                    }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = AVATAR_FALLBACK;
+                    }}
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#6f8f3d]/20 via-transparent to-[#e67e22]/15" />
+                  <div className="pointer-events-none absolute left-[12%] right-[12%] top-[42%] h-[2px] bg-red-500/70" />
                 </div>
               </div>
             </div>
