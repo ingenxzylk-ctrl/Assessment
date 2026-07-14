@@ -36,10 +36,12 @@ const KEYWORD_BASES = [
   { match: /2%|female.*minoxidil/i, bases: ["minoxidil-2"] },
   { match: /5%|finasteride|male.*minoxidil/i, bases: ["minoxidil-5"] },
   { match: /minoxidil/i, bases: ["minoxidil-5", "minoxidil-2"] },
+  { match: /tea.?tree.*mist|mist.*tea.?tree/i, bases: ["rosemary-mist", "tea-tree-mist"] },
   { match: /rosemary.*mist/i, bases: ["rosemary-mist"] },
   { match: /rosemary|concentrate/i, bases: ["rosemary-oil", "rosemary-mist"] },
   { match: /detox/i, bases: ["detox-shampoo"] },
-  { match: /anti.?dandruff|dandruff.*shampoo|shampoo|cleanser/i, bases: ["antidandruff-shampoo", "detox-shampoo"] },
+  { match: /anti.?dandruff|dandruff.*shampoo/i, bases: ["antidandruff-shampoo"] },
+  { match: /shampoo|cleanser/i, bases: ["antidandruff-shampoo", "detox-shampoo"] },
   { match: /derma|roller|microneedl/i, bases: ["dermaroller"] },
   { match: /massager|brush/i, bases: ["scalp-massager"] },
   { match: /conditioner|tea.?tree/i, bases: ["tea-tree-conditioner"] },
@@ -115,24 +117,47 @@ export function shortenProductName(name = "", isFemale = false) {
   if (isFemale && lower.includes("finasteride")) return null;
 
   if (lower.includes("minoxidil")) {
+    if (lower.includes("2%")) return "Minoxidil 2% Serum (Female)";
     return isFemale ? "Minoxidil 2% Serum (Female)" : "Minoxidil 5% + Finasteride Serum";
   }
+  if (lower.includes("tea tree mist") || lower.includes("tea-tree mist")) {
+    return "Zylk Tea Tree Mist Spray";
+  }
+  if (lower.includes("rosemary mist")) return "Zylk Rosemary Mist Spray";
+  if (lower.includes("rosemary") && lower.includes("oil")) return "Zylk Rosemary Hair Oil";
   if (lower.includes("rosemary")) return "Rosemary Growth Concentrate";
   if (lower.includes("derma") || lower.includes("roller")) return "Scalp Derma Roller (0.5mm)";
+  if (lower.includes("antidandruff") || lower.includes("anti-dandruff")) {
+    return "Zylk Antidandruff Shampoo";
+  }
+  if (lower.includes("detox")) return "Zylk Detox Salicylic Acid Shampoo";
   if (lower.includes("shampoo") || lower.includes("cleanser")) return "Anti-Dandruff Cleanser";
   if (lower.includes("massager") || lower.includes("brush")) return "Zylk Scalp Massager";
-  if (lower.includes("conditioner") || lower.includes("tea tree")) return "Zylk Tea Tree Conditioner";
+  if (lower.includes("conditioner")) return "Zylk Tea Tree Conditioner";
   if (lower.includes("health mix") || lower.includes("supplement") || lower.includes("vitality")) {
     return "Zylk Hair Health Mix";
   }
-  if (lower.includes("oil") || lower.includes("progro")) return "Custom ProGro Oil";
+  if (lower.includes("progro")) return "Zylk ProGro Oil";
+  if (lower.includes("oil")) return "Custom ProGro Oil";
 
   return name;
 }
 
-export function formatBundleProduct(product, isFemale = false) {
-  const shortName = shortenProductName(product?.name, isFemale);
+export function formatBundleProduct(product = {}, isFemale = false) {
+  // Prefer official catalog names so sheet products are not remapped incorrectly
+  const fromCatalog = String(product.id || "").startsWith("zylk-");
+  const shortName = fromCatalog
+    ? product.name || shortenProductName(product.name, isFemale)
+    : shortenProductName(product?.name, isFemale);
   if (!shortName) return null;
+
+  if (product.imgUrl) {
+    return {
+      shortName,
+      imgUrl: product.imgUrl,
+      imgFallbacks: product.imgFallbacks || [],
+    };
+  }
 
   const { src, fallbacks } = getProductImageSources(product, isFemale);
 
