@@ -1,15 +1,18 @@
-# Male treated progression images (Zylk path)
+# Male progression images (untreated + Zylk)
 
-Zylk treatment is for **Stage 1–5 only**. Stages 6–7 need transplant consultation.
+Both **If left untreated** and **With Zylk Treatment** use these files.
 
-Put these exact filenames in this folder:
+Required filenames:
 
 - `mstage1.png`
 - `mstage2.png`
 - `mstage3.png`
 - `mstage4.png`
 - `mstage5.png`
+- `mstage6.png` (untreated worsening)
+- `mstage7.png` (untreated worsening)
 
-(`mstage6.png` / `mstage7.png` are optional and not used on the Zylk treatment track.)
+Zylk treatment only shows stages **1–5** (one-stage improvement, e.g. 4→4→3→3).  
+Untreated can show **6–7**.
 
 Served at `/stages/treated/mstageN.png`.
