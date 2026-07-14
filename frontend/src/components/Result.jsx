@@ -1093,13 +1093,14 @@ export default function Result() {
       hairHealth: state.hairHealth || {},
       internalHealth: state.internalHealth || {},
       scalpAnalysis: rawAnalysis,
-      scalpImages: (state.scalpImages || []).map((img) => ({
-        type: img.type,
-        label: img.label,
-        // Omit full dataUrl from wire payload size; metadata is enough for archive.
-        // Backend PDF v1 is text-based; images stay on the client Result UI.
-        hasImage: Boolean(img.dataUrl || img.previewUrl || img.url),
-      })),
+      scalpImages: (state.scalpImages || [])
+        .filter((img) => img?.dataUrl || img?.previewUrl || img?.url)
+        .map((img) => ({
+          type: img.type,
+          label: img.label || img.type,
+          // Include compressed data URLs so the org PDF can embed both photos
+          dataUrl: img.dataUrl || img.previewUrl || img.url || null,
+        })),
       gender,
       clientReportId: reportId,
       reportMeta: {

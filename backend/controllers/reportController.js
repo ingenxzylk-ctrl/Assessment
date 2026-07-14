@@ -47,8 +47,8 @@ async function allocateReportId() {
 }
 
 /**
- * Strip bulky image payloads from the JSON archive (PDF does not embed them in v1).
- * Keeps image metadata (type/label) for audit.
+ * Strip bulky image payloads from the JSON archive after PDF generation.
+ * PDF embeds the photos; JSON keeps metadata only.
  */
 function sanitizeForArchive(payload) {
   const images = Array.isArray(payload.scalpImages)
