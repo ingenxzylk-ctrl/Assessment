@@ -5,6 +5,7 @@ import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
+import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
 
@@ -138,7 +139,14 @@ function ProductImage({ src, fallbacks = [], alt, className }) {
   );
 }
 
-function TestimonialPhoto({ src, fallbacks = [], alt, label, className, imgClassName }) {
+function TestimonialPhoto({
+  src,
+  fallbacks = [],
+  alt,
+  label,
+  className,
+  fit = "cover",
+}) {
   const [urlIndex, setUrlIndex] = useState(0);
   const [failed, setFailed] = useState(false);
   const allUrls = [src, ...fallbacks].filter(Boolean);
@@ -152,7 +160,7 @@ function TestimonialPhoto({ src, fallbacks = [], alt, label, className, imgClass
   if (failed || !currentUrl) {
     return (
       <div
-        className={`flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 text-gray-400 ${className || ""}`}
+        className={`flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 text-gray-400 ${className || ""}`}
         aria-label={alt || label || "Photo coming soon"}
       >
         <span className="text-lg opacity-50" aria-hidden="true">
@@ -164,15 +172,19 @@ function TestimonialPhoto({ src, fallbacks = [], alt, label, className, imgClass
   }
 
   return (
-    <img
-      src={currentUrl}
-      alt={alt || label || "Customer progress photo"}
-      className={imgClassName || className}
-      onError={() => {
-        if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
-        else setFailed(true);
-      }}
-    />
+    <div className={`relative h-full w-full overflow-hidden ${className || ""}`}>
+      <img
+        src={currentUrl}
+        alt={alt || label || "Customer progress photo"}
+        className={`absolute inset-0 h-full w-full object-center ${
+          fit === "contain" ? "object-contain bg-gray-50" : "object-cover"
+        }`}
+        onError={() => {
+          if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
+          else setFailed(true);
+        }}
+      />
+    </div>
   );
 }
 
@@ -990,6 +1002,7 @@ export default function Result() {
         ...formatted,
         id: prod.id,
         subtitle: prod.subtitle || null,
+        price: prod.price ?? null,
         isHealthMix,
       };
     })
@@ -997,15 +1010,22 @@ export default function Result() {
 
   const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
-  const healthMixDelta = recommendedBundle
-    ? Math.max(0, (recommendedBundle.bundlePrice || 0) - (recommendedBundle.priceWithoutMix || 0))
-    : 0;
+  // Sheet list price for Health Mix is ₹1799 (not the bundle price delta)
+  const healthMixPrice = healthMixProduct?.price || HAIR_HEALTH_MIX_PRICE;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
   const testimonialPhotos = useMemo(
     () => resolveTestimonialPhotos(testimonial.photos || []),
     [testimonial]
   );
+
+  useEffect(() => {
+    if (TESTIMONIALS.length <= 1) return undefined;
+    const timer = setInterval(() => {
+      setTestimonialIdx((prev) => (prev + 1) % TESTIMONIALS.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
   
   const handleBuyNow = () => {
     if (requiresDoctorConsultation) {
@@ -1023,6 +1043,7 @@ export default function Result() {
       bundleNumber,
       includeHealthMix,
       coachCallOptIn,
+      healthMixPrice: HAIR_HEALTH_MIX_PRICE,
       wooProductId: getWooProductId(bundleNumber, includeHealthMix),
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
@@ -1338,18 +1359,17 @@ export default function Result() {
                     fallbacks: [],
                   }))
               ).map((photo, i) => (
-                <div key={`${photo.label}-${i}`} className="shrink-0 w-24">
-                  <div className="h-28 rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                <div key={`${photo.label}-${i}`} className="shrink-0 w-[104px]">
+                  <div className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
                     <TestimonialPhoto
                       src={photo.src}
                       fallbacks={photo.fallbacks}
                       label={photo.label}
                       alt={`${testimonial.name} — ${photo.label}`}
-                      className="w-full h-full"
-                      imgClassName="w-full h-full object-cover"
+                      fit="cover"
                     />
                   </div>
-                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{photo.label}</p>
+                  <p className="text-[10px] text-center text-gray-600 mt-1.5 font-medium">{photo.label}</p>
                 </div>
               ))}
             </div>
@@ -1389,12 +1409,12 @@ export default function Result() {
                   className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
                       <ProductImage
                         src={product.imgUrl}
                         fallbacks={product.imgFallbacks}
                         alt={product.shortName}
-                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
@@ -1423,12 +1443,12 @@ export default function Result() {
                   }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
                       <ProductImage
                         src={healthMixProduct.imgUrl}
                         fallbacks={healthMixProduct.imgFallbacks}
                         alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
                           includeHealthMix ? "" : "opacity-60"
                         }`}
                       />
@@ -1444,8 +1464,8 @@ export default function Result() {
                       )}
                       <p className="text-xs font-semibold text-[#064e3b] mt-1">
                         {includeHealthMix
-                          ? `Included · −₹${healthMixDelta} if removed`
-                          : `Add for +₹${healthMixDelta}`}
+                          ? `Included · ₹${healthMixPrice}`
+                          : `Add for ₹${healthMixPrice}`}
                       </p>
                     </div>
                   </div>
@@ -1530,7 +1550,7 @@ export default function Result() {
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
-          <div className="border border-gray-100 rounded-xl p-4">
+          <div className="border border-gray-100 rounded-xl p-3 sm:p-4">
             <span className="inline-block text-[10px] font-bold bg-gray-800 text-white px-2 py-0.5 rounded mb-3">
               STAGE {testimonial.stage}
             </span>
@@ -1547,20 +1567,19 @@ export default function Result() {
               return (
                 <>
                   <div
-                    className={`grid gap-2 mb-3 ${
+                    className={`grid gap-2 sm:gap-3 mb-3 ${
                       gallery.length === 1 ? "grid-cols-1" : "grid-cols-2"
                     }`}
                   >
                     {gallery.map((photo, i) => (
                       <div key={`${photo.label}-${i}`} className="min-w-0">
-                        <div className="aspect-[3/4] rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                        <div className="relative w-full aspect-[4/5] sm:aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-100 shadow-sm">
                           <TestimonialPhoto
                             src={photo.src}
                             fallbacks={photo.fallbacks}
                             label={photo.label}
                             alt={`${testimonial.name} — ${photo.label}`}
-                            className="w-full h-full"
-                            imgClassName="w-full h-full object-cover"
+                            fit="cover"
                           />
                         </div>
                         <p className="text-[10px] text-center font-semibold text-gray-600 mt-1.5 uppercase tracking-wide">
@@ -1572,15 +1591,14 @@ export default function Result() {
                   {midPhotos.length > 0 && (
                     <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
                       {midPhotos.map((photo, i) => (
-                        <div key={`${photo.label}-mid-${i}`} className="shrink-0 w-16">
-                          <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                        <div key={`${photo.label}-mid-${i}`} className="shrink-0 w-[72px]">
+                          <div className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
                             <TestimonialPhoto
                               src={photo.src}
                               fallbacks={photo.fallbacks}
                               label={photo.label}
                               alt={`${testimonial.name} — ${photo.label}`}
-                              className="w-full h-full"
-                              imgClassName="w-full h-full object-cover"
+                              fit="cover"
                             />
                           </div>
                           <p className="text-[9px] text-center text-gray-500 mt-1 leading-tight">
@@ -1601,6 +1619,17 @@ export default function Result() {
             <p className="text-yellow-400 text-sm my-2">{"★".repeat(testimonial.rating)}</p>
             <p className="text-sm text-gray-700 leading-relaxed">{testimonial.review}</p>
             <p className="text-[10px] text-gray-400 mt-2">{testimonial.date}</p>
+            <div className="flex justify-center gap-1.5 mt-3">
+              {TESTIMONIALS.map((_, i) => (
+                <button
+                  key={`story-dot-${i}`}
+                  type="button"
+                  onClick={() => setTestimonialIdx(i)}
+                  aria-label={`Show testimonial ${i + 1}`}
+                  className={`w-2 h-2 rounded-full ${i === testimonialIdx ? "bg-gray-800" : "bg-gray-300"}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1680,12 +1709,12 @@ export default function Result() {
                   className="p-3 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                    <div className="w-16 h-16 xl:w-[72px] xl:h-[72px] rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
                       <ProductImage
                         src={product.imgUrl}
                         fallbacks={product.imgFallbacks}
                         alt={product.shortName}
-                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
@@ -1714,12 +1743,12 @@ export default function Result() {
                   }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                    <div className="w-16 h-16 xl:w-[72px] xl:h-[72px] rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
                       <ProductImage
                         src={healthMixProduct.imgUrl}
                         fallbacks={healthMixProduct.imgFallbacks}
                         alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
                           includeHealthMix ? "" : "opacity-60"
                         }`}
                       />
@@ -1735,8 +1764,8 @@ export default function Result() {
                       )}
                       <p className="text-xs font-semibold text-[#064e3b] mt-1">
                         {includeHealthMix
-                          ? `Included · −₹${healthMixDelta} if removed`
-                          : `Add for +₹${healthMixDelta}`}
+                          ? `Included · ₹${healthMixPrice}`
+                          : `Add for ₹${healthMixPrice}`}
                       </p>
                     </div>
                   </div>
@@ -1793,9 +1822,9 @@ export default function Result() {
                       />
                       <span className="text-[11px] text-gray-600 font-medium">
                         Include Hair Health Mix
-                        {healthMixDelta > 0 && (
+                        {healthMixPrice > 0 && (
                           <span className="font-bold text-[#1b5e20]">
-                            {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                            {" "}(₹{healthMixPrice})
                           </span>
                         )}
                       </span>
@@ -1894,9 +1923,9 @@ export default function Result() {
                   />
                   <span className="text-[11px] text-gray-600 font-medium">
                     Include Hair Health Mix
-                    {healthMixDelta > 0 && (
+                    {healthMixPrice > 0 && (
                       <span className="font-bold text-[#1b5e20]">
-                        {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                        {" "}(₹{healthMixPrice})
                       </span>
                     )}
                   </span>
