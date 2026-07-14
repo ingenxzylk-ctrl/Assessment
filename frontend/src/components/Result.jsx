@@ -5,6 +5,7 @@ import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
+import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
 
@@ -649,6 +650,7 @@ export default function Result() {
         ...formatted,
         id: prod.id,
         subtitle: prod.subtitle || null,
+        price: prod.price ?? null,
         isHealthMix,
       };
     })
@@ -656,9 +658,8 @@ export default function Result() {
 
   const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
-  const healthMixDelta = recommendedBundle
-    ? Math.max(0, (recommendedBundle.bundlePrice || 0) - (recommendedBundle.priceWithoutMix || 0))
-    : 0;
+  // Sheet list price for Health Mix is ₹1799 (not the bundle price delta)
+  const healthMixPrice = healthMixProduct?.price || HAIR_HEALTH_MIX_PRICE;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
   
@@ -675,6 +676,7 @@ export default function Result() {
       price: recommendedBundle.price,
       priceWithMix: recommendedBundle.bundlePrice,
       priceWithoutMix: recommendedBundle.priceWithoutMix,
+      healthMixPrice,
       bundleNumber,
       includeHealthMix,
       coachCallOptIn,
@@ -1083,8 +1085,8 @@ export default function Result() {
                       )}
                       <p className="text-xs font-semibold text-[#064e3b] mt-1">
                         {includeHealthMix
-                          ? `Included · −₹${healthMixDelta} if removed`
-                          : `Add for +₹${healthMixDelta}`}
+                          ? `Included · −₹${healthMixPrice} if removed`
+                          : `Add for +₹${healthMixPrice}`}
                       </p>
                     </div>
                   </div>
@@ -1342,8 +1344,8 @@ export default function Result() {
                       )}
                       <p className="text-xs font-semibold text-[#064e3b] mt-1">
                         {includeHealthMix
-                          ? `Included · −₹${healthMixDelta} if removed`
-                          : `Add for +₹${healthMixDelta}`}
+                          ? `Included · −₹${healthMixPrice} if removed`
+                          : `Add for +₹${healthMixPrice}`}
                       </p>
                     </div>
                   </div>
@@ -1400,9 +1402,9 @@ export default function Result() {
                       />
                       <span className="text-[11px] text-gray-600 font-medium">
                         Include Hair Health Mix
-                        {healthMixDelta > 0 && (
+                        {healthMixPrice > 0 && (
                           <span className="font-bold text-[#1b5e20]">
-                            {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                            {" "}({includeHealthMix ? `−₹${healthMixPrice}` : `+₹${healthMixPrice}`})
                           </span>
                         )}
                       </span>
@@ -1501,9 +1503,9 @@ export default function Result() {
                   />
                   <span className="text-[11px] text-gray-600 font-medium">
                     Include Hair Health Mix
-                    {healthMixDelta > 0 && (
+                    {healthMixPrice > 0 && (
                       <span className="font-bold text-[#1b5e20]">
-                        {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                        {" "}({includeHealthMix ? `−₹${healthMixPrice}` : `+₹${healthMixPrice}`})
                       </span>
                     )}
                   </span>
