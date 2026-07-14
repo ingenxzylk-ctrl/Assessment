@@ -926,198 +926,6 @@ function RoadmapTimeline({ roadmap, resultMonths }) {
   );
 }
 
-function severityRank(value) {
-  const s = String(value || "none").toLowerCase();
-  if (s.includes("severe") || s === "3") return 3;
-  if (s.includes("moderate") || s === "2") return 2;
-  if (s.includes("mild") || s === "1" || s.includes("receding")) return 1;
-  return 0;
-}
-
-/**
- * Stage-/observation-driven hair-loss overlay.
- * M-shape is only used when temple recession warrants it — not for every user.
- */
-function ScalpHairLossOverlay({ isFemale, stage, observations = {}, hairFallLocation }) {
-  const front = observations.frontView || {};
-  const top = observations.topView || {};
-  const back = observations.backView || {};
-  const stageKey = String(stage || "").toLowerCase();
-  const zone = String(hairFallLocation || "").toLowerCase();
-  const hairline = String(front.frontalHairline || "").toLowerCase();
-
-  let left = severityRank(front.templeRecessionLeft);
-  let right = severityRank(front.templeRecessionRight);
-  let crown = Math.max(
-    severityRank(top.crownThinning),
-    severityRank(back.crownDensity === "sparse" ? "severe" : back.crownDensity === "reduced" ? "mild" : "none")
-  );
-
-  // Fall back to AI stage when observation fields are missing
-  const stageNum = parseInt(stageKey, 10);
-  if (!Number.isNaN(stageNum)) {
-    if (stageNum >= 2 && left === 0 && right === 0 && hairline.includes("intact") === false) {
-      const d = stageNum === 2 ? 1 : stageNum === 3 ? 2 : 3;
-      left = Math.max(left, d);
-      right = Math.max(right, d);
-    }
-    if (stageNum >= 4) crown = Math.max(crown, stageNum >= 6 ? 3 : 2);
-  }
-  if (stageKey === "overall-thinning") crown = Math.max(crown, 2);
-  if (stageKey === "patchy-bald") crown = Math.max(crown, 2);
-
-  // Quiz location can emphasize zones even if stage is early
-  if (!isFemale) {
-    if (zone === "front" || zone === "parting") {
-      left = Math.max(left, 1);
-      right = Math.max(right, 1);
-    }
-    if (zone === "crown" || zone === "parting") crown = Math.max(crown, 1);
-    if (zone === "all_over") crown = Math.max(crown, 2);
-  } else {
-    if (stageKey === "2") crown = Math.max(crown, 1);
-    if (stageKey === "3" || stageKey === "overall-thinning") crown = Math.max(crown, 2);
-  }
-
-  if (hairline.includes("severe")) {
-    left = Math.max(left, 3);
-    right = Math.max(right, 3);
-  } else if (hairline.includes("moderate")) {
-    left = Math.max(left, 2);
-    right = Math.max(right, 2);
-  } else if (hairline.includes("mild") || hairline.includes("receding")) {
-    left = Math.max(left, 1);
-    right = Math.max(right, 1);
-  }
-
-  const templeDepth = Math.max(left, right);
-  const showTemples = !isFemale && templeDepth > 0;
-  const showCrown =
-    crown > 0 ||
-    stageKey === "overall-thinning" ||
-    stageKey === "patchy-bald" ||
-    zone === "crown" ||
-    zone === "all_over" ||
-    zone === "parting";
-  const showDiffuse = stageKey === "overall-thinning" || zone === "all_over" || (isFemale && stageKey === "overall-thinning");
-  const showPartLine = isFemale && (stageKey === "1" || stageKey === "2" || stageKey === "3");
-
-  if (!showTemples && !showCrown && !showDiffuse && !showPartLine) {
-    return null;
-  }
-
-  // Frontline sits on the forehead/hair boundary (lower on the frame),
-  // not up in the hair. Temple peaks rise from that line into recession.
-  const frontlineY = 58;
-  const leftPeakY = frontlineY - 6 - left * 5; // 52 / 47 / 42 / 37
-  const rightPeakY = frontlineY - 6 - right * 5;
-  const leftValleyY = frontlineY + Math.min(left, 2) * 2;
-  const rightValleyY = frontlineY + Math.min(right, 2) * 2;
-  const centerY = frontlineY - 2 - Math.min(templeDepth, 2);
-  const sideY = frontlineY + 1;
-
-  const frontlinePath = showTemples
-    ? `M 4 ${sideY}
-       C 10 ${leftPeakY + 2} 16 ${leftPeakY} 24 ${leftPeakY + 3}
-       C 32 ${leftValleyY} 40 ${centerY + 4} 50 ${centerY}
-       C 60 ${centerY + 4} 68 ${rightValleyY} 76 ${rightPeakY + 3}
-       C 84 ${rightPeakY} 90 ${rightPeakY + 2} 96 ${sideY}`
-    : null;
-
-  // Hair-loss fills sit on the exposed temple/forehead skin (below the peaks)
-  const leftFill =
-    left > 0
-      ? `M 8 ${sideY + 4} C 16 ${sideY + 6} 22 ${leftValleyY + 2} 30 ${leftValleyY}
-         L 24 ${leftPeakY + 4} C 16 ${leftPeakY + 2} 10 ${sideY} 8 ${sideY + 4}Z`
-      : null;
-  const rightFill =
-    right > 0
-      ? `M 92 ${sideY + 4} C 84 ${sideY + 6} 78 ${rightValleyY + 2} 70 ${rightValleyY}
-         L 76 ${rightPeakY + 4} C 84 ${rightPeakY + 2} 90 ${sideY} 92 ${sideY + 4}Z`
-      : null;
-
-  const crownRadius = 10 + crown * 5;
-  const crownOpacity = 0.14 + crown * 0.06;
-  // Don't paint a crown blob into the hair on front temple-focused photos
-  const showCrownBlob =
-    showCrown &&
-    (isFemale ||
-      zone === "crown" ||
-      zone === "all_over" ||
-      zone === "parting" ||
-      (!Number.isNaN(stageNum) && stageNum >= 4) ||
-      stageKey === "overall-thinning" ||
-      stageKey === "patchy-bald");
-
-  return (
-    <svg
-      className="pointer-events-none absolute inset-0 h-full w-full"
-      viewBox="0 0 100 100"
-      preserveAspectRatio="xMidYMid meet"
-      aria-hidden="true"
-    >
-      {showDiffuse && (
-        <ellipse
-          cx="50"
-          cy="48"
-          rx="34"
-          ry="26"
-          fill={`rgba(220,38,38,${0.12 + crown * 0.04})`}
-        />
-      )}
-
-      {showCrownBlob && !showDiffuse && (
-        <ellipse
-          cx="50"
-          cy={isFemale ? 40 : 22}
-          rx={crownRadius}
-          ry={crownRadius * 0.85}
-          fill={`rgba(220,38,38,${crownOpacity})`}
-        />
-      )}
-
-      {showPartLine && (
-        <path
-          d={
-            stageKey === "3"
-              ? "M 48 18 C 46 32 44 44 42 56 C 50 58 58 56 58 56 C 56 44 54 32 52 18Z"
-              : stageKey === "2"
-                ? "M 49 20 C 48 34 47 46 46 56 C 50 57 54 56 54 56 C 53 44 52 32 51 20Z"
-                : "M 49.5 22 C 49 36 48.5 46 48 56 C 50 56.5 52 56 52 56 C 51.5 44 51 32 50.5 22Z"
-          }
-          fill={`rgba(220,38,38,${stageKey === "3" ? 0.28 : stageKey === "2" ? 0.22 : 0.16})`}
-        />
-      )}
-
-      {leftFill && <path d={leftFill} fill={`rgba(220,38,38,${0.18 + left * 0.06})`} />}
-      {rightFill && <path d={rightFill} fill={`rgba(220,38,38,${0.18 + right * 0.06})`} />}
-
-      {frontlinePath && (
-        <path
-          d={frontlinePath}
-          fill="none"
-          stroke="rgba(220,38,38,0.92)"
-          strokeWidth={1.8 + Math.min(templeDepth, 2) * 0.3}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
-
-      {isFemale && !showPartLine && showCrownBlob && (
-        <path
-          d="M 12 52 C 30 58 40 60 50 56 C 60 60 70 58 88 52"
-          fill="none"
-          stroke="rgba(220,38,38,0.75)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
-    </svg>
-  );
-}
-
 export default function Result() {
   const { state, resetQuiz, prevStep, setLoading, setError } = useQuiz();
   const { addToCart, cartCount, setIsCartOpen } = useCart();
@@ -1145,12 +953,15 @@ export default function Result() {
   };
 
   const findScalpImage = (type) => state?.scalpImages?.find((img) => img.type === type);
+  const frontScalpPhoto = extractImageUrl(findScalpImage("front"));
   const displayUserPhoto =
-    extractImageUrl(findScalpImage("front")) ||
+    frontScalpPhoto ||
     extractImageUrl(findScalpImage("top")) ||
     extractImageUrl(findScalpImage("side")) ||
     extractImageUrl(findScalpImage("back")) ||
     extractImageUrl(state?.scalpImages?.[0]);
+  // Front uploads are typically full-face — blur below eyebrows for privacy
+  const isFullFaceUpload = Boolean(frontScalpPhoto && displayUserPhoto === frontScalpPhoto);
 
   const requiresDoctorConsultation =
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
@@ -1349,25 +1160,26 @@ export default function Result() {
                 <span className="text-[#6f8f3d]">Hair Assessment Report</span>
               </h2>
 
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-2.5 sm:px-3.5 py-1 sm:py-1.5 max-w-full">
+              {/* Desktop: report ID stays under the title */}
+              <div className="hidden sm:inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5 max-w-full">
                 <span className="inline-flex h-4 w-4 items-center justify-center shrink-0" aria-hidden="true">
                   <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
                     <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] sm:text-[12px] font-medium text-[#555555] truncate">
+                <span className="text-[12px] font-medium text-[#555555]">
                   Report ID: {reportId} • {reportDate}
                 </span>
               </div>
 
-              <p className="text-[13px] sm:text-[15px] text-[#555555] leading-relaxed">
+              <p className="hidden sm:block text-[15px] text-[#555555] leading-relaxed">
                 Our AI scan + expert analysis of 14 key parameters gives us{" "}
                 <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
               </p>
             </div>
 
-            <div className="w-[88px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div className="w-[96px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
               <p className="px-1.5 pt-1.5 pb-1 sm:px-3 sm:pt-3 sm:pb-2 text-[9px] sm:text-sm font-semibold text-gray-900 leading-tight text-center sm:text-left">
                 Your Scalp Overview
               </p>
@@ -1382,16 +1194,43 @@ export default function Result() {
                       e.target.src = AVATAR_FALLBACK;
                     }}
                   />
-                  <ScalpHairLossOverlay
-                    isFemale={isFemale}
-                    stage={aiPredictedStageNumber}
-                    observations={rawAnalysis.observations}
-                    hairFallLocation={isFemale ? null : state?.hairHealth?.hair_fall_zone}
-                  />
+                  {/* Full-face front uploads: blur eyes/face below the eyebrows */}
+                  {isFullFaceUpload && displayUserPhoto && (
+                    <img
+                      src={displayUserPhoto}
+                      alt=""
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 h-full w-full object-contain object-center blur-[5px] sm:blur-md"
+                      style={{
+                        WebkitMaskImage:
+                          "linear-gradient(to bottom, transparent 42%, rgba(0,0,0,0.35) 52%, black 62%)",
+                        maskImage:
+                          "linear-gradient(to bottom, transparent 42%, rgba(0,0,0,0.35) 52%, black 62%)",
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Mobile: full-width Report ID so it is never clipped beside the thumbnail */}
+          <div className="sm:hidden mt-3 flex items-start gap-2 rounded-full bg-[#ececec] px-3 py-1.5 w-full">
+            <span className="inline-flex h-4 w-4 items-center justify-center shrink-0 mt-0.5" aria-hidden="true">
+              <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
+                <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="text-[11px] font-medium text-[#555555] leading-snug break-words">
+              Report ID: {reportId} • {reportDate}
+            </span>
+          </div>
+
+          <p className="sm:hidden mt-2.5 text-[13px] text-[#555555] leading-relaxed">
+            Our AI scan + expert analysis of 14 key parameters gives us{" "}
+            <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
+          </p>
 
           <div className="mt-5 pt-4 border-t border-gray-100 text-left">
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
