@@ -11,6 +11,58 @@ import { motion, useMotionValue, animate } from "framer-motion";
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
 
+const TESTIMONIAL_EXTS = ["jpg", "jpeg", "png", "webp"];
+
+/** Normalize a pasted path/filename into a public URL under /testimonials. */
+function normalizeTestimonialSrc(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  let value = raw.trim().replace(/^['"]|['"]$/g, "");
+  if (!value) return null;
+
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
+  if (value.startsWith("/testimonials/")) return value;
+
+  // Windows/Unix path → filename only
+  // e.g. C:\Users\DELL\Desktop\hair-scalp-quiz\frontend\public\testimonials\ajay-before.jpg
+  value = value.replace(/\\/g, "/");
+  const marker = "/testimonials/";
+  const markerIdx = value.toLowerCase().lastIndexOf(marker);
+  if (markerIdx !== -1) {
+    value = value.slice(markerIdx + marker.length);
+  } else {
+    value = value.split("/").pop() || value;
+  }
+
+  value = value.split("?")[0].split("#")[0];
+  if (!value) return null;
+  if (!value.includes(".")) value = `${value}.jpg`;
+  return `/testimonials/${value}`;
+}
+
+function testimonialExtensionFallbacks(src) {
+  if (!src || !src.startsWith("/testimonials/")) return [];
+  const match = src.match(/^(.*)\.([a-z0-9]+)$/i);
+  if (!match) return [];
+  const [, base, ext] = match;
+  return TESTIMONIAL_EXTS.filter((e) => e.toLowerCase() !== ext.toLowerCase()).map(
+    (e) => `${base}.${e}`
+  );
+}
+
+/** Resolve public/testimonials paths for before/after photos. */
+function resolveTestimonialPhotos(photos = []) {
+  return photos
+    .map((photo) => {
+      const raw =
+        typeof photo === "string" ? photo : photo?.file || photo?.src || photo?.path || "";
+      const src = normalizeTestimonialSrc(raw);
+      if (!src) return null;
+      const label = typeof photo === "string" ? "" : photo.label || "";
+      return { label, src, fallbacks: testimonialExtensionFallbacks(src) };
+    })
+    .filter(Boolean);
+}
+
 const FREE_ADDONS = [
   {
     id: "coach",
@@ -45,7 +97,12 @@ const TESTIMONIALS = [
     review:
       "I was losing hope with generic oils. Zylk's stage-based kit actually reduced my shedding in the first month. My hairline looks fuller now.",
     date: "Reviewed on 25th Feb 2025",
-    months: ["Month 1", "Month 4", "Month 9"],
+    // Put files in frontend/public/testimonials/ (jpg/png/webp OK)
+    photos: [
+      { label: "Before", file: "ajay-before.jpg" },
+      { label: "Month 4", file: "ajay-month-4.jpg" },
+      { label: "After", file: "ajay-after.jpg" },
+    ],
   },
   {
     name: "Rahul Mehta",
@@ -56,7 +113,11 @@ const TESTIMONIALS = [
     review:
       "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
     date: "Reviewed on 12th Jan 2025",
-    months: ["Month 1", "Month 3", "Month 8"],
+    photos: [
+      { label: "Before", file: "rahul-before.jpg" },
+      { label: "Month 3", file: "rahul-month-3.jpg" },
+      { label: "After", file: "rahul-after.jpg" },
+    ],
   },
 ];
 
@@ -72,6 +133,44 @@ function ProductImage({ src, fallbacks = [], alt, className }) {
       className={className}
       onError={() => {
         if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
+      }}
+    />
+  );
+}
+
+function TestimonialPhoto({ src, fallbacks = [], alt, label, className, imgClassName }) {
+  const [urlIndex, setUrlIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const allUrls = [src, ...fallbacks].filter(Boolean);
+  const currentUrl = allUrls[urlIndex];
+
+  useEffect(() => {
+    setUrlIndex(0);
+    setFailed(false);
+  }, [src, fallbacks.join("|")]);
+
+  if (failed || !currentUrl) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 text-gray-400 ${className || ""}`}
+        aria-label={alt || label || "Photo coming soon"}
+      >
+        <span className="text-lg opacity-50" aria-hidden="true">
+          👤
+        </span>
+        {label ? <span className="mt-1 text-[9px] font-semibold uppercase tracking-wide">{label}</span> : null}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={currentUrl}
+      alt={alt || label || "Customer progress photo"}
+      className={imgClassName || className}
+      onError={() => {
+        if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
+        else setFailed(true);
       }}
     />
   );
@@ -903,6 +1002,10 @@ export default function Result() {
     : 0;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
+  const testimonialPhotos = useMemo(
+    () => resolveTestimonialPhotos(testimonial.photos || []),
+    [testimonial]
+  );
   
   const handleBuyNow = () => {
     if (requiresDoctorConsultation) {
@@ -1227,12 +1330,26 @@ export default function Result() {
             </h2>
             <p className="text-sm text-gray-500 mb-3">Who Matches Your Profile</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {testimonial.months.map((label, i) => (
-                <div key={i} className="shrink-0 w-24">
-                  <div className="h-28 rounded-lg bg-gradient-to-b from-gray-200 to-gray-300 overflow-hidden border border-gray-200">
-                    <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">👤</div>
+              {(testimonialPhotos.length > 0
+                ? testimonialPhotos
+                : (testimonial.photos || []).map((p) => ({
+                    label: p.label,
+                    src: null,
+                    fallbacks: [],
+                  }))
+              ).map((photo, i) => (
+                <div key={`${photo.label}-${i}`} className="shrink-0 w-24">
+                  <div className="h-28 rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                    <TestimonialPhoto
+                      src={photo.src}
+                      fallbacks={photo.fallbacks}
+                      label={photo.label}
+                      alt={`${testimonial.name} — ${photo.label}`}
+                      className="w-full h-full"
+                      imgClassName="w-full h-full object-cover"
+                    />
                   </div>
-                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{label}</p>
+                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{photo.label}</p>
                 </div>
               ))}
             </div>
@@ -1417,11 +1534,65 @@ export default function Result() {
             <span className="inline-block text-[10px] font-bold bg-gray-800 text-white px-2 py-0.5 rounded mb-3">
               STAGE {testimonial.stage}
             </span>
-            <div className="flex gap-2 mb-3">
-              {testimonial.months.map((m, i) => (
-                <div key={i} className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center text-lg">📷</div>
-              ))}
-            </div>
+            {(() => {
+              const beforeAfter = testimonialPhotos.filter((photo) =>
+                /before|after/i.test(photo.label)
+              );
+              const gallery = beforeAfter.length >= 2 ? beforeAfter : testimonialPhotos;
+              const midPhotos =
+                beforeAfter.length >= 2
+                  ? testimonialPhotos.filter((photo) => !/before|after/i.test(photo.label))
+                  : [];
+
+              return (
+                <>
+                  <div
+                    className={`grid gap-2 mb-3 ${
+                      gallery.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                    }`}
+                  >
+                    {gallery.map((photo, i) => (
+                      <div key={`${photo.label}-${i}`} className="min-w-0">
+                        <div className="aspect-[3/4] rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                          <TestimonialPhoto
+                            src={photo.src}
+                            fallbacks={photo.fallbacks}
+                            label={photo.label}
+                            alt={`${testimonial.name} — ${photo.label}`}
+                            className="w-full h-full"
+                            imgClassName="w-full h-full object-cover"
+                          />
+                        </div>
+                        <p className="text-[10px] text-center font-semibold text-gray-600 mt-1.5 uppercase tracking-wide">
+                          {photo.label}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {midPhotos.length > 0 && (
+                    <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
+                      {midPhotos.map((photo, i) => (
+                        <div key={`${photo.label}-mid-${i}`} className="shrink-0 w-16">
+                          <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                            <TestimonialPhoto
+                              src={photo.src}
+                              fallbacks={photo.fallbacks}
+                              label={photo.label}
+                              alt={`${testimonial.name} — ${photo.label}`}
+                              className="w-full h-full"
+                              imgClassName="w-full h-full object-cover"
+                            />
+                          </div>
+                          <p className="text-[9px] text-center text-gray-500 mt-1 leading-tight">
+                            {photo.label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <div className="flex items-center justify-between">
               <p className="font-bold text-sm">{testimonial.name}, {testimonial.age}</p>
               <span className="text-xs text-[#52b788] font-semibold flex items-center gap-1">✓ Verified</span>
