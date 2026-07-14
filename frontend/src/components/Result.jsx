@@ -281,15 +281,17 @@ const MALE_STAGE_IMAGE = {
   "overall-thinning": "/stages/overall_thinning.png",
 };
 
-/** Zylk-treated male visuals — Stage 1–5 only (6–7 need transplant).
- *  Files expected: frontend/public/stages/treated/mstage1.png … mstage5.png
+/** Male progression photos from treated folder (mstage1.png … mstage7.png).
+ *  Zylk treatment track only uses stages 1–5; untreated may use 6–7.
  */
-const MALE_TREATED_STAGE_IMAGE = {
+const MALE_MSTAGE_IMAGE = {
   1: "/stages/treated/mstage1.png",
   2: "/stages/treated/mstage2.png",
   3: "/stages/treated/mstage3.png",
   4: "/stages/treated/mstage4.png",
   5: "/stages/treated/mstage5.png",
+  6: "/stages/treated/mstage6.png",
+  7: "/stages/treated/mstage7.png",
 };
 
 const FEMALE_STAGE_IMAGE = {
@@ -305,44 +307,30 @@ const clampMaleStage = (n) => Math.min(7, Math.max(1, n));
 const clampMaleTreatableStage = (n) => Math.min(5, Math.max(1, n));
 const clampFemaleStage = (n) => Math.min(3, Math.max(1, n));
 
-function stageImageFor(stageKey, isFemale, options = {}) {
-  const { treated = false } = options;
+function stageImageFor(stageKey, isFemale) {
   const key = String(stageKey || (isFemale ? "1" : "2"));
   if (isFemale) return FEMALE_STAGE_IMAGE[key] || FEMALE_STAGE_IMAGE["1"];
-
-  if (treated && key !== "overall-thinning") {
-    const treatable = String(clampMaleTreatableStage(parseInt(key, 10) || 2));
-    return (
-      MALE_TREATED_STAGE_IMAGE[treatable] ||
-      MALE_STAGE_IMAGE[treatable] ||
-      MALE_STAGE_IMAGE["2"]
-    );
-  }
-
-  return MALE_STAGE_IMAGE[key] || MALE_STAGE_IMAGE["2"];
+  if (key === "overall-thinning") return MALE_STAGE_IMAGE["overall-thinning"];
+  const n = clampMaleStage(parseInt(key, 10) || 2);
+  return MALE_MSTAGE_IMAGE[n] || MALE_STAGE_IMAGE[n] || MALE_STAGE_IMAGE["2"];
 }
 
-function maleStageCandidates(stageKey, treated = false) {
+/** Both untreated + Zylk tracks use images from public/stages/treated/mstageN.png */
+function maleStageCandidates(stageKey) {
   const key = String(stageKey);
   if (key === "overall-thinning") {
     return [MALE_STAGE_IMAGE["overall-thinning"]];
   }
-  const n = treated
-    ? clampMaleTreatableStage(parseInt(key, 10) || 2)
-    : clampMaleStage(parseInt(key, 10) || 2);
-  if (treated) {
-    return [
-      `/stages/treated/mstage${n}.png`,
-      `/stages/treated/mstage${n}.jpg`,
-      `/stages/treated/Stage${n}.png`,
-      `/stages/Stage${n}.png`,
-    ];
-  }
-  return [`/stages/Stage${n}.png`, `/stages/Stage${n}.jpg`];
+  const n = clampMaleStage(parseInt(key, 10) || 2);
+  return [
+    `/stages/treated/mstage${n}.png`,
+    `/stages/treated/mstage${n}.jpg`,
+    `/stages/Stage${n}.png`,
+  ];
 }
 
-function maleStepImage(stageKey, treated = false) {
-  const candidates = maleStageCandidates(stageKey, treated);
+function maleStepImage(stageKey) {
+  const candidates = maleStageCandidates(stageKey);
   return {
     image: candidates[0],
     fallback: candidates[1] || candidates[0],
@@ -351,18 +339,18 @@ function maleStepImage(stageKey, treated = false) {
 }
 
 /**
- * Male treated sequence (Stage 1–5 library only).
- * Example Stage 5 → 5, 5, 4, 3
- * Example Stage 4 → 4, 4, 3, 2
+ * With Zylk: improve by at most ONE stage.
+ * Example Stage 4 → 4, 4, 3, 3
+ * Example Stage 5 → 5, 5, 4, 4
  */
 function maleTreatedStageAt(base, stepIndex) {
   const start = clampMaleTreatableStage(base);
-  const improved = start - Math.floor(stepIndex * 0.85);
-  return clampMaleTreatableStage(improved);
+  if (stepIndex <= 1) return start;
+  return clampMaleTreatableStage(start - 1);
 }
 
 /**
- * Male untreated sequence can worsen into Stage 6–7 (transplant territory).
+ * Untreated: can worsen into Stage 6–7.
  * Example Stage 5 → 5, 6, 7, 7
  */
 function maleUntreatedStageAt(base, stepIndex) {
@@ -405,16 +393,16 @@ function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8
     return {
       untreated: untreatedLabels.map((label, i) => {
         const key = i === 0 ? "overall-thinning" : String(maleUntreatedStageAt(3, i));
-        return { label, ...maleStepImage(key, false) };
+        return { label, ...maleStepImage(key) };
       }),
       treated: treatedLabels.map((label, i) => {
         const key = i === 0 ? "overall-thinning" : String(maleTreatedStageAt(3, i));
-        return { label, ...maleStepImage(key, i !== 0) };
+        return { label, ...maleStepImage(key) };
       }),
     };
   }
 
-  // Male pattern stages: Zylk path uses 1–5 treated assets; untreated may reach 6–7
+  // Male pattern stages: both tracks use mstage images from treated folder
   const raw = parseInt(stage, 10) || 2;
   const untreatedBase = clampMaleStage(raw);
   const treatedBase = clampMaleTreatableStage(raw);
@@ -422,11 +410,11 @@ function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8
   return {
     untreated: untreatedLabels.map((label, i) => {
       const key = String(maleUntreatedStageAt(untreatedBase, i));
-      return { label, ...maleStepImage(key, false) };
+      return { label, ...maleStepImage(key) };
     }),
     treated: treatedLabels.map((label, i) => {
       const key = String(maleTreatedStageAt(treatedBase, i));
-      return { label, ...maleStepImage(key, true) };
+      return { label, ...maleStepImage(key) };
     }),
   };
 }
@@ -513,7 +501,7 @@ function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
         Based on {isFemale ? "women" : "men"} with similar profile as you
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="flex flex-col gap-3">
         <ProgressionTrack title="If left untreated" steps={untreated} variant="untreated" />
         <ProgressionTrack title="With Zylk Treatment" steps={treated} variant="treated" />
       </div>
