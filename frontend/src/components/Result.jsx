@@ -220,40 +220,200 @@ function buildRoadmapMonths(totalMonths) {
 
 function ResultsSeeingTimeline({ roadmap, ageRange }) {
   const younger = ["18-25", "26-35"].includes(String(ageRange || ""));
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [autoProgress, setAutoProgress] = useState(0);
+  const [clockKey, setClockKey] = useState(0);
+  const itemRefs = useRef([]);
+  const listRef = useRef(null);
+  const pausedRef = useRef(false);
+  const AUTO_MS = 2000;
+
+  const jumpTo = (index) => {
+    setActiveIdx(index);
+    setAutoProgress(0);
+    setClockKey((key) => key + 1);
+  };
+
+  useEffect(() => {
+    if (!roadmap?.length) return undefined;
+    let acc = 0;
+    let last = performance.now();
+    let rafId = 0;
+
+    const loop = (now) => {
+      const dt = now - last;
+      last = now;
+      if (!pausedRef.current) {
+        acc += dt;
+        const p = Math.min(1, acc / AUTO_MS);
+        setAutoProgress(p);
+        if (acc >= AUTO_MS) {
+          acc = 0;
+          setAutoProgress(0);
+          setActiveIdx((prev) => (prev + 1) % roadmap.length);
+        }
+      }
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [roadmap.length, clockKey]);
+
+  useEffect(() => {
+    const el = itemRefs.current[activeIdx];
+    const container = listRef.current;
+    if (!el || !container) return;
+    const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }, [activeIdx]);
+
+  const active = roadmap[activeIdx];
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 text-left">
-      <p className="text-sm font-bold text-gray-900 mb-3">Start seeing results</p>
+    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 sm:p-5 text-left overflow-hidden">
+      <p className="text-base sm:text-lg font-bold text-gray-900">Start seeing results</p>
 
-      <div className="relative max-h-[168px] overflow-y-auto pr-1 scrollbar-thin">
-        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[#9ccc65]/70" />
-        <ul className="relative space-y-4">
+      <div className="mt-2.5 mb-4 h-1 w-full rounded-full bg-[#d8e8c8]/80 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-[#6f8f3d] transition-[width] duration-100 ease-linear"
+          style={{ width: `${autoProgress * 100}%` }}
+        />
+      </div>
+
+      <div
+        ref={listRef}
+        className="relative max-h-[240px] overflow-y-auto pr-1 scrollbar-thin"
+        onMouseEnter={() => {
+          pausedRef.current = true;
+        }}
+        onMouseLeave={() => {
+          pausedRef.current = false;
+        }}
+        onTouchStart={() => {
+          pausedRef.current = true;
+        }}
+        onTouchEnd={() => {
+          window.setTimeout(() => {
+            pausedRef.current = false;
+          }, 2000);
+        }}
+      >
+        <ul className="relative space-y-2 py-1">
           {roadmap.map((step, index) => {
-            const isFirst = index === 0;
-            const isEarly = index < 3;
+            const isActive = index === activeIdx;
+            const isPast = index < activeIdx;
+
             return (
-              <li key={step.month} className="flex items-start gap-3 pl-0">
-                <span
-                  className={`relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-                    isFirst
-                      ? "border-[#5a7a2f] bg-[#6f8f3d]"
-                      : isEarly
-                        ? "border-[#6f8f3d] bg-[#6f8f3d]"
-                        : "border-[#b7d48a] bg-[#dcecc0]"
-                  }`}
+              <li
+                key={step.month}
+                ref={(node) => {
+                  itemRefs.current[index] = node;
+                }}
+                className="relative"
+              >
+                <button
+                  type="button"
+                  onClick={() => jumpTo(index)}
+                  className="relative w-full flex items-start gap-3.5 text-left rounded-xl px-1 py-2.5 cursor-pointer"
                 >
-                  {isFirst && <span className="h-2 w-2 rounded-full bg-[#2f4514]" />}
-                </span>
-                <p className={`text-sm leading-snug pt-0.5 ${isEarly ? "text-gray-800" : "text-gray-500"}`}>
-                  <span className="font-bold">Month {step.month}:</span> {step.desc}
-                </p>
+                  {isActive && (
+                    <motion.span
+                      layoutId="results-timeline-active-bg"
+                      className="absolute inset-0 rounded-xl bg-white/80 border border-[#d8e8c8] shadow-[0_4px_14px_rgba(111,143,61,0.12)]"
+                      transition={{ type: "spring", stiffness: 340, damping: 32 }}
+                    />
+                  )}
+
+                  <span className="relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center">
+                    <motion.span
+                      className="relative flex h-7 w-7 items-center justify-center rounded-full border-2"
+                      animate={{
+                        scale: isActive ? 1.12 : 1,
+                        backgroundColor: isActive || isPast ? "#6f8f3d" : "#e8f0d8",
+                        borderColor: isActive || isPast ? "#5a7a2f" : "#c5ddb0",
+                      }}
+                      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      {isActive && (
+                        <motion.span
+                          className="absolute inset-[-5px] rounded-full border border-[#6f8f3d]/35"
+                          initial={{ opacity: 0, scale: 0.7 }}
+                          animate={{ opacity: [0.55, 0.15, 0.55], scale: [1, 1.12, 1] }}
+                          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                        />
+                      )}
+                      <motion.span
+                        className="rounded-full bg-white"
+                        animate={{
+                          width: isActive ? 8 : isPast ? 5 : 0,
+                          height: isActive ? 8 : isPast ? 5 : 0,
+                          opacity: isActive || isPast ? 1 : 0,
+                        }}
+                        transition={{ duration: 0.35 }}
+                      />
+                    </motion.span>
+                  </span>
+
+                  <motion.div
+                    className="relative z-10 min-w-0 flex-1 pt-0.5"
+                    animate={{
+                      opacity: isActive ? 1 : isPast ? 0.72 : 0.4,
+                      y: isActive ? 0 : 1,
+                    }}
+                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <p
+                      className={`text-[15px] sm:text-base leading-snug ${
+                        isActive ? "text-gray-900" : "text-gray-600"
+                      }`}
+                    >
+                      <span className={`font-bold ${isActive ? "text-[#5a7a2f]" : ""}`}>
+                        Month {step.month}:
+                      </span>{" "}
+                      <span className={isActive ? "text-gray-800" : ""}>{step.desc}</span>
+                    </p>
+                  </motion.div>
+                </button>
               </li>
             );
           })}
         </ul>
       </div>
 
-      <p className="mt-2 text-[10px] text-center text-gray-400">Scroll to see later months</p>
+      <div className="mt-3.5 flex items-center justify-center gap-1.5">
+        {roadmap.map((step, index) => (
+          <button
+            key={`dot-${step.month}`}
+            type="button"
+            aria-label={`Go to month ${step.month}`}
+            onClick={() => jumpTo(index)}
+            className="p-1 cursor-pointer"
+          >
+            <motion.span
+              className="block rounded-full bg-[#6f8f3d]"
+              animate={{
+                width: index === activeIdx ? 18 : 6,
+                height: 6,
+                opacity: index === activeIdx ? 1 : index < activeIdx ? 0.55 : 0.28,
+              }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            />
+          </button>
+        ))}
+      </div>
+
+      {active ? (
+        <motion.p
+          key={active.month}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="mt-2 text-center text-[11px] text-gray-500"
+        >
+          Month {active.month} of {roadmap.length}
+        </motion.p>
+      ) : null}
 
       <div className="mt-3 rounded-xl bg-[#e5f0d4] px-3 py-2.5 text-xs text-[#3d5a1f] leading-relaxed">
         {younger ? (
@@ -461,13 +621,13 @@ function ProgressionTrack({ title, steps, variant }) {
       <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-hide">
         {steps.map((step, index) => (
           <div key={`${step.label}-${index}`} className="flex items-center gap-1 shrink-0">
-            <div className="flex flex-col items-center w-[72px] sm:w-[78px]">
-              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-gray-100 shadow-sm">
+            <div className="flex flex-col items-center w-[76px] sm:w-[84px]">
+              <div className="relative w-[72px] h-[72px] sm:w-[80px] sm:h-[80px] rounded-full overflow-hidden bg-[#f3f4f6] ring-1 ring-black/5 shadow-sm isolate">
                 <StageProgressImage
                   src={step.image}
                   fallbacks={step.fallbacks || (step.fallback ? [step.fallback] : [])}
                   alt={step.label}
-                  className="w-full h-full object-contain p-1"
+                  className="absolute inset-0 h-full w-full rounded-full object-cover object-center"
                 />
               </div>
               <span className="mt-2 text-[10px] font-semibold text-gray-700 text-center leading-tight">
@@ -1036,9 +1196,11 @@ export default function Result() {
         {!requiresDoctorConsultation && (
           <div className="bg-[#f0faf4] border border-[#b7e4c7] rounded-2xl p-4 flex gap-3 items-center">
             <div className="flex-1">
-              <p className="text-3xl font-black text-[#064e3b]">3 Times</p>
+              <p className="text-3xl font-black text-[#064e3b]">4X Growth</p>
               <p className="text-sm font-bold text-gray-800">Better results</p>
-              <p className="text-[10px] text-gray-500 uppercase mt-1">Based on a 5-month study*</p>
+              <p className="text-[10px] text-gray-500 uppercase mt-1 leading-snug">
+                Based on DNA, Doctor, Nutrition, AI and Machine Learning
+              </p>
               <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
                 Check Study →
               </button>
@@ -1050,7 +1212,7 @@ export default function Result() {
               </div>
               <div className="flex flex-col items-center flex-1">
                 <div className="w-full bg-[#52b788] rounded-t h-20 relative">
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">3x</span>
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">4X</span>
                 </div>
                 <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Zylk Regimen</span>
               </div>
@@ -1245,28 +1407,6 @@ export default function Result() {
                   }`}
                 />
               </button>
-            </div>
-          </div>
-        )}
-
-        {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <h2 className="text-lg font-bold text-gray-900 leading-snug mb-4">
-              Your Routine Gets Easier And Cheaper Every Month
-            </h2>
-            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 relative h-44">
-              <p className="text-sm font-bold text-gray-500 mb-2">Less Products. Less Cost. Less Effort.</p>
-              <svg viewBox="0 0 300 100" className="w-full h-24" preserveAspectRatio="none">
-                <path d="M20,20 Q150,80 280,70" fill="none" stroke="#52b788" strokeWidth="4" />
-                <circle cx="20" cy="20" r="5" fill="#52b788" />
-                <circle cx="280" cy="70" r="5" fill="#52b788" />
-              </svg>
-              <div className="flex justify-between text-[10px] text-gray-400 mt-1 px-1">
-                <span>Month 1</span>
-                <span>Month 3</span>
-                <span>Month 5</span>
-                <span>Month 8</span>
-              </div>
             </div>
           </div>
         )}
