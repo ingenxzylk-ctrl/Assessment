@@ -59,16 +59,7 @@ function resolveTestimonialPhotos(photos = []) {
       const src = normalizeTestimonialSrc(raw);
       if (!src) return null;
       const label = typeof photo === "string" ? "" : photo.label || "";
-      const fit = typeof photo === "string" ? "cover" : photo.fit || "cover";
-      const objectPosition =
-        typeof photo === "string" ? "center" : photo.objectPosition || "center";
-      return {
-        label,
-        src,
-        fallbacks: testimonialExtensionFallbacks(src),
-        fit,
-        objectPosition,
-      };
+      return { label, src, fallbacks: testimonialExtensionFallbacks(src) };
     })
     .filter(Boolean);
 }
@@ -123,11 +114,10 @@ const TESTIMONIALS = [
     review:
       "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
     date: "Reviewed on 12th Jan 2025",
-    // Arun photos are tall portrait crops — use 3:4 + top anchor so scalp isn't cut off
-    photoFrameClass: "aspect-[3/4]",
     photos: [
-      { label: "Before", file: "Arun-before.png", fit: "cover", objectPosition: "top" },
-      { label: "After", file: "Arun-after.png", fit: "cover", objectPosition: "top" },
+      { label: "Before", file: "Arun-before.png" },
+    
+      { label: "After", file: "Arun-after.png" },
     ],
   },
 ];
@@ -156,7 +146,6 @@ function TestimonialPhoto({
   label,
   className,
   fit = "cover",
-  objectPosition = "center",
 }) {
   const [urlIndex, setUrlIndex] = useState(0);
   const [failed, setFailed] = useState(false);
@@ -167,13 +156,6 @@ function TestimonialPhoto({
     setUrlIndex(0);
     setFailed(false);
   }, [src, fallbacks.join("|")]);
-
-  const positionClass =
-    objectPosition === "top"
-      ? "object-top"
-      : objectPosition === "bottom"
-        ? "object-bottom"
-        : "object-center";
 
   if (failed || !currentUrl) {
     return (
@@ -194,7 +176,7 @@ function TestimonialPhoto({
       <img
         src={currentUrl}
         alt={alt || label || "Customer progress photo"}
-        className={`absolute inset-0 h-full w-full ${positionClass} ${
+        className={`absolute inset-0 h-full w-full object-center ${
           fit === "contain" ? "object-contain bg-gray-50" : "object-cover"
         }`}
         onError={() => {
@@ -1378,18 +1360,13 @@ export default function Result() {
                   }))
               ).map((photo, i) => (
                 <div key={`${photo.label}-${i}`} className="shrink-0 w-[104px]">
-                  <div
-                    className={`relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 ${
-                      testimonial.photoFrameClass || "aspect-square"
-                    }`}
-                  >
+                  <div className="relative aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-100">
                     <TestimonialPhoto
                       src={photo.src}
                       fallbacks={photo.fallbacks}
                       label={photo.label}
                       alt={`${testimonial.name} — ${photo.label}`}
-                      fit={photo.fit || "cover"}
-                      objectPosition={photo.objectPosition || "center"}
+                      fit="cover"
                     />
                   </div>
                   <p className="text-[10px] text-center text-gray-600 mt-1.5 font-medium">{photo.label}</p>
@@ -1596,18 +1573,13 @@ export default function Result() {
                   >
                     {gallery.map((photo, i) => (
                       <div key={`${photo.label}-${i}`} className="min-w-0">
-                        <div
-                          className={`relative w-full rounded-xl overflow-hidden border border-gray-200 bg-gray-100 shadow-sm ${
-                            testimonial.photoFrameClass || "aspect-[4/5] sm:aspect-square"
-                          }`}
-                        >
+                        <div className="relative w-full aspect-[4/5] sm:aspect-square rounded-xl overflow-hidden border border-gray-200 bg-gray-100 shadow-sm">
                           <TestimonialPhoto
                             src={photo.src}
                             fallbacks={photo.fallbacks}
                             label={photo.label}
                             alt={`${testimonial.name} — ${photo.label}`}
-                            fit={photo.fit || "cover"}
-                            objectPosition={photo.objectPosition || "center"}
+                            fit="cover"
                           />
                         </div>
                         <p className="text-[10px] text-center font-semibold text-gray-600 mt-1.5 uppercase tracking-wide">
@@ -1626,8 +1598,7 @@ export default function Result() {
                               fallbacks={photo.fallbacks}
                               label={photo.label}
                               alt={`${testimonial.name} — ${photo.label}`}
-                              fit={photo.fit || "cover"}
-                              objectPosition={photo.objectPosition || "center"}
+                              fit="cover"
                             />
                           </div>
                           <p className="text-[9px] text-center text-gray-500 mt-1 leading-tight">
