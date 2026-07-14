@@ -1152,7 +1152,28 @@ export default function Result() {
                 Hello {userName},
               </h1>
 
-              <h2 className="text-[0.95rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
+              {/* Mobile: stacked title + Norwood on the "Here is" line */}
+              <div className="sm:hidden space-y-0.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-[0.95rem] font-bold leading-tight text-[#6f8f3d]">
+                    Here is
+                  </p>
+                  {getScaleBadge() && (
+                    <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 py-0.5 text-[10px] font-semibold text-[#555555]">
+                      {getScaleBadge()}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[0.95rem] font-bold leading-tight text-gray-900">
+                  Your personalised
+                </p>
+                <p className="text-[0.95rem] font-bold leading-tight text-[#6f8f3d]">
+                  Hair assessment Report
+                </p>
+              </div>
+
+              {/* Desktop: single-line title */}
+              <h2 className="hidden sm:block text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
                 <span className="text-[#6f8f3d]">Here is</span> your personalized{" "}
                 <span className="text-[#6f8f3d]">Hair Assessment Report</span>
               </h2>
@@ -1204,7 +1225,7 @@ export default function Result() {
                 {getStageTitle()}
               </h3>
               {getScaleBadge() && (
-                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2.5 py-1 text-xs font-semibold text-[#555555]">
+                <span className="hidden sm:inline-flex items-center rounded-full bg-[#ececec] px-2.5 py-1 text-xs font-semibold text-[#555555]">
                   {getScaleBadge()}
                 </span>
               )}
