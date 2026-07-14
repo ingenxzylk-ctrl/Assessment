@@ -12,19 +12,23 @@ function labelize(value) {
 }
 
 function addSectionTitle(doc, title) {
+  doc.x = doc.page.margins.left;
   doc.moveDown(0.6);
   doc
     .fontSize(13)
     .fillColor("#064e3b")
     .font("Helvetica-Bold")
-    .text(title, { underline: true });
+    .text(title, { underline: true, width: doc.page.width - doc.page.margins.left - doc.page.margins.right });
   doc.moveDown(0.3);
+  doc.x = doc.page.margins.left;
   doc.font("Helvetica").fillColor("#111827").fontSize(10);
 }
 
 function addKeyValue(doc, key, value) {
+  doc.x = doc.page.margins.left;
   const text = `${key}: ${labelize(value)}`;
-  doc.text(text, { width: 500 });
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  doc.text(text, { width: contentWidth });
 }
 
 function collectQaPairs(payload) {
@@ -126,26 +130,31 @@ function embedScalpPhotos(doc, scalpImages) {
   doc.moveDown(0.4);
 
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const gap = 16;
-  const boxW = Math.min(240, (pageWidth - gap) / 2);
+  const gap = 20;
+  // Slightly smaller than half-width so photos don't dominate the page
+  const boxW = Math.min(175, (pageWidth - gap) / 2.4);
   const boxH = boxW;
   const startX = doc.page.margins.left;
   let x = startX;
   let rowTop = doc.y;
+  const labelH = 16;
+  const rowGap = 12;
 
-  // Ensure room for one row of images
-  if (rowTop + boxH + 28 > doc.page.height - doc.page.margins.bottom) {
+  // Ensure room for one row of images + labels
+  if (rowTop + boxH + labelH + 24 > doc.page.height - doc.page.margins.bottom) {
     doc.addPage();
     rowTop = doc.y;
   }
 
   photos.forEach((photo, index) => {
     if (index > 0 && index % 2 === 0) {
-      doc.y = rowTop + boxH + 22;
-      if (doc.y + boxH + 28 > doc.page.height - doc.page.margins.bottom) {
+      const nextY = rowTop + boxH + labelH + rowGap;
+      if (nextY + boxH + labelH + 24 > doc.page.height - doc.page.margins.bottom) {
         doc.addPage();
+        rowTop = doc.page.margins.top;
+      } else {
+        rowTop = nextY;
       }
-      rowTop = doc.y;
       x = startX;
     }
 
@@ -164,9 +173,14 @@ function embedScalpPhotos(doc, scalpImages) {
       doc
         .fontSize(9)
         .fillColor("#9ca3af")
-        .text("Image unavailable", x + 8, rowTop + boxH / 2 - 6, { width: boxW - 16, align: "center" });
+        .text("Image unavailable", x + 8, rowTop + boxH / 2 - 6, {
+          width: boxW - 16,
+          align: "center",
+          lineBreak: false,
+        });
     }
 
+    // Absolute-positioned label — lineBreak:false avoids shifting doc.x
     doc
       .fontSize(9)
       .fillColor("#111827")
@@ -174,12 +188,15 @@ function embedScalpPhotos(doc, scalpImages) {
       .text(labelize(photo.label || photo.type), x, rowTop + boxH + 4, {
         width: boxW,
         align: "center",
+        lineBreak: false,
       });
 
     x += boxW + gap;
   });
 
-  doc.y = rowTop + boxH + 28;
+  // Critical: reset cursor to left margin so following sections align
+  doc.x = doc.page.margins.left;
+  doc.y = rowTop + boxH + labelH + 18;
   doc.font("Helvetica").fillColor("#111827").fontSize(10);
 }
 
