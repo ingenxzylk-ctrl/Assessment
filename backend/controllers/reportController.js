@@ -111,6 +111,7 @@ export async function submitAssessmentReport(req, res) {
 
     let emailResult;
     try {
+      // Notification only — never pass pdfBuffer (Drive link is in storageInfo)
       emailResult = await sendReportToOrganisation({
         reportId,
         reportDate,
