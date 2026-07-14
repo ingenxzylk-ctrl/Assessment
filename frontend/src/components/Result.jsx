@@ -1209,7 +1209,48 @@ export default function Result() {
                     }}
                   />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#6f8f3d]/20 via-transparent to-[#e67e22]/15" />
-                  <div className="pointer-events-none absolute left-[12%] right-[12%] top-[42%] h-[2px] bg-red-500/70" />
+                  {/* M-shaped hairline + temple hair-loss highlight (male pattern) */}
+                  <svg
+                    className="pointer-events-none absolute inset-0 h-full w-full"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    {!isFemale && (
+                      <>
+                        {/* Soft fills over temple recession zones */}
+                        <path
+                          d="M5 22 C16 24 20 46 26 58 C14 52 8 38 5 22Z"
+                          fill="rgba(239,68,68,0.2)"
+                        />
+                        <path
+                          d="M95 22 C84 24 80 46 74 58 C86 52 92 38 95 22Z"
+                          fill="rgba(239,68,68,0.2)"
+                        />
+                        {/* M-shaped hairline following receding temples + central peak */}
+                        <path
+                          d="M7 40 C15 54 23 66 31 57 C39 47 45 35 50 30 C55 35 61 47 69 57 C77 66 85 54 93 40"
+                          fill="none"
+                          stroke="rgba(239,68,68,0.9)"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </>
+                    )}
+                    {isFemale && (
+                      <path
+                        d="M10 44 C28 52 40 54 50 48 C60 54 72 52 90 44"
+                        fill="none"
+                        stroke="rgba(239,68,68,0.85)"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    )}
+                  </svg>
                 </div>
               </div>
             </div>
