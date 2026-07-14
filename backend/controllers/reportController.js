@@ -116,7 +116,6 @@ export async function submitAssessmentReport(req, res) {
         reportDate,
         aboutMe,
         scalpAnalysis,
-        pdfBuffer,
         storageInfo,
       });
     } catch (emailErr) {
