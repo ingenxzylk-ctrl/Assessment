@@ -281,6 +281,17 @@ const MALE_STAGE_IMAGE = {
   "overall-thinning": "/stages/overall_thinning.png",
 };
 
+/** Zylk-treated male visuals — Stage 1–5 only (6–7 need transplant).
+ *  Files expected: frontend/public/stages/treated/mstage1.png … mstage5.png
+ */
+const MALE_TREATED_STAGE_IMAGE = {
+  1: "/stages/treated/mstage1.png",
+  2: "/stages/treated/mstage2.png",
+  3: "/stages/treated/mstage3.png",
+  4: "/stages/treated/mstage4.png",
+  5: "/stages/treated/mstage5.png",
+};
+
 const FEMALE_STAGE_IMAGE = {
   1: "/stagesf/stage1.png",
   2: "/stagesf/stage2.png",
@@ -290,12 +301,72 @@ const FEMALE_STAGE_IMAGE = {
 };
 
 const clampMaleStage = (n) => Math.min(7, Math.max(1, n));
+/** Male stages eligible for Zylk treatment kits (not transplant). */
+const clampMaleTreatableStage = (n) => Math.min(5, Math.max(1, n));
 const clampFemaleStage = (n) => Math.min(3, Math.max(1, n));
 
-function stageImageFor(stageKey, isFemale) {
+function stageImageFor(stageKey, isFemale, options = {}) {
+  const { treated = false } = options;
   const key = String(stageKey || (isFemale ? "1" : "2"));
   if (isFemale) return FEMALE_STAGE_IMAGE[key] || FEMALE_STAGE_IMAGE["1"];
+
+  if (treated && key !== "overall-thinning") {
+    const treatable = String(clampMaleTreatableStage(parseInt(key, 10) || 2));
+    return (
+      MALE_TREATED_STAGE_IMAGE[treatable] ||
+      MALE_STAGE_IMAGE[treatable] ||
+      MALE_STAGE_IMAGE["2"]
+    );
+  }
+
   return MALE_STAGE_IMAGE[key] || MALE_STAGE_IMAGE["2"];
+}
+
+function maleStageCandidates(stageKey, treated = false) {
+  const key = String(stageKey);
+  if (key === "overall-thinning") {
+    return [MALE_STAGE_IMAGE["overall-thinning"]];
+  }
+  const n = treated
+    ? clampMaleTreatableStage(parseInt(key, 10) || 2)
+    : clampMaleStage(parseInt(key, 10) || 2);
+  if (treated) {
+    return [
+      `/stages/treated/mstage${n}.png`,
+      `/stages/treated/mstage${n}.jpg`,
+      `/stages/treated/Stage${n}.png`,
+      `/stages/Stage${n}.png`,
+    ];
+  }
+  return [`/stages/Stage${n}.png`, `/stages/Stage${n}.jpg`];
+}
+
+function maleStepImage(stageKey, treated = false) {
+  const candidates = maleStageCandidates(stageKey, treated);
+  return {
+    image: candidates[0],
+    fallback: candidates[1] || candidates[0],
+    fallbacks: candidates.slice(1),
+  };
+}
+
+/**
+ * Male treated sequence (Stage 1–5 library only).
+ * Example Stage 5 → 5, 5, 4, 3
+ * Example Stage 4 → 4, 4, 3, 2
+ */
+function maleTreatedStageAt(base, stepIndex) {
+  const start = clampMaleTreatableStage(base);
+  const improved = start - Math.floor(stepIndex * 0.85);
+  return clampMaleTreatableStage(improved);
+}
+
+/**
+ * Male untreated sequence can worsen into Stage 6–7 (transplant territory).
+ * Example Stage 5 → 5, 6, 7, 7
+ */
+function maleUntreatedStageAt(base, stepIndex) {
+  return clampMaleStage(base + stepIndex);
 }
 
 function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8) {
@@ -332,28 +403,60 @@ function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8
 
   if (stage === "overall-thinning") {
     return {
-      untreated: untreatedLabels.map((label, i) => ({
-        label,
-        image: stageImageFor(i === 0 ? "overall-thinning" : String(clampMaleStage(3 + i)), false),
-      })),
-      treated: treatedLabels.map((label, i) => ({
-        label,
-        image: stageImageFor(i === 0 ? "overall-thinning" : String(Math.max(1, 3 - i)), false),
-      })),
+      untreated: untreatedLabels.map((label, i) => {
+        const key = i === 0 ? "overall-thinning" : String(maleUntreatedStageAt(3, i));
+        return { label, ...maleStepImage(key, false) };
+      }),
+      treated: treatedLabels.map((label, i) => {
+        const key = i === 0 ? "overall-thinning" : String(maleTreatedStageAt(3, i));
+        return { label, ...maleStepImage(key, i !== 0) };
+      }),
     };
   }
 
-  const base = clampMaleStage(parseInt(stage, 10) || 2);
+  // Male pattern stages: Zylk path uses 1–5 treated assets; untreated may reach 6–7
+  const raw = parseInt(stage, 10) || 2;
+  const untreatedBase = clampMaleStage(raw);
+  const treatedBase = clampMaleTreatableStage(raw);
+
   return {
-    untreated: untreatedLabels.map((label, i) => ({
-      label,
-      image: stageImageFor(String(clampMaleStage(base + i)), false),
-    })),
-    treated: treatedLabels.map((label, i) => ({
-      label,
-      image: stageImageFor(String(clampMaleStage(base - Math.floor(i * 0.85))), false),
-    })),
+    untreated: untreatedLabels.map((label, i) => {
+      const key = String(maleUntreatedStageAt(untreatedBase, i));
+      return { label, ...maleStepImage(key, false) };
+    }),
+    treated: treatedLabels.map((label, i) => {
+      const key = String(maleTreatedStageAt(treatedBase, i));
+      return { label, ...maleStepImage(key, true) };
+    }),
   };
+}
+
+function StageProgressImage({ src, fallbacks = [], alt, className }) {
+  const candidates = useMemo(
+    () => [src, ...fallbacks].filter(Boolean).filter((url, i, arr) => arr.indexOf(url) === i),
+    [src, fallbacks]
+  );
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [candidates.join("|")]);
+
+  const current = candidates[Math.min(index, candidates.length - 1)] || "/stages/Stage2.png";
+
+  return (
+    <img
+      src={current}
+      alt={alt}
+      className={className}
+      onError={() => {
+        setIndex((prev) => {
+          if (prev + 1 < candidates.length) return prev + 1;
+          return prev;
+        });
+      }}
+    />
+  );
 }
 
 function ProgressionTrack({ title, steps, variant }) {
@@ -371,15 +474,12 @@ function ProgressionTrack({ title, steps, variant }) {
         {steps.map((step, index) => (
           <div key={`${step.label}-${index}`} className="flex items-center gap-1 shrink-0">
             <div className="flex flex-col items-center w-[72px] sm:w-[78px]">
-              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-white shadow-sm">
-                <img
+              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-gray-100 shadow-sm">
+                <StageProgressImage
                   src={step.image}
+                  fallbacks={step.fallbacks || (step.fallback ? [step.fallback] : [])}
                   alt={step.label}
-                  className="w-full h-full object-cover object-top"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "/stages/Stage2.png";
-                  }}
+                  className="w-full h-full object-contain p-1"
                 />
               </div>
               <span className="mt-2 text-[10px] font-semibold text-gray-700 text-center leading-tight">
