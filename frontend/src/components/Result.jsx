@@ -59,7 +59,13 @@ function resolveTestimonialPhotos(photos = []) {
       const src = normalizeTestimonialSrc(raw);
       if (!src) return null;
       const label = typeof photo === "string" ? "" : photo.label || "";
-      return { label, src, fallbacks: testimonialExtensionFallbacks(src) };
+      const scale =
+        typeof photo === "string"
+          ? 1
+          : typeof photo.scale === "number" && photo.scale > 0
+            ? photo.scale
+            : 1;
+      return { label, src, fallbacks: testimonialExtensionFallbacks(src), scale };
     })
     .filter(Boolean);
 }
@@ -115,9 +121,8 @@ const TESTIMONIALS = [
       "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
     date: "Reviewed on 12th Jan 2025",
     photos: [
-      { label: "Before", file: "Arun-before.png" },
-    
-      { label: "After", file: "Arun-after.png" },
+      { label: "Before", file: "Arun-before.png", scale: 0.78 },
+      { label: "After", file: "Arun-after.png", scale: 0.78 },
     ],
   },
 ];
@@ -146,6 +151,7 @@ function TestimonialPhoto({
   label,
   className,
   fit = "cover",
+  scale = 1,
 }) {
   const [urlIndex, setUrlIndex] = useState(0);
   const [failed, setFailed] = useState(false);
@@ -171,6 +177,8 @@ function TestimonialPhoto({
     );
   }
 
+  const imageScale = typeof scale === "number" && scale > 0 && scale < 1 ? scale : 1;
+
   return (
     <div className={`relative h-full w-full overflow-hidden ${className || ""}`}>
       <img
@@ -179,6 +187,7 @@ function TestimonialPhoto({
         className={`absolute inset-0 h-full w-full object-center ${
           fit === "contain" ? "object-contain bg-gray-50" : "object-cover"
         }`}
+        style={imageScale < 1 ? { transform: `scale(${imageScale})` } : undefined}
         onError={() => {
           if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
           else setFailed(true);
@@ -1367,6 +1376,7 @@ export default function Result() {
                       label={photo.label}
                       alt={`${testimonial.name} — ${photo.label}`}
                       fit="cover"
+                      scale={photo.scale}
                     />
                   </div>
                   <p className="text-[10px] text-center text-gray-600 mt-1.5 font-medium">{photo.label}</p>
