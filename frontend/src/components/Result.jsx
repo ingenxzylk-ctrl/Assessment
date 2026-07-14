@@ -227,7 +227,7 @@ function ResultsSeeingTimeline({ roadmap, ageRange }) {
   const itemRefs = useRef([]);
   const listRef = useRef(null);
   const pausedRef = useRef(false);
-  const AUTO_MS = 7000;
+  const AUTO_MS = 2000;
 
   const jumpTo = (index) => {
     setActiveIdx(index);
