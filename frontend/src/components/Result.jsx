@@ -1030,12 +1030,12 @@ export default function Result() {
                   className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                    <div className="w-20 h-20 sm:w-[88px] sm:h-[88px] rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3.5">
                       <ProductImage
                         src={product.imgUrl}
                         fallbacks={product.imgFallbacks}
                         alt={product.shortName}
-                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
@@ -1064,12 +1064,12 @@ export default function Result() {
                   }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                    <div className="w-20 h-20 sm:w-[88px] sm:h-[88px] rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3.5">
                       <ProductImage
                         src={healthMixProduct.imgUrl}
                         fallbacks={healthMixProduct.imgFallbacks}
                         alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
                           includeHealthMix ? "" : "opacity-60"
                         }`}
                       />
@@ -1289,12 +1289,12 @@ export default function Result() {
                   className="p-3 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                    <div className="w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
                       <ProductImage
                         src={product.imgUrl}
                         fallbacks={product.imgFallbacks}
                         alt={product.shortName}
-                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
@@ -1323,12 +1323,12 @@ export default function Result() {
                   }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                    <div className="w-16 h-16 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
                       <ProductImage
                         src={healthMixProduct.imgUrl}
                         fallbacks={healthMixProduct.imgFallbacks}
                         alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
                           includeHealthMix ? "" : "opacity-60"
                         }`}
                       />
