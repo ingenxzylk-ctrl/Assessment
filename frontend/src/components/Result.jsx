@@ -926,6 +926,185 @@ function RoadmapTimeline({ roadmap, resultMonths }) {
   );
 }
 
+function severityRank(value) {
+  const s = String(value || "none").toLowerCase();
+  if (s.includes("severe") || s === "3") return 3;
+  if (s.includes("moderate") || s === "2") return 2;
+  if (s.includes("mild") || s === "1" || s.includes("receding")) return 1;
+  return 0;
+}
+
+/**
+ * Stage-/observation-driven hair-loss overlay.
+ * M-shape is only used when temple recession warrants it — not for every user.
+ */
+function ScalpHairLossOverlay({ isFemale, stage, observations = {}, hairFallLocation }) {
+  const front = observations.frontView || {};
+  const top = observations.topView || {};
+  const back = observations.backView || {};
+  const stageKey = String(stage || "").toLowerCase();
+  const zone = String(hairFallLocation || "").toLowerCase();
+  const hairline = String(front.frontalHairline || "").toLowerCase();
+
+  let left = severityRank(front.templeRecessionLeft);
+  let right = severityRank(front.templeRecessionRight);
+  let crown = Math.max(
+    severityRank(top.crownThinning),
+    severityRank(back.crownDensity === "sparse" ? "severe" : back.crownDensity === "reduced" ? "mild" : "none")
+  );
+
+  // Fall back to AI stage when observation fields are missing
+  const stageNum = parseInt(stageKey, 10);
+  if (!Number.isNaN(stageNum)) {
+    if (stageNum >= 2 && left === 0 && right === 0 && hairline.includes("intact") === false) {
+      const d = stageNum === 2 ? 1 : stageNum === 3 ? 2 : 3;
+      left = Math.max(left, d);
+      right = Math.max(right, d);
+    }
+    if (stageNum >= 4) crown = Math.max(crown, stageNum >= 6 ? 3 : 2);
+  }
+  if (stageKey === "overall-thinning") crown = Math.max(crown, 2);
+  if (stageKey === "patchy-bald") crown = Math.max(crown, 2);
+
+  // Quiz location can emphasize zones even if stage is early
+  if (!isFemale) {
+    if (zone === "front" || zone === "parting") {
+      left = Math.max(left, 1);
+      right = Math.max(right, 1);
+    }
+    if (zone === "crown" || zone === "parting") crown = Math.max(crown, 1);
+    if (zone === "all_over") crown = Math.max(crown, 2);
+  } else {
+    if (stageKey === "2") crown = Math.max(crown, 1);
+    if (stageKey === "3" || stageKey === "overall-thinning") crown = Math.max(crown, 2);
+  }
+
+  if (hairline.includes("severe")) {
+    left = Math.max(left, 3);
+    right = Math.max(right, 3);
+  } else if (hairline.includes("moderate")) {
+    left = Math.max(left, 2);
+    right = Math.max(right, 2);
+  } else if (hairline.includes("mild") || hairline.includes("receding")) {
+    left = Math.max(left, 1);
+    right = Math.max(right, 1);
+  }
+
+  const templeDepth = Math.max(left, right);
+  const showTemples = !isFemale && templeDepth > 0;
+  const showCrown =
+    crown > 0 ||
+    stageKey === "overall-thinning" ||
+    stageKey === "patchy-bald" ||
+    zone === "crown" ||
+    zone === "all_over" ||
+    zone === "parting";
+  const showDiffuse = stageKey === "overall-thinning" || zone === "all_over" || (isFemale && stageKey === "overall-thinning");
+  const showPartLine = isFemale && (stageKey === "1" || stageKey === "2" || stageKey === "3");
+
+  if (!showTemples && !showCrown && !showDiffuse && !showPartLine) {
+    return null;
+  }
+
+  // Build asymmetric frontline from left/right temple severity (only when temples matter)
+  const leftPeakY = 34 - left * 6; // 34 / 28 / 22 / 16
+  const rightPeakY = 34 - right * 6;
+  const leftValleyY = 34 + Math.min(left, 2) * 3;
+  const rightValleyY = 34 + Math.min(right, 2) * 3;
+  const centerY = 30 - Math.min(templeDepth, 2) * 2;
+  const sideY = 36 - Math.min(templeDepth, 1);
+
+  const frontlinePath = showTemples
+    ? `M 4 ${sideY}
+       C 10 ${leftPeakY - 2} 16 ${leftPeakY} 24 ${leftPeakY + 2}
+       C 30 ${leftValleyY} 38 ${centerY + 6} 50 ${centerY}
+       C 62 ${centerY + 6} 70 ${rightValleyY} 76 ${rightPeakY + 2}
+       C 84 ${rightPeakY} 90 ${rightPeakY - 2} 96 ${sideY}`
+    : null;
+
+  const leftFill =
+    left > 0
+      ? `M 5 ${sideY + 2} C 12 ${sideY + 2} 20 ${leftValleyY} 28 ${leftValleyY - 2}
+         L 24 ${leftPeakY} C 16 ${leftPeakY - 4} 10 ${leftPeakY + 2} 5 ${sideY + 2}Z`
+      : null;
+  const rightFill =
+    right > 0
+      ? `M 95 ${sideY + 2} C 88 ${sideY + 2} 80 ${rightValleyY} 72 ${rightValleyY - 2}
+         L 76 ${rightPeakY} C 84 ${rightPeakY - 4} 90 ${rightPeakY + 2} 95 ${sideY + 2}Z`
+      : null;
+
+  const crownRadius = 10 + crown * 5;
+  const crownOpacity = 0.14 + crown * 0.06;
+
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+    >
+      {showDiffuse && (
+        <ellipse
+          cx="50"
+          cy="42"
+          rx="36"
+          ry="28"
+          fill={`rgba(220,38,38,${0.12 + crown * 0.04})`}
+        />
+      )}
+
+      {showCrown && !showDiffuse && (
+        <ellipse
+          cx="50"
+          cy={isFemale ? 36 : 28}
+          rx={crownRadius}
+          ry={crownRadius * 0.85}
+          fill={`rgba(220,38,38,${crownOpacity})`}
+        />
+      )}
+
+      {showPartLine && (
+        <path
+          d={
+            stageKey === "3"
+              ? "M 48 12 C 46 28 44 40 42 52 C 50 54 58 52 58 52 C 56 40 54 28 52 12Z"
+              : stageKey === "2"
+                ? "M 49 14 C 48 30 47 42 46 52 C 50 53 54 52 54 52 C 53 40 52 28 51 14Z"
+                : "M 49.5 16 C 49 32 48.5 44 48 52 C 50 52.5 52 52 52 52 C 51.5 40 51 28 50.5 16Z"
+          }
+          fill={`rgba(220,38,38,${stageKey === "3" ? 0.28 : stageKey === "2" ? 0.22 : 0.16})`}
+        />
+      )}
+
+      {leftFill && <path d={leftFill} fill={`rgba(220,38,38,${0.16 + left * 0.06})`} />}
+      {rightFill && <path d={rightFill} fill={`rgba(220,38,38,${0.16 + right * 0.06})`} />}
+
+      {frontlinePath && (
+        <path
+          d={frontlinePath}
+          fill="none"
+          stroke="rgba(220,38,38,0.92)"
+          strokeWidth={1.8 + Math.min(templeDepth, 2) * 0.3}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+
+      {isFemale && !showPartLine && showCrown && (
+        <path
+          d="M 12 34 C 30 40 40 42 50 38 C 60 42 70 40 88 34"
+          fill="none"
+          stroke="rgba(220,38,38,0.75)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+    </svg>
+  );
+}
+
 export default function Result() {
   const { state, resetQuiz, prevStep, setLoading, setError } = useQuiz();
   const { addToCart, cartCount, setIsCartOpen } = useCart();
@@ -1209,55 +1388,12 @@ export default function Result() {
                     }}
                   />
                   <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#6f8f3d]/20 via-transparent to-[#e67e22]/15" />
-                  {/* Frontline overlay: M-shaped male recession along the hair edge */}
-                  <svg
-                    className="pointer-events-none absolute inset-0 h-full w-full"
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="xMidYMid slice"
-                    aria-hidden="true"
-                  >
-                    {!isFemale && (
-                      <>
-                        {/*
-                          Hair-loss zones at the temples (between a youthful frontline
-                          and the recessed M hairline).
-                        */}
-                        <path
-                          d="M6 36 C14 38 22 40 30 38 L24 22 C16 18 10 24 6 36Z"
-                          fill="rgba(239,68,68,0.28)"
-                        />
-                        <path
-                          d="M94 36 C86 38 78 40 70 38 L76 22 C84 18 90 24 94 36Z"
-                          fill="rgba(239,68,68,0.28)"
-                        />
-                        {/*
-                          Accurate M frontline:
-                          temple peaks go UP (recession), valleys sit on the forehead
-                          edge, center peak follows the residual frontal hair.
-                        */}
-                        <path
-                          d="M5 34 C11 24 17 16 25 20 C31 24 35 34 39 38 C44 32 47 24 50 22 C53 24 56 32 61 38 C65 34 69 24 75 20 C83 16 89 24 95 34"
-                          fill="none"
-                          stroke="rgba(220,38,38,0.95)"
-                          strokeWidth="2.4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      </>
-                    )}
-                    {isFemale && (
-                      <path
-                        d="M8 34 C26 40 40 42 50 36 C60 42 74 40 92 34"
-                        fill="none"
-                        stroke="rgba(220,38,38,0.9)"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    )}
-                  </svg>
+                  <ScalpHairLossOverlay
+                    isFemale={isFemale}
+                    stage={aiPredictedStageNumber}
+                    observations={rawAnalysis.observations}
+                    hairFallLocation={isFemale ? null : state?.hairHealth?.hair_fall_zone}
+                  />
                 </div>
               </div>
             </div>
