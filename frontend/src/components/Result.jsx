@@ -1152,18 +1152,11 @@ export default function Result() {
                 Hello {userName},
               </h1>
 
-              {/* Mobile: stacked title + Norwood on the "Here is" line */}
+              {/* Mobile: stacked title rows */}
               <div className="sm:hidden space-y-0.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-[0.95rem] font-bold leading-tight text-[#6f8f3d]">
-                    Here is
-                  </p>
-                  {getScaleBadge() && (
-                    <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 py-0.5 text-[10px] font-semibold text-[#555555]">
-                      {getScaleBadge()}
-                    </span>
-                  )}
-                </div>
+                <p className="text-[0.95rem] font-bold leading-tight text-[#6f8f3d]">
+                  Here is
+                </p>
                 <p className="text-[0.95rem] font-bold leading-tight text-gray-900">
                   Your personalised
                 </p>
@@ -1220,12 +1213,12 @@ export default function Result() {
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
               Your Assessment
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug">
+            <div className="mt-2 flex flex-row flex-wrap items-center gap-2">
+              <h3 className="text-lg sm:text-2xl font-bold text-gray-900 leading-snug">
                 {getStageTitle()}
               </h3>
               {getScaleBadge() && (
-                <span className="hidden sm:inline-flex items-center rounded-full bg-[#ececec] px-2.5 py-1 text-xs font-semibold text-[#555555]">
+                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-[#555555] shrink-0">
                   {getScaleBadge()}
                 </span>
               )}
