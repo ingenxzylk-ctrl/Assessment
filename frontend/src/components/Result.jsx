@@ -593,8 +593,14 @@ export default function Result() {
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
 
+  const dandruffExperience = String(state?.hairHealth?.dandruff_experience || "").toLowerCase();
+  const hasDandruff =
+    dandruffExperience === "frequent" ||
+    dandruffExperience === "moderate" ||
+    dandruffExperience === "heavy" ||
+    dandruffExperience === "yes";
+
   const stateDump = JSON.stringify(state || {}).toLowerCase();
-  const hasDandruff = stateDump.includes("dandruff") && !stateDump.includes("no-dandruff");
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
   const rootCauseTags = [];
@@ -675,7 +681,7 @@ export default function Result() {
       wooProductId: getWooProductId(bundleNumber, includeHealthMix),
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
-      subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,
+      subtitle: getBundleDisplayName(bundleNumber, gender, aiPredictedStageNumber),
     });
   };
 

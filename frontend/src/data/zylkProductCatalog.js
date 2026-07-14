@@ -70,7 +70,9 @@ export const ZYLK_PRODUCTS = {
     name: "Zylk Tea Tree Mist Spray",
     subtitle: "Refreshing scalp mist for dandruff care",
     price: 249,
-    imgUrl: "/products/tea-tree-mist.jpg",
+    // Dedicated asset can be added later; rosemary mist is the closest available image
+    imgUrl: "/products/rosemary-mist.jpg",
+    imgFallbacks: ["/products/tea-tree-mist.jpg"],
   },
   "zylk-rosemary-mist": {
     id: "zylk-rosemary-mist",
