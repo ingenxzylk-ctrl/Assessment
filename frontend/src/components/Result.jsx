@@ -5,7 +5,6 @@ import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
-import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
 
@@ -221,200 +220,40 @@ function buildRoadmapMonths(totalMonths) {
 
 function ResultsSeeingTimeline({ roadmap, ageRange }) {
   const younger = ["18-25", "26-35"].includes(String(ageRange || ""));
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [autoProgress, setAutoProgress] = useState(0);
-  const [clockKey, setClockKey] = useState(0);
-  const itemRefs = useRef([]);
-  const listRef = useRef(null);
-  const pausedRef = useRef(false);
-  const AUTO_MS = 2000;
-
-  const jumpTo = (index) => {
-    setActiveIdx(index);
-    setAutoProgress(0);
-    setClockKey((key) => key + 1);
-  };
-
-  useEffect(() => {
-    if (!roadmap?.length) return undefined;
-    let acc = 0;
-    let last = performance.now();
-    let rafId = 0;
-
-    const loop = (now) => {
-      const dt = now - last;
-      last = now;
-      if (!pausedRef.current) {
-        acc += dt;
-        const p = Math.min(1, acc / AUTO_MS);
-        setAutoProgress(p);
-        if (acc >= AUTO_MS) {
-          acc = 0;
-          setAutoProgress(0);
-          setActiveIdx((prev) => (prev + 1) % roadmap.length);
-        }
-      }
-      rafId = requestAnimationFrame(loop);
-    };
-
-    rafId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafId);
-  }, [roadmap.length, clockKey]);
-
-  useEffect(() => {
-    const el = itemRefs.current[activeIdx];
-    const container = listRef.current;
-    if (!el || !container) return;
-    const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
-    container.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-  }, [activeIdx]);
-
-  const active = roadmap[activeIdx];
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 sm:p-5 text-left overflow-hidden">
-      <p className="text-base sm:text-lg font-bold text-gray-900">Start seeing results</p>
+    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 text-left">
+      <p className="text-sm font-bold text-gray-900 mb-3">Start seeing results</p>
 
-      <div className="mt-2.5 mb-4 h-1 w-full rounded-full bg-[#d8e8c8]/80 overflow-hidden">
-        <div
-          className="h-full rounded-full bg-[#6f8f3d] transition-[width] duration-100 ease-linear"
-          style={{ width: `${autoProgress * 100}%` }}
-        />
-      </div>
-
-      <div
-        ref={listRef}
-        className="relative max-h-[240px] overflow-y-auto pr-1 scrollbar-thin"
-        onMouseEnter={() => {
-          pausedRef.current = true;
-        }}
-        onMouseLeave={() => {
-          pausedRef.current = false;
-        }}
-        onTouchStart={() => {
-          pausedRef.current = true;
-        }}
-        onTouchEnd={() => {
-          window.setTimeout(() => {
-            pausedRef.current = false;
-          }, 2000);
-        }}
-      >
-        <ul className="relative space-y-2 py-1">
+      <div className="relative max-h-[168px] overflow-y-auto pr-1 scrollbar-thin">
+        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[#9ccc65]/70" />
+        <ul className="relative space-y-4">
           {roadmap.map((step, index) => {
-            const isActive = index === activeIdx;
-            const isPast = index < activeIdx;
-
+            const isFirst = index === 0;
+            const isEarly = index < 3;
             return (
-              <li
-                key={step.month}
-                ref={(node) => {
-                  itemRefs.current[index] = node;
-                }}
-                className="relative"
-              >
-                <button
-                  type="button"
-                  onClick={() => jumpTo(index)}
-                  className="relative w-full flex items-start gap-3.5 text-left rounded-xl px-1 py-2.5 cursor-pointer"
+              <li key={step.month} className="flex items-start gap-3 pl-0">
+                <span
+                  className={`relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                    isFirst
+                      ? "border-[#5a7a2f] bg-[#6f8f3d]"
+                      : isEarly
+                        ? "border-[#6f8f3d] bg-[#6f8f3d]"
+                        : "border-[#b7d48a] bg-[#dcecc0]"
+                  }`}
                 >
-                  {isActive && (
-                    <motion.span
-                      layoutId="results-timeline-active-bg"
-                      className="absolute inset-0 rounded-xl bg-white/80 border border-[#d8e8c8] shadow-[0_4px_14px_rgba(111,143,61,0.12)]"
-                      transition={{ type: "spring", stiffness: 340, damping: 32 }}
-                    />
-                  )}
-
-                  <span className="relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center">
-                    <motion.span
-                      className="relative flex h-7 w-7 items-center justify-center rounded-full border-2"
-                      animate={{
-                        scale: isActive ? 1.12 : 1,
-                        backgroundColor: isActive || isPast ? "#6f8f3d" : "#e8f0d8",
-                        borderColor: isActive || isPast ? "#5a7a2f" : "#c5ddb0",
-                      }}
-                      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                      {isActive && (
-                        <motion.span
-                          className="absolute inset-[-5px] rounded-full border border-[#6f8f3d]/35"
-                          initial={{ opacity: 0, scale: 0.7 }}
-                          animate={{ opacity: [0.55, 0.15, 0.55], scale: [1, 1.12, 1] }}
-                          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-                        />
-                      )}
-                      <motion.span
-                        className="rounded-full bg-white"
-                        animate={{
-                          width: isActive ? 8 : isPast ? 5 : 0,
-                          height: isActive ? 8 : isPast ? 5 : 0,
-                          opacity: isActive || isPast ? 1 : 0,
-                        }}
-                        transition={{ duration: 0.35 }}
-                      />
-                    </motion.span>
-                  </span>
-
-                  <motion.div
-                    className="relative z-10 min-w-0 flex-1 pt-0.5"
-                    animate={{
-                      opacity: isActive ? 1 : isPast ? 0.72 : 0.4,
-                      y: isActive ? 0 : 1,
-                    }}
-                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    <p
-                      className={`text-[15px] sm:text-base leading-snug ${
-                        isActive ? "text-gray-900" : "text-gray-600"
-                      }`}
-                    >
-                      <span className={`font-bold ${isActive ? "text-[#5a7a2f]" : ""}`}>
-                        Month {step.month}:
-                      </span>{" "}
-                      <span className={isActive ? "text-gray-800" : ""}>{step.desc}</span>
-                    </p>
-                  </motion.div>
-                </button>
+                  {isFirst && <span className="h-2 w-2 rounded-full bg-[#2f4514]" />}
+                </span>
+                <p className={`text-sm leading-snug pt-0.5 ${isEarly ? "text-gray-800" : "text-gray-500"}`}>
+                  <span className="font-bold">Month {step.month}:</span> {step.desc}
+                </p>
               </li>
             );
           })}
         </ul>
       </div>
 
-      <div className="mt-3.5 flex items-center justify-center gap-1.5">
-        {roadmap.map((step, index) => (
-          <button
-            key={`dot-${step.month}`}
-            type="button"
-            aria-label={`Go to month ${step.month}`}
-            onClick={() => jumpTo(index)}
-            className="p-1 cursor-pointer"
-          >
-            <motion.span
-              className="block rounded-full bg-[#6f8f3d]"
-              animate={{
-                width: index === activeIdx ? 18 : 6,
-                height: 6,
-                opacity: index === activeIdx ? 1 : index < activeIdx ? 0.55 : 0.28,
-              }}
-              transition={{ type: "spring", stiffness: 380, damping: 28 }}
-            />
-          </button>
-        ))}
-      </div>
-
-      {active ? (
-        <motion.p
-          key={active.month}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="mt-2 text-center text-[11px] text-gray-500"
-        >
-          Month {active.month} of {roadmap.length}
-        </motion.p>
-      ) : null}
+      <p className="mt-2 text-[10px] text-center text-gray-400">Scroll to see later months</p>
 
       <div className="mt-3 rounded-xl bg-[#e5f0d4] px-3 py-2.5 text-xs text-[#3d5a1f] leading-relaxed">
         {younger ? (
@@ -442,6 +281,15 @@ const MALE_STAGE_IMAGE = {
   "overall-thinning": "/stages/overall_thinning.png",
 };
 
+/** Zylk-treated male visuals — Stage 1–5 only (6–7 need transplant). */
+const MALE_TREATED_STAGE_IMAGE = {
+  1: "/treated/mstage1.png",
+  2: "/treated/mstage2.png",
+  3: "/treated/mstage3.png",
+  4: "/treated/mstage4.png",
+  5: "/treated/mstage5.png",
+};
+
 const FEMALE_STAGE_IMAGE = {
   1: "/stagesf/stage1.png",
   2: "/stagesf/stage2.png",
@@ -451,12 +299,53 @@ const FEMALE_STAGE_IMAGE = {
 };
 
 const clampMaleStage = (n) => Math.min(7, Math.max(1, n));
+/** Male stages eligible for Zylk treatment kits (not transplant). */
+const clampMaleTreatableStage = (n) => Math.min(5, Math.max(1, n));
 const clampFemaleStage = (n) => Math.min(3, Math.max(1, n));
 
-function stageImageFor(stageKey, isFemale) {
+function stageImageFor(stageKey, isFemale, options = {}) {
+  const { treated = false } = options;
   const key = String(stageKey || (isFemale ? "1" : "2"));
   if (isFemale) return FEMALE_STAGE_IMAGE[key] || FEMALE_STAGE_IMAGE["1"];
+
+  if (treated && key !== "overall-thinning") {
+    const treatable = String(clampMaleTreatableStage(parseInt(key, 10) || 2));
+    return (
+      MALE_TREATED_STAGE_IMAGE[treatable] ||
+      MALE_STAGE_IMAGE[treatable] ||
+      MALE_STAGE_IMAGE["2"]
+    );
+  }
+
   return MALE_STAGE_IMAGE[key] || MALE_STAGE_IMAGE["2"];
+}
+
+function maleStageFallback(stageKey, treated = false) {
+  const key = String(stageKey);
+  if (key === "overall-thinning") return MALE_STAGE_IMAGE["overall-thinning"];
+  const n = treated
+    ? clampMaleTreatableStage(parseInt(key, 10) || 2)
+    : clampMaleStage(parseInt(key, 10) || 2);
+  return MALE_STAGE_IMAGE[n] || MALE_STAGE_IMAGE["2"];
+}
+
+/**
+ * Male treated sequence (Stage 1–5 library only).
+ * Example Stage 5 → 5, 5, 4, 3
+ * Example Stage 4 → 4, 4, 3, 2
+ */
+function maleTreatedStageAt(base, stepIndex) {
+  const start = clampMaleTreatableStage(base);
+  const improved = start - Math.floor(stepIndex * 0.85);
+  return clampMaleTreatableStage(improved);
+}
+
+/**
+ * Male untreated sequence can worsen into Stage 6–7 (transplant territory).
+ * Example Stage 5 → 5, 6, 7, 7
+ */
+function maleUntreatedStageAt(base, stepIndex) {
+  return clampMaleStage(base + stepIndex);
 }
 
 function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8) {
@@ -493,27 +382,47 @@ function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8
 
   if (stage === "overall-thinning") {
     return {
-      untreated: untreatedLabels.map((label, i) => ({
-        label,
-        image: stageImageFor(i === 0 ? "overall-thinning" : String(clampMaleStage(3 + i)), false),
-      })),
-      treated: treatedLabels.map((label, i) => ({
-        label,
-        image: stageImageFor(i === 0 ? "overall-thinning" : String(Math.max(1, 3 - i)), false),
-      })),
+      untreated: untreatedLabels.map((label, i) => {
+        const key = i === 0 ? "overall-thinning" : String(maleUntreatedStageAt(3, i));
+        return {
+          label,
+          image: stageImageFor(key, false),
+          fallback: maleStageFallback(key, false),
+        };
+      }),
+      treated: treatedLabels.map((label, i) => {
+        const key = i === 0 ? "overall-thinning" : String(maleTreatedStageAt(3, i));
+        return {
+          label,
+          image: i === 0 ? stageImageFor("overall-thinning", false) : stageImageFor(key, false, { treated: true }),
+          fallback: maleStageFallback(key, true),
+        };
+      }),
     };
   }
 
-  const base = clampMaleStage(parseInt(stage, 10) || 2);
+  // Male pattern stages: Zylk path uses 1–5 treated assets; untreated may reach 6–7
+  const raw = parseInt(stage, 10) || 2;
+  const untreatedBase = clampMaleStage(raw);
+  const treatedBase = clampMaleTreatableStage(raw);
+
   return {
-    untreated: untreatedLabels.map((label, i) => ({
-      label,
-      image: stageImageFor(String(clampMaleStage(base + i)), false),
-    })),
-    treated: treatedLabels.map((label, i) => ({
-      label,
-      image: stageImageFor(String(clampMaleStage(base - Math.floor(i * 0.85))), false),
-    })),
+    untreated: untreatedLabels.map((label, i) => {
+      const key = String(maleUntreatedStageAt(untreatedBase, i));
+      return {
+        label,
+        image: stageImageFor(key, false),
+        fallback: maleStageFallback(key, false),
+      };
+    }),
+    treated: treatedLabels.map((label, i) => {
+      const key = String(maleTreatedStageAt(treatedBase, i));
+      return {
+        label,
+        image: stageImageFor(key, false, { treated: true }),
+        fallback: maleStageFallback(key, true),
+      };
+    }),
   };
 }
 
@@ -538,8 +447,14 @@ function ProgressionTrack({ title, steps, variant }) {
                   alt={step.label}
                   className="w-full h-full object-cover object-top"
                   onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "/stages/Stage2.png";
+                    const fallback = step.fallback || "/stages/Stage2.png";
+                    if (e.target.src.endsWith(fallback) || e.target.dataset.fallbackApplied === "1") {
+                      e.target.onerror = null;
+                      e.target.src = "/treated/mstage5.png";
+                      return;
+                    }
+                    e.target.dataset.fallbackApplied = "1";
+                    e.target.src = fallback;
                   }}
                 />
               </div>
@@ -574,7 +489,7 @@ function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
         Based on {isFemale ? "women" : "men"} with similar profile as you
       </p>
 
-      <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <ProgressionTrack title="If left untreated" steps={untreated} variant="untreated" />
         <ProgressionTrack title="With Zylk Treatment" steps={treated} variant="treated" />
       </div>
@@ -754,14 +669,8 @@ export default function Result() {
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
 
-  const dandruffExperience = String(state?.hairHealth?.dandruff_experience || "").toLowerCase();
-  const hasDandruff =
-    dandruffExperience === "frequent" ||
-    dandruffExperience === "moderate" ||
-    dandruffExperience === "heavy" ||
-    dandruffExperience === "yes";
-
   const stateDump = JSON.stringify(state || {}).toLowerCase();
+  const hasDandruff = stateDump.includes("dandruff") && !stateDump.includes("no-dandruff");
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
   const rootCauseTags = [];
@@ -810,7 +719,6 @@ export default function Result() {
         ...formatted,
         id: prod.id,
         subtitle: prod.subtitle || null,
-        price: prod.price ?? null,
         isHealthMix,
       };
     })
@@ -818,8 +726,9 @@ export default function Result() {
 
   const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
-  // Sheet list price for Health Mix is ₹1799 (not the bundle price delta)
-  const healthMixPrice = healthMixProduct?.price || HAIR_HEALTH_MIX_PRICE;
+  const healthMixDelta = recommendedBundle
+    ? Math.max(0, (recommendedBundle.bundlePrice || 0) - (recommendedBundle.priceWithoutMix || 0))
+    : 0;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
   
@@ -836,14 +745,13 @@ export default function Result() {
       price: recommendedBundle.price,
       priceWithMix: recommendedBundle.bundlePrice,
       priceWithoutMix: recommendedBundle.priceWithoutMix,
-      healthMixPrice,
       bundleNumber,
       includeHealthMix,
       coachCallOptIn,
       wooProductId: getWooProductId(bundleNumber, includeHealthMix),
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
-      subtitle: getBundleDisplayName(bundleNumber, gender, aiPredictedStageNumber),
+      subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,
     });
   };
 
@@ -1116,9 +1024,9 @@ export default function Result() {
         {!requiresDoctorConsultation && (
           <div className="bg-[#f0faf4] border border-[#b7e4c7] rounded-2xl p-4 flex gap-3 items-center">
             <div className="flex-1">
-              <p className="text-3xl font-black text-[#064e3b]">4X Growth</p>
+              <p className="text-3xl font-black text-[#064e3b]">3 Times</p>
               <p className="text-sm font-bold text-gray-800">Better results</p>
-              <p className="text-[10px] text-gray-500 uppercase mt-1">Based on DNA,Doctor,Nutrition,AI and Machine Learning</p>
+              <p className="text-[10px] text-gray-500 uppercase mt-1">Based on a 5-month study*</p>
               <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
                 Check Study →
               </button>
@@ -1190,12 +1098,12 @@ export default function Result() {
                   className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-20 h-20 sm:w-[88px] sm:h-[88px] rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
                       <ProductImage
                         src={product.imgUrl}
                         fallbacks={product.imgFallbacks}
                         alt={product.shortName}
-                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
@@ -1224,12 +1132,12 @@ export default function Result() {
                   }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-20 h-20 sm:w-[88px] sm:h-[88px] rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3.5">
+                    <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
                       <ProductImage
                         src={healthMixProduct.imgUrl}
                         fallbacks={healthMixProduct.imgFallbacks}
                         alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
+                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
                           includeHealthMix ? "" : "opacity-60"
                         }`}
                       />
@@ -1245,8 +1153,8 @@ export default function Result() {
                       )}
                       <p className="text-xs font-semibold text-[#064e3b] mt-1">
                         {includeHealthMix
-                          ? `Included · −₹${healthMixPrice} if removed`
-                          : `Add for +₹${healthMixPrice}`}
+                          ? `Included · −₹${healthMixDelta} if removed`
+                          : `Add for +₹${healthMixDelta}`}
                       </p>
                     </div>
                   </div>
@@ -1325,6 +1233,28 @@ export default function Result() {
                   }`}
                 />
               </button>
+            </div>
+          </div>
+        )}
+
+        {!requiresDoctorConsultation && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <h2 className="text-lg font-bold text-gray-900 leading-snug mb-4">
+              Your Routine Gets Easier And Cheaper Every Month
+            </h2>
+            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 relative h-44">
+              <p className="text-sm font-bold text-gray-500 mb-2">Less Products. Less Cost. Less Effort.</p>
+              <svg viewBox="0 0 300 100" className="w-full h-24" preserveAspectRatio="none">
+                <path d="M20,20 Q150,80 280,70" fill="none" stroke="#52b788" strokeWidth="4" />
+                <circle cx="20" cy="20" r="5" fill="#52b788" />
+                <circle cx="280" cy="70" r="5" fill="#52b788" />
+              </svg>
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1 px-1">
+                <span>Month 1</span>
+                <span>Month 3</span>
+                <span>Month 5</span>
+                <span>Month 8</span>
+              </div>
             </div>
           </div>
         )}
@@ -1427,12 +1357,12 @@ export default function Result() {
                   className="p-3 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
                       <ProductImage
                         src={product.imgUrl}
                         fallbacks={product.imgFallbacks}
                         alt={product.shortName}
-                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
@@ -1461,12 +1391,12 @@ export default function Result() {
                   }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-16 h-16 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
                       <ProductImage
                         src={healthMixProduct.imgUrl}
                         fallbacks={healthMixProduct.imgFallbacks}
                         alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
+                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
                           includeHealthMix ? "" : "opacity-60"
                         }`}
                       />
@@ -1482,8 +1412,8 @@ export default function Result() {
                       )}
                       <p className="text-xs font-semibold text-[#064e3b] mt-1">
                         {includeHealthMix
-                          ? `Included · −₹${healthMixPrice} if removed`
-                          : `Add for +₹${healthMixPrice}`}
+                          ? `Included · −₹${healthMixDelta} if removed`
+                          : `Add for +₹${healthMixDelta}`}
                       </p>
                     </div>
                   </div>
@@ -1540,9 +1470,9 @@ export default function Result() {
                       />
                       <span className="text-[11px] text-gray-600 font-medium">
                         Include Hair Health Mix
-                        {healthMixPrice > 0 && (
+                        {healthMixDelta > 0 && (
                           <span className="font-bold text-[#1b5e20]">
-                            {" "}({includeHealthMix ? `−₹${healthMixPrice}` : `+₹${healthMixPrice}`})
+                            {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
                           </span>
                         )}
                       </span>
@@ -1641,9 +1571,9 @@ export default function Result() {
                   />
                   <span className="text-[11px] text-gray-600 font-medium">
                     Include Hair Health Mix
-                    {healthMixPrice > 0 && (
+                    {healthMixDelta > 0 && (
                       <span className="font-bold text-[#1b5e20]">
-                        {" "}({includeHealthMix ? `−₹${healthMixPrice}` : `+₹${healthMixPrice}`})
+                        {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
                       </span>
                     )}
                   </span>
