@@ -300,20 +300,6 @@ function ResultsSeeingTimeline({ roadmap, ageRange }) {
           }, 2000);
         }}
       >
-        <div className="absolute left-[15px] top-4 bottom-4 w-px bg-[#cfe3bc]" />
-        <motion.div
-          className="absolute left-[15px] top-4 w-px origin-top bg-[#6f8f3d]"
-          initial={false}
-          animate={{
-            height:
-              roadmap.length <= 1
-                ? "0%"
-                : `${(activeIdx / Math.max(1, roadmap.length - 1)) * 100}%`,
-          }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          style={{ maxHeight: "calc(100% - 32px)" }}
-        />
-
         <ul className="relative space-y-2 py-1">
           {roadmap.map((step, index) => {
             const isActive = index === activeIdx;
