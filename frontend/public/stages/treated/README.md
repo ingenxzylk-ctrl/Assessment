@@ -14,3 +14,5 @@ Required filenames:
 
 Zylk treatment only shows stages **1–5** (one-stage improvement, e.g. 4→4→3→3).  
 Untreated can show **6–7**.
+
+Served at `/stages/treated/mstageN.png`.
