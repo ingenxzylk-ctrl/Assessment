@@ -320,13 +320,34 @@ function stageImageFor(stageKey, isFemale, options = {}) {
   return MALE_STAGE_IMAGE[key] || MALE_STAGE_IMAGE["2"];
 }
 
-function maleStageFallback(stageKey, treated = false) {
+function maleStageCandidates(stageKey, treated = false) {
   const key = String(stageKey);
-  if (key === "overall-thinning") return MALE_STAGE_IMAGE["overall-thinning"];
+  if (key === "overall-thinning") {
+    return [MALE_STAGE_IMAGE["overall-thinning"]];
+  }
   const n = treated
     ? clampMaleTreatableStage(parseInt(key, 10) || 2)
     : clampMaleStage(parseInt(key, 10) || 2);
-  return MALE_STAGE_IMAGE[n] || MALE_STAGE_IMAGE["2"];
+  const baseName = `Stage${n}`;
+  if (treated) {
+    return [
+      `/stages/treated/${baseName}.png`,
+      `/stages/treated/${baseName}.jpg`,
+      `/stages/treated/${baseName}.jpeg`,
+      `/stages/treated/${baseName}.webp`,
+      `/stages/${baseName}.png`,
+    ];
+  }
+  return [`/stages/${baseName}.png`, `/stages/${baseName}.jpg`];
+}
+
+function maleStepImage(stageKey, treated = false) {
+  const candidates = maleStageCandidates(stageKey, treated);
+  return {
+    image: candidates[0],
+    fallback: candidates[1] || candidates[0],
+    fallbacks: candidates.slice(1),
+  };
 }
 
 /**
@@ -426,6 +447,34 @@ function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8
   };
 }
 
+function StageProgressImage({ src, fallbacks = [], alt, className }) {
+  const candidates = useMemo(
+    () => [src, ...fallbacks].filter(Boolean).filter((url, i, arr) => arr.indexOf(url) === i),
+    [src, fallbacks]
+  );
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [candidates.join("|")]);
+
+  const current = candidates[Math.min(index, candidates.length - 1)] || "/stages/Stage2.png";
+
+  return (
+    <img
+      src={current}
+      alt={alt}
+      className={className}
+      onError={() => {
+        setIndex((prev) => {
+          if (prev + 1 < candidates.length) return prev + 1;
+          return prev;
+        });
+      }}
+    />
+  );
+}
+
 function ProgressionTrack({ title, steps, variant }) {
   const isTreated = variant === "treated";
   const shell = isTreated
@@ -441,21 +490,12 @@ function ProgressionTrack({ title, steps, variant }) {
         {steps.map((step, index) => (
           <div key={`${step.label}-${index}`} className="flex items-center gap-1 shrink-0">
             <div className="flex flex-col items-center w-[72px] sm:w-[78px]">
-              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-white shadow-sm">
-                <img
+              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-gray-100 shadow-sm">
+                <StageProgressImage
                   src={step.image}
+                  fallbacks={step.fallbacks || (step.fallback ? [step.fallback] : [])}
                   alt={step.label}
-                  className="w-full h-full object-cover object-top"
-                  onError={(e) => {
-                    const fallback = step.fallback || "/stages/Stage2.png";
-                    if (e.target.src.endsWith(fallback) || e.target.dataset.fallbackApplied === "1") {
-                      e.target.onerror = null;
-                      e.target.src = "/stages/Stage2.png";
-                      return;
-                    }
-                    e.target.dataset.fallbackApplied = "1";
-                    e.target.src = fallback;
-                  }}
+                  className="w-full h-full object-contain p-1"
                 />
               </div>
               <span className="mt-2 text-[10px] font-semibold text-gray-700 text-center leading-tight">
