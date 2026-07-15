@@ -119,72 +119,221 @@ function getOrCreateDailyReportMeta(fingerprint) {
   return { reportId, reportDate };
 }
 
-function buildRootCauses(state, hasDandruff, isFemale) {
-  const dump = JSON.stringify(state || {}).toLowerCase();
-  const causes = [];
+function getDandruffLevel(state) {
+  return String(state?.hairHealth?.dandruff_experience || "").toLowerCase().trim();
+}
 
+/** Quiz values: frequent | moderate | no */
+function resolveHasDandruff(state) {
+  const level = getDandruffLevel(state);
+  return level === "frequent" || level === "moderate";
+}
+
+function includesIgnoreCase(value, needle) {
+  return String(value || "").toLowerCase().includes(String(needle).toLowerCase());
+}
+
+function listIncludesIgnoreCase(list, needle) {
+  return (Array.isArray(list) ? list : []).some((item) => includesIgnoreCase(item, needle));
+}
+
+/**
+ * Build root causes from the important quiz answers only.
+ * Cards appear only when the matching quiz signal is present.
+ */
+function buildRootCauses(state, hasDandruff, isFemale) {
+  const hair = state?.hairHealth || {};
+  const internal = state?.internalHealth || {};
+  const causes = [];
+  const dandruffLevel = getDandruffLevel(state);
+  const family = String(hair.family_history || "").toLowerCase();
+  const stress = String(internal.stress_level || "");
+  const sleep = String(internal.sleep_cycle || "");
+  const energy = String(internal.energy_level || "");
+  const bowel = String(internal.bowel || "");
+  const gas = String(internal.gas_acidity || "");
+  const digestion = String(internal.digestion || "");
+  const iron = String(internal.iron_level || "");
+  const food = String(internal.food_habits || "");
+  const lifeStage = String(internal.life_stage || "");
+  const conditions = Array.isArray(internal.health_conditions) ? internal.health_conditions : [];
+  const symptoms = Array.isArray(internal.symptoms) ? internal.symptoms : [];
+  const dailyLoss = String(hair.daily_loss_amount || "");
+  const shedding = String(hair.shedding_amount || "").toLowerCase();
+
+  // 1) Dandruff — quiz: dandruff_experience
   if (hasDandruff) {
     causes.push({
       id: "dandruff",
-      label: "Dandruff",
+      label: dandruffLevel === "frequent" ? "Heavy Dandruff" : "Dandruff",
       icon: "🧴",
-      desc: "Dandruff irritates your scalp and weakens hair roots. We clear it in 1 month for long-term regrowth.",
+      desc:
+        dandruffLevel === "frequent"
+          ? "You reported heavy dandruff. Flakes irritate the scalp and weaken roots — clearing this early is a priority in your plan."
+          : "You reported moderate dandruff. Reducing flakes helps calm the scalp so growth products can work better.",
     });
   }
 
-  causes.push({
-    id: "genetic",
-    label: "Genetics",
-    icon: "🧬",
-    desc: isFemale
-      ? "Hormonal shifts along the hair part line cause progressive thinning. Our kit targets receptors internally and topically."
-      : "DHT sensitivity shrinks follicles over time. Our dual-action serum blocks DHT locally while nourishing roots.",
-  });
-
-  if (dump.includes("stress") || dump.includes("anxiety") || dump.includes("sleep") || dump.includes("poor")) {
+  // 2) Genetics — quiz: family_history
+  if (family && family !== "none") {
+    const sideLabel =
+      family === "both"
+        ? "both sides of your family"
+        : family === "mother"
+          ? "your mother's side"
+          : "your father's side";
     causes.push({
-      id: "lifestyle",
-      label: "Lifestyle",
-      icon: "❤️",
-      desc: "High stress levels and poor sleep can accelerate hair fall. This plan includes strategies to manage these environmental triggers.",
+      id: "genetic",
+      label: "Genetics",
+      icon: "🧬",
+      desc: isFemale
+        ? `Family history on ${sideLabel} points to genetic thinning along the part line. Your kit targets follicle receptors internally and topically.`
+        : `Family history on ${sideLabel} increases DHT-related follicle shrinkage risk. Your plan blocks DHT locally while nourishing roots.`,
     });
   }
 
-  if (dump.includes("diet") || dump.includes("nutrition") || dump.includes("iron") || dump.includes("veg") || dump.includes("food")) {
-    causes.push({
-      id: "nutrition",
-      label: "Nutrition",
-      icon: "🍎",
-      desc: "Optimizing your intake is key to healthy growth. Our analysis identifies nutritional gaps to support your hair health from the inside out.",
-    });
-  } else {
-    causes.push({
-      id: "nutrition",
-      label: "Nutrition",
-      icon: "🍎",
-      desc: "Optimizing your intake is key to healthy growth. Our analysis identifies nutritional gaps to support your hair health from the inside out.",
-    });
+  // 3) Hormonal / medical — quiz: symptoms, life_stage, health_conditions
+  const hormonalSignals = [];
+  if (listIncludesIgnoreCase(symptoms, "pcos") || listIncludesIgnoreCase(symptoms, "pcod")) {
+    hormonalSignals.push("PCOS/PCOD");
+  }
+  if (listIncludesIgnoreCase(symptoms, "thyroid") || listIncludesIgnoreCase(conditions, "thyroid")) {
+    hormonalSignals.push("thyroid");
+  }
+  if (listIncludesIgnoreCase(symptoms, "irregular periods")) hormonalSignals.push("irregular periods");
+  if (listIncludesIgnoreCase(symptoms, "extra hair on face")) hormonalSignals.push("androgen signs");
+  if (listIncludesIgnoreCase(symptoms, "pimples")) hormonalSignals.push("hormonal acne");
+  if (listIncludesIgnoreCase(conditions, "diabetes")) hormonalSignals.push("blood sugar");
+  if (
+    lifeStage &&
+    !/^none$/i.test(lifeStage.trim()) &&
+    (includesIgnoreCase(lifeStage, "pregnant") ||
+      includesIgnoreCase(lifeStage, "breastfeeding") ||
+      includesIgnoreCase(lifeStage, "periods anymore") ||
+      includesIgnoreCase(lifeStage, "planning"))
+  ) {
+    hormonalSignals.push("life-stage hormone shift");
   }
 
-  if (dump.includes("thyroid") || dump.includes("pcos") || dump.includes("hormone")) {
+  if (hormonalSignals.length) {
     causes.push({
       id: "hormonal",
       label: "Hormonal",
       icon: "💊",
-      desc: "Internal hormonal imbalance accelerates shedding. We address this with targeted internal + topical therapy.",
+      desc: `Your answers flagged ${hormonalSignals.slice(0, 2).join(" + ")}. Hormonal imbalance can accelerate shedding — we address this with targeted internal + topical support.`,
     });
   }
 
-  if (!causes.some((c) => c.id === "lifestyle")) {
+  // 4) Nutrition / iron / gut absorption — quiz: iron, food, energy, bowel, gas, digestion, supplements
+  const nutritionBits = [];
+  if (includesIgnoreCase(iron, "low iron")) nutritionBits.push("low iron");
+  if (includesIgnoreCase(iron, "never checked")) nutritionBits.push("unchecked iron status");
+  if (includesIgnoreCase(energy, "very low") || includesIgnoreCase(energy, "low in afternoon")) {
+    nutritionBits.push("low daytime energy");
+  }
+  if (includesIgnoreCase(bowel, "irregular") || includesIgnoreCase(bowel, "constipation")) {
+    nutritionBits.push("irregular digestion");
+  }
+  if (includesIgnoreCase(gas, "frequently") || includesIgnoreCase(gas, "chronic")) {
+    nutritionBits.push("chronic bloating");
+  }
+  if (includesIgnoreCase(digestion, "bloating") || includesIgnoreCase(digestion, "constipation")) {
+    nutritionBits.push("gut absorption stress");
+  }
+  if (includesIgnoreCase(food, "vegetarian")) nutritionBits.push("vegetarian diet gaps");
+  if (String(internal.supplements || "").toLowerCase() === "no") {
+    nutritionBits.push("no current supplements");
+  }
+
+  if (nutritionBits.length) {
+    causes.push({
+      id: "nutrition",
+      label: includesIgnoreCase(iron, "low iron") ? "Iron & Nutrition" : "Nutrition",
+      icon: "🍎",
+      desc: `Based on your quiz (${nutritionBits.slice(0, 2).join(", ")}), nutrient support is important for stronger growth from the inside out.`,
+    });
+  }
+
+  // 5) Lifestyle — quiz: stress_level, sleep_cycle
+  const lifestyleBits = [];
+  if (includesIgnoreCase(stress, "high") || includesIgnoreCase(stress, "severe")) {
+    lifestyleBits.push("high stress");
+  } else if (includesIgnoreCase(stress, "moderate")) {
+    lifestyleBits.push("daily stress");
+  }
+  if (includesIgnoreCase(sleep, "less than 5")) lifestyleBits.push("short sleep");
+
+  if (lifestyleBits.length) {
     causes.push({
       id: "lifestyle",
       label: "Lifestyle",
       icon: "❤️",
-      desc: "High stress levels and poor sleep can accelerate hair fall. This plan includes strategies to manage these environmental triggers.",
+      desc: `You reported ${lifestyleBits.join(" + ")}. Stress and poor sleep can push more follicles into shedding — your plan includes habits that calm these triggers.`,
+    });
+  }
+
+  // 6) Heavy shedding intensity — quiz: daily_loss_amount / shedding_amount
+  const heavyFall =
+    ["100_150", "over_150"].includes(dailyLoss) || shedding === "heavy";
+  if (heavyFall) {
+    causes.push({
+      id: "shedding",
+      label: "Heavy Shedding",
+      icon: "💨",
+      desc: "You reported heavy daily hair fall. Early fall-control is built into month 1 so density recovery can start sooner.",
+    });
+  }
+
+  // If quiz signals were sparse, keep one honest baseline so the section isn't empty
+  if (!causes.length) {
+    causes.push({
+      id: "pattern",
+      label: isFemale ? "Part-line Thinning" : "Pattern Hair Loss",
+      icon: "🧬",
+      desc: isFemale
+        ? "Your photos and answers point to pattern thinning. We focus on scalp health and follicle support along the part and crown."
+        : "Your photos and answers point to pattern hair loss. We focus on DHT control and follicle nourishment for your stage.",
     });
   }
 
   return causes;
+}
+
+function buildRootCauseTags(state, hasDandruff) {
+  const tags = [];
+  const internal = state?.internalHealth || {};
+  const symptoms = Array.isArray(internal.symptoms) ? internal.symptoms : [];
+  const conditions = Array.isArray(internal.health_conditions) ? internal.health_conditions : [];
+
+  if (hasDandruff) tags.push("Scalp Clear");
+  if (
+    includesIgnoreCase(internal.stress_level, "high") ||
+    includesIgnoreCase(internal.stress_level, "severe") ||
+    includesIgnoreCase(internal.stress_level, "moderate")
+  ) {
+    tags.push("Cortisol Control");
+  }
+  if (
+    includesIgnoreCase(internal.iron_level, "low") ||
+    includesIgnoreCase(internal.energy_level, "low") ||
+    includesIgnoreCase(internal.food_habits, "vegetarian") ||
+    includesIgnoreCase(internal.bowel, "irregular") ||
+    includesIgnoreCase(internal.bowel, "constipation") ||
+    includesIgnoreCase(internal.digestion, "bloating") ||
+    includesIgnoreCase(internal.digestion, "constipation")
+  ) {
+    tags.push("Nutrient Sync");
+  }
+  if (
+    listIncludesIgnoreCase(symptoms, "pcos") ||
+    listIncludesIgnoreCase(symptoms, "pcod") ||
+    listIncludesIgnoreCase(symptoms, "thyroid") ||
+    listIncludesIgnoreCase(conditions, "thyroid") ||
+    listIncludesIgnoreCase(symptoms, "irregular periods")
+  ) {
+    tags.push("Hormone Balancing");
+  }
+  return tags;
 }
 
 function getMonthPhase(month, totalMonths) {
@@ -593,14 +742,10 @@ export default function Result() {
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
 
-  const stateDump = JSON.stringify(state || {}).toLowerCase();
-  const hasDandruff = stateDump.includes("dandruff") && !stateDump.includes("no-dandruff");
+  const hasDandruff = resolveHasDandruff(state);
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
-  const rootCauseTags = [];
-  if (stateDump.includes("stress")) rootCauseTags.push("Cortisol Control");
-  if (stateDump.includes("diet") || stateDump.includes("nutrition")) rootCauseTags.push("Nutrient Sync");
-  if (stateDump.includes("hormone") || stateDump.includes("pcos") || stateDump.includes("thyroid")) rootCauseTags.push("Hormone Balancing");
+  const rootCauseTags = buildRootCauseTags(state, hasDandruff);
 
   const recommendedBundle = !requiresDoctorConsultation
     ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, includeHealthMix)
