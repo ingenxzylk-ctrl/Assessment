@@ -490,14 +490,31 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
             {((isFemale && (!images.front || !images.side || !images.back)) ||
               (!isFemale && (!images.front || !images.top))) && (
-              <div className="flex gap-4 justify-center mb-6">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Fill the next empty slot (front → side/top → back)
+                    let nextType = "front";
+                    if (!images.front) nextType = "front";
+                    else if (isFemale && !images.side) nextType = "side";
+                    else if (isFemale && !images.back) nextType = "back";
+                    else if (!isFemale && !images.top) nextType = "top";
+                    setActiveCaptureType(nextType);
+                    setUseCamera(false);
+                    fileInputRef.current?.click();
+                  }}
+                  className="h-12 w-full sm:w-auto px-6 bg-[#064e3b] text-white font-semibold rounded-full hover:bg-[#043427] transition-all text-sm shadow-sm cursor-pointer"
+                >
+                  Upload Image
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setActiveCaptureType("");
                     setUseCamera(true);
                   }}
-                  className="h-12 px-5 bg-gray-800 text-white font-semibold rounded-full hover:bg-gray-900 transition-all text-sm shadow-sm cursor-pointer"
+                  className="h-12 w-full sm:w-auto px-6 bg-gray-800 text-white font-semibold rounded-full hover:bg-gray-900 transition-all text-sm shadow-sm cursor-pointer"
                 >
                   Use Live Camera Feed
                 </button>
