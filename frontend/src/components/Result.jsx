@@ -119,16 +119,30 @@ function getOrCreateDailyReportMeta(fingerprint) {
   return { reportId, reportDate };
 }
 
+function getDandruffLevel(state) {
+  return String(state?.hairHealth?.dandruff_experience || "").toLowerCase().trim();
+}
+
+/** Quiz values: frequent | moderate | no */
+function resolveHasDandruff(state) {
+  const level = getDandruffLevel(state);
+  return level === "frequent" || level === "moderate";
+}
+
 function buildRootCauses(state, hasDandruff, isFemale) {
   const dump = JSON.stringify(state || {}).toLowerCase();
   const causes = [];
+  const dandruffLevel = getDandruffLevel(state);
 
   if (hasDandruff) {
     causes.push({
       id: "dandruff",
-      label: "Dandruff",
+      label: dandruffLevel === "frequent" ? "Heavy Dandruff" : "Dandruff",
       icon: "🧴",
-      desc: "Dandruff irritates your scalp and weakens hair roots. We clear it in 1 month for long-term regrowth.",
+      desc:
+        dandruffLevel === "frequent"
+          ? "Heavy dandruff is irritating your scalp and weakening hair roots. We prioritise clearing flakes in about 1 month so regrowth can take hold."
+          : "Moderate dandruff is irritating your scalp and stressing hair roots. We clear flakes early so the rest of your plan can work better.",
     });
   }
 
@@ -594,7 +608,7 @@ export default function Result() {
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
 
   const stateDump = JSON.stringify(state || {}).toLowerCase();
-  const hasDandruff = stateDump.includes("dandruff") && !stateDump.includes("no-dandruff");
+  const hasDandruff = resolveHasDandruff(state);
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
   const rootCauseTags = [];
