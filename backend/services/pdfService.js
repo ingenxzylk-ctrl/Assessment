@@ -12,19 +12,23 @@ function labelize(value) {
 }
 
 function addSectionTitle(doc, title) {
+  doc.x = doc.page.margins.left;
   doc.moveDown(0.6);
   doc
     .fontSize(13)
     .fillColor("#064e3b")
     .font("Helvetica-Bold")
-    .text(title, { underline: true });
+    .text(title, { underline: true, width: doc.page.width - doc.page.margins.left - doc.page.margins.right });
   doc.moveDown(0.3);
+  doc.x = doc.page.margins.left;
   doc.font("Helvetica").fillColor("#111827").fontSize(10);
 }
 
 function addKeyValue(doc, key, value) {
+  doc.x = doc.page.margins.left;
   const text = `${key}: ${labelize(value)}`;
-  doc.text(text, { width: 500 });
+  const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  doc.text(text, { width: contentWidth });
 }
 
 function collectQaPairs(payload) {
@@ -77,8 +81,127 @@ function collectQaPairs(payload) {
   return pairs.filter(([, v]) => v != null && v !== "");
 }
 
+/** Parse a browser data-URL into a Buffer PDFKit can embed. */
+function parseDataUrlImage(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== "string") return null;
+  const match = /^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/s.exec(dataUrl.trim());
+  if (!match) return null;
+  try {
+    return Buffer.from(match[2], "base64");
+  } catch {
+    return null;
+  }
+}
+
+function getUploadedScalpPhotos(scalpImages = []) {
+  const order = ["front", "top", "side", "back"];
+  const list = Array.isArray(scalpImages) ? scalpImages : [];
+  const withData = list
+    .map((img) => ({
+      type: img?.type || img?.label || "photo",
+      label: img?.label || img?.type || "photo",
+      buffer: parseDataUrlImage(img?.dataUrl || img?.previewUrl || img?.url),
+    }))
+    .filter((img) => img.buffer);
+
+  withData.sort((a, b) => {
+    const ai = order.indexOf(String(a.type).toLowerCase());
+    const bi = order.indexOf(String(b.type).toLowerCase());
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  return withData;
+}
+
+function embedScalpPhotos(doc, scalpImages) {
+  const photos = getUploadedScalpPhotos(scalpImages);
+  if (!photos.length) {
+    addSectionTitle(doc, "Uploaded scalp photos");
+    doc.font("Helvetica").fillColor("#6b7280").text("No uploaded scalp photos were available for this report.");
+    return;
+  }
+
+  addSectionTitle(doc, "Uploaded scalp photos");
+  doc
+    .font("Helvetica")
+    .fillColor("#4b5563")
+    .fontSize(9)
+    .text("Customer-uploaded photos used for AI assessment:", { width: 500 });
+  doc.moveDown(0.4);
+
+  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const gap = 20;
+  // Slightly smaller than half-width so photos don't dominate the page
+  const boxW = Math.min(175, (pageWidth - gap) / 2.4);
+  const boxH = boxW;
+  const startX = doc.page.margins.left;
+  let x = startX;
+  let rowTop = doc.y;
+  const labelH = 16;
+  const rowGap = 12;
+
+  // Ensure room for one row of images + labels
+  if (rowTop + boxH + labelH + 24 > doc.page.height - doc.page.margins.bottom) {
+    doc.addPage();
+    rowTop = doc.y;
+  }
+
+  photos.forEach((photo, index) => {
+    if (index > 0 && index % 2 === 0) {
+      const nextY = rowTop + boxH + labelH + rowGap;
+      if (nextY + boxH + labelH + 24 > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
+        rowTop = doc.page.margins.top;
+      } else {
+        rowTop = nextY;
+      }
+      x = startX;
+    }
+
+    try {
+      doc.image(photo.buffer, x, rowTop, {
+        fit: [boxW, boxH],
+        align: "center",
+        valign: "center",
+      });
+    } catch (err) {
+      console.warn("[pdf] could not embed scalp photo:", photo.type, err.message);
+      doc
+        .rect(x, rowTop, boxW, boxH)
+        .strokeColor("#e5e7eb")
+        .stroke();
+      doc
+        .fontSize(9)
+        .fillColor("#9ca3af")
+        .text("Image unavailable", x + 8, rowTop + boxH / 2 - 6, {
+          width: boxW - 16,
+          align: "center",
+          lineBreak: false,
+        });
+    }
+
+    // Absolute-positioned label — lineBreak:false avoids shifting doc.x
+    doc
+      .fontSize(9)
+      .fillColor("#111827")
+      .font("Helvetica-Bold")
+      .text(labelize(photo.label || photo.type), x, rowTop + boxH + 4, {
+        width: boxW,
+        align: "center",
+        lineBreak: false,
+      });
+
+    x += boxW + gap;
+  });
+
+  // Critical: reset cursor to left margin so following sections align
+  doc.x = doc.page.margins.left;
+  doc.y = rowTop + boxH + labelH + 18;
+  doc.font("Helvetica").fillColor("#111827").fontSize(10);
+}
+
 /**
- * Build an A4 PDF Buffer for the assessment report (Q&A + AI findings).
+ * Build an A4 PDF Buffer for the assessment report (Q&A + AI findings + photos).
  */
 export function buildAssessmentPdf(payload) {
   const {
@@ -86,6 +209,7 @@ export function buildAssessmentPdf(payload) {
     reportDate,
     aboutMe = {},
     scalpAnalysis = {},
+    scalpImages = [],
     reportMeta = {},
   } = payload;
 
@@ -125,6 +249,9 @@ export function buildAssessmentPdf(payload) {
     addKeyValue(doc, "WhatsApp", aboutMe.whatsapp);
     addKeyValue(doc, "Age range", aboutMe.ageRange);
     addKeyValue(doc, "Gender", aboutMe.gender);
+
+    // Embed both (or all) uploaded scalp photos early in the report
+    embedScalpPhotos(doc, scalpImages);
 
     addSectionTitle(doc, "2. Quiz questions & answers");
     for (const [q, a] of collectQaPairs(payload)) {

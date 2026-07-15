@@ -47,8 +47,8 @@ async function allocateReportId() {
 }
 
 /**
- * Strip bulky image payloads from the JSON archive (PDF does not embed them in v1).
- * Keeps image metadata (type/label) for audit.
+ * Strip bulky image payloads from the JSON archive after PDF generation.
+ * PDF embeds the photos; JSON keeps metadata only.
  */
 function sanitizeForArchive(payload) {
   const images = Array.isArray(payload.scalpImages)
@@ -111,12 +111,12 @@ export async function submitAssessmentReport(req, res) {
 
     let emailResult;
     try {
+      // Notification only — never pass pdfBuffer (Drive link is in storageInfo)
       emailResult = await sendReportToOrganisation({
         reportId,
         reportDate,
         aboutMe,
         scalpAnalysis,
-        pdfBuffer,
         storageInfo,
       });
     } catch (emailErr) {

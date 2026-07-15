@@ -1093,13 +1093,14 @@ export default function Result() {
       hairHealth: state.hairHealth || {},
       internalHealth: state.internalHealth || {},
       scalpAnalysis: rawAnalysis,
-      scalpImages: (state.scalpImages || []).map((img) => ({
-        type: img.type,
-        label: img.label,
-        // Omit full dataUrl from wire payload size; metadata is enough for archive.
-        // Backend PDF v1 is text-based; images stay on the client Result UI.
-        hasImage: Boolean(img.dataUrl || img.previewUrl || img.url),
-      })),
+      scalpImages: (state.scalpImages || [])
+        .filter((img) => img?.dataUrl || img?.previewUrl || img?.url)
+        .map((img) => ({
+          type: img.type,
+          label: img.label || img.type,
+          // Include compressed data URLs so the org PDF can embed both photos
+          dataUrl: img.dataUrl || img.previewUrl || img.url || null,
+        })),
       gender,
       clientReportId: reportId,
       reportMeta: {
@@ -1145,68 +1146,80 @@ export default function Result() {
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5">
-          <div className="flex flex-row gap-3 sm:gap-5 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-2 sm:space-y-3">
-              <h1 className="text-[1.35rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-3.5 sm:p-5">
+          <div className="flex flex-row gap-2.5 sm:gap-5 items-start">
+            <div className="flex-1 min-w-0 text-left space-y-1.5 sm:space-y-3">
+              <h1 className="text-[1.2rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
 
-              <h2 className="text-[1.05rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
+              {/* Mobile: stacked title rows */}
+              <div className="sm:hidden space-y-0.5">
+                <p className="text-[0.95rem] font-bold leading-tight text-[#6f8f3d]">
+                  Here is
+                </p>
+                <p className="text-[0.95rem] font-bold leading-tight text-gray-900">
+                  Your personalised
+                </p>
+                <p className="text-[0.95rem] font-bold leading-tight text-[#6f8f3d]">
+                  Hair assessment Report
+                </p>
+              </div>
+
+              {/* Desktop: single-line title */}
+              <h2 className="hidden sm:block text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
                 <span className="text-[#6f8f3d]">Here is</span> your personalized{" "}
                 <span className="text-[#6f8f3d]">Hair Assessment Report</span>
               </h2>
 
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-2.5 sm:px-3.5 py-1 sm:py-1.5 max-w-full">
-                <span className="inline-flex h-4 w-4 items-center justify-center shrink-0" aria-hidden="true">
-                  <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
+              <div className="inline-flex items-start gap-1.5 sm:gap-2 rounded-2xl sm:rounded-full bg-[#ececec] px-2.5 sm:px-3.5 py-1.5 max-w-full">
+                <span className="inline-flex h-3.5 w-3.5 sm:h-4 sm:w-4 items-center justify-center shrink-0 mt-0.5" aria-hidden="true">
+                  <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
                     <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <span className="text-[10px] sm:text-[12px] font-medium text-[#555555] truncate">
+                <span className="text-[10px] sm:text-[12px] font-medium text-[#555555] leading-snug break-words">
                   Report ID: {reportId} • {reportDate}
                 </span>
               </div>
 
-              <p className="text-[13px] sm:text-[15px] text-[#555555] leading-relaxed">
+              <p className="text-[12px] sm:text-[15px] text-[#555555] leading-relaxed">
                 Our AI scan + expert analysis of 14 key parameters gives us{" "}
                 <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
               </p>
             </div>
 
-            <div className="w-[72px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
-              <p className="hidden sm:block px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">
+            <div className="w-[84px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+              <p className="px-1 pt-1.5 pb-0.5 sm:px-3 sm:pt-3 sm:pb-2 text-[8px] sm:text-sm font-semibold text-gray-900 leading-tight text-center sm:text-left">
                 Your Scalp Overview
               </p>
-              <div className="p-1 sm:px-3 sm:pb-3">
-                <div className="relative w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden bg-gray-50">
+              <div className="px-1 pb-1 sm:px-3 sm:pb-3">
+                <div className="relative w-full aspect-square rounded-md sm:rounded-xl overflow-hidden bg-gray-100">
                   <img
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt="Your scalp overview"
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 h-full w-full object-contain object-center"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = AVATAR_FALLBACK;
                     }}
                   />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#6f8f3d]/25 via-transparent to-[#e67e22]/20" />
-                  <div className="pointer-events-none absolute left-[12%] right-[12%] top-[58%] h-[2px] bg-red-500/70" />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 pt-4 border-t border-gray-100 text-left">
+          <div className="mt-4 sm:mt-5 pt-3.5 sm:pt-4 border-t border-gray-100 text-left">
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
               Your Assessment
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug">
+            <div className="mt-2 flex flex-nowrap items-center gap-1.5 sm:gap-2">
+              <h3 className="min-w-0 text-[15px] sm:text-2xl font-bold text-gray-900 leading-tight">
                 {getStageTitle()}
               </h3>
               {getScaleBadge() && (
-                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2.5 py-1 text-xs font-semibold text-[#555555]">
+                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-[#555555] shrink-0 whitespace-nowrap">
                   {getScaleBadge()}
                 </span>
               )}
@@ -1261,37 +1274,7 @@ export default function Result() {
               </div>
             )}
 
-            {!requiresDoctorConsultation && !eligibilityTimeline.needsTransplant && (
-              <ResultsSeeingTimeline
-                roadmap={roadmap}
-                ageRange={state?.aboutMe?.ageRange}
-              />
-            )}
-
-            <div className="mt-4 bg-[#e8f5e9] rounded-xl p-4 text-sm text-[#1b4332] leading-relaxed">
-              <p className="font-bold mb-2">
-                {requiresDoctorConsultation
-                  ? "Your hair loss needs clinical intervention."
-                  : hasDandruff
-                    ? "Your hair fall has multiple root causes, but don't worry!"
-                    : "Your hair fall is genetic, but don't worry!"}
-              </p>
-              <ul className="list-disc pl-4 space-y-1 text-xs text-[#2d6a4f]">
-                {requiresDoctorConsultation ? (
-                  <>
-                    <li>Advanced follicular depletion at this stage needs specialist evaluation.</li>
-                    <li>Topical kits alone may not restore significant density.</li>
-                    <li>Book a consultation to explore transplant or clinical therapies.</li>
-                  </>
-                ) : (
-                  <>
-                    <li>This is caused by internal hormones and scalp environment working together.</li>
-                    <li>At your stage, most hair follicles are still active and can be revived.</li>
-                    <li>With consistent use of your customised Zylk kit, regrowth is achievable.</li>
-                  </>
-                )}
-              </ul>
-            </div>
+            
 
             <p className="text-[10px] text-gray-400 mt-3 italic">
               *Based on internal Zylk user outcomes for profiles matching your stage and age group.
@@ -1339,9 +1322,7 @@ export default function Result() {
               <p className="text-[10px] text-gray-500 uppercase mt-1 leading-snug">
                 Based on DNA, Doctor, Nutrition, AI and Machine Learning
               </p>
-              <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
-                Check Study →
-              </button>
+             
             </div>
             <div className="w-28 shrink-0 flex items-end gap-1 h-24">
               <div className="flex flex-col items-center flex-1">
@@ -1536,35 +1517,7 @@ export default function Result() {
           </div>
         )}
 
-        {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <p className="text-base font-bold text-gray-900">Hair coach unlocked</p>
-                <p className="text-xs text-gray-500 mt-1">Dedicated hair expert just a call away to support you.</p>
-              </div>
-              <div className="w-16 h-16 rounded-full bg-[#e8eede] flex items-center justify-center text-3xl shrink-0">👩‍⚕️</div>
-            </div>
-            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-600 flex-1">Opt-in for a call immediately after placing your order</p>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={coachCallOptIn}
-                onClick={() => setCoachCallOptIn(!coachCallOptIn)}
-                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 cursor-pointer ${
-                  coachCallOptIn ? "bg-[#064e3b]" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    coachCallOptIn ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-        )}
+       
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
