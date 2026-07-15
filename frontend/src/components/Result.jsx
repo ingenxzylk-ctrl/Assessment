@@ -5,11 +5,70 @@ import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
+import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
 
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
+
+const TESTIMONIAL_EXTS = ["jpg", "jpeg", "png", "webp"];
+
+/** Normalize a pasted path/filename into a public URL under /testimonials. */
+function normalizeTestimonialSrc(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  let value = raw.trim().replace(/^['"]|['"]$/g, "");
+  if (!value) return null;
+
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
+  if (value.startsWith("/testimonials/")) return value;
+
+  // Windows/Unix path → filename only
+  // e.g. C:\Users\DELL\Desktop\hair-scalp-quiz\frontend\public\testimonials\ajay-before.jpg
+  value = value.replace(/\\/g, "/");
+  const marker = "/testimonials/";
+  const markerIdx = value.toLowerCase().lastIndexOf(marker);
+  if (markerIdx !== -1) {
+    value = value.slice(markerIdx + marker.length);
+  } else {
+    value = value.split("/").pop() || value;
+  }
+
+  value = value.split("?")[0].split("#")[0];
+  if (!value) return null;
+  if (!value.includes(".")) value = `${value}.jpg`;
+  return `/testimonials/${value}`;
+}
+
+function testimonialExtensionFallbacks(src) {
+  if (!src || !src.startsWith("/testimonials/")) return [];
+  const match = src.match(/^(.*)\.([a-z0-9]+)$/i);
+  if (!match) return [];
+  const [, base, ext] = match;
+  return TESTIMONIAL_EXTS.filter((e) => e.toLowerCase() !== ext.toLowerCase()).map(
+    (e) => `${base}.${e}`
+  );
+}
+
+/** Resolve public/testimonials paths for before/after photos. */
+function resolveTestimonialPhotos(photos = []) {
+  return photos
+    .map((photo) => {
+      const raw =
+        typeof photo === "string" ? photo : photo?.file || photo?.src || photo?.path || "";
+      const src = normalizeTestimonialSrc(raw);
+      if (!src) return null;
+      const label = typeof photo === "string" ? "" : photo.label || "";
+      const fit = typeof photo === "string" ? "cover" : photo.fit || "cover";
+      return {
+        label,
+        src,
+        fallbacks: testimonialExtensionFallbacks(src),
+        fit,
+      };
+    })
+    .filter(Boolean);
+}
 
 const FREE_ADDONS = [
   {
@@ -37,26 +96,37 @@ const FREE_ADDONS = [
 
 const TESTIMONIALS = [
   {
-    name: "Ajay Kumar",
+    name: "Harish",
     age: 28,
-    city: "Hyderabad, Telangana",
-    stage: "2",
+    city: "Chennai, Tamil Nadu",
+    stage: "3",
     rating: 5,
     review:
       "I was losing hope with generic oils. Zylk's stage-based kit actually reduced my shedding in the first month. My hairline looks fuller now.",
     date: "Reviewed on 25th Feb 2025",
-    months: ["Month 1", "Month 4", "Month 9"],
+    // Put files in frontend/public/testimonials/ (jpg/png/webp OK)
+    photos: [
+      { label: "Before", file: "Harish-before.png" },
+     
+      { label: "After", file: "Harish-after.png" },
+    ],
   },
   {
-    name: "Rahul Mehta",
+    name: "Arun",
     age: 32,
-    city: "Mumbai, Maharashtra",
-    stage: "3",
+    city: "Thoothukudi, Tamil Nadu",
+    stage: "4",
     rating: 5,
     review:
       "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
     date: "Reviewed on 12th Jan 2025",
-    months: ["Month 1", "Month 3", "Month 8"],
+    // Keep Ajay's default frames; Rahul's Arun shots need contain + portrait frames
+    // so they aren't over-cropped like object-cover square crops.
+    photoFrameClass: "aspect-[3/4]",
+    photos: [
+      { label: "Before", file: "Arun-before.png", fit: "contain" },
+      { label: "After", file: "Arun-after.png", fit: "contain" },
+    ],
   },
 ];
 
@@ -74,6 +144,59 @@ function ProductImage({ src, fallbacks = [], alt, className }) {
         if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
       }}
     />
+  );
+}
+
+function TestimonialPhoto({
+  src,
+  fallbacks = [],
+  alt,
+  label,
+  className,
+  fit = "cover",
+}) {
+  const [urlIndex, setUrlIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
+  const allUrls = [src, ...fallbacks].filter(Boolean);
+  const currentUrl = allUrls[urlIndex];
+
+  useEffect(() => {
+    setUrlIndex(0);
+    setFailed(false);
+  }, [src, fallbacks.join("|")]);
+
+  if (failed || !currentUrl) {
+    return (
+      <div
+        className={`flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-gray-100 to-gray-200 text-gray-400 ${className || ""}`}
+        aria-label={alt || label || "Photo coming soon"}
+      >
+        <span className="text-lg opacity-50" aria-hidden="true">
+          👤
+        </span>
+        {label ? <span className="mt-1 text-[9px] font-semibold uppercase tracking-wide">{label}</span> : null}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`relative h-full w-full overflow-hidden ${
+        fit === "contain" ? "bg-gray-100" : ""
+      } ${className || ""}`}
+    >
+      <img
+        src={currentUrl}
+        alt={alt || label || "Customer progress photo"}
+        className={`absolute inset-0 h-full w-full object-center ${
+          fit === "contain" ? "object-contain" : "object-cover"
+        }`}
+        onError={() => {
+          if (urlIndex < allUrls.length - 1) setUrlIndex((p) => p + 1);
+          else setFailed(true);
+        }}
+      />
+    </div>
   );
 }
 
@@ -119,221 +242,72 @@ function getOrCreateDailyReportMeta(fingerprint) {
   return { reportId, reportDate };
 }
 
-function getDandruffLevel(state) {
-  return String(state?.hairHealth?.dandruff_experience || "").toLowerCase().trim();
-}
-
-/** Quiz values: frequent | moderate | no */
-function resolveHasDandruff(state) {
-  const level = getDandruffLevel(state);
-  return level === "frequent" || level === "moderate";
-}
-
-function includesIgnoreCase(value, needle) {
-  return String(value || "").toLowerCase().includes(String(needle).toLowerCase());
-}
-
-function listIncludesIgnoreCase(list, needle) {
-  return (Array.isArray(list) ? list : []).some((item) => includesIgnoreCase(item, needle));
-}
-
-/**
- * Build root causes from the important quiz answers only.
- * Cards appear only when the matching quiz signal is present.
- */
 function buildRootCauses(state, hasDandruff, isFemale) {
-  const hair = state?.hairHealth || {};
-  const internal = state?.internalHealth || {};
+  const dump = JSON.stringify(state || {}).toLowerCase();
   const causes = [];
-  const dandruffLevel = getDandruffLevel(state);
-  const family = String(hair.family_history || "").toLowerCase();
-  const stress = String(internal.stress_level || "");
-  const sleep = String(internal.sleep_cycle || "");
-  const energy = String(internal.energy_level || "");
-  const bowel = String(internal.bowel || "");
-  const gas = String(internal.gas_acidity || "");
-  const digestion = String(internal.digestion || "");
-  const iron = String(internal.iron_level || "");
-  const food = String(internal.food_habits || "");
-  const lifeStage = String(internal.life_stage || "");
-  const conditions = Array.isArray(internal.health_conditions) ? internal.health_conditions : [];
-  const symptoms = Array.isArray(internal.symptoms) ? internal.symptoms : [];
-  const dailyLoss = String(hair.daily_loss_amount || "");
-  const shedding = String(hair.shedding_amount || "").toLowerCase();
 
-  // 1) Dandruff — quiz: dandruff_experience
   if (hasDandruff) {
     causes.push({
       id: "dandruff",
-      label: dandruffLevel === "frequent" ? "Heavy Dandruff" : "Dandruff",
+      label: "Dandruff",
       icon: "🧴",
-      desc:
-        dandruffLevel === "frequent"
-          ? "You reported heavy dandruff. Flakes irritate the scalp and weaken roots — clearing this early is a priority in your plan."
-          : "You reported moderate dandruff. Reducing flakes helps calm the scalp so growth products can work better.",
+      desc: "Dandruff irritates your scalp and weakens hair roots. We clear it in 1 month for long-term regrowth.",
     });
   }
 
-  // 2) Genetics — quiz: family_history
-  if (family && family !== "none") {
-    const sideLabel =
-      family === "both"
-        ? "both sides of your family"
-        : family === "mother"
-          ? "your mother's side"
-          : "your father's side";
-    causes.push({
-      id: "genetic",
-      label: "Genetics",
-      icon: "🧬",
-      desc: isFemale
-        ? `Family history on ${sideLabel} points to genetic thinning along the part line. Your kit targets follicle receptors internally and topically.`
-        : `Family history on ${sideLabel} increases DHT-related follicle shrinkage risk. Your plan blocks DHT locally while nourishing roots.`,
-    });
-  }
+  causes.push({
+    id: "genetic",
+    label: "Genetics",
+    icon: "🧬",
+    desc: isFemale
+      ? "Hormonal shifts along the hair part line cause progressive thinning. Our kit targets receptors internally and topically."
+      : "DHT sensitivity shrinks follicles over time. Our dual-action serum blocks DHT locally while nourishing roots.",
+  });
 
-  // 3) Hormonal / medical — quiz: symptoms, life_stage, health_conditions
-  const hormonalSignals = [];
-  if (listIncludesIgnoreCase(symptoms, "pcos") || listIncludesIgnoreCase(symptoms, "pcod")) {
-    hormonalSignals.push("PCOS/PCOD");
-  }
-  if (listIncludesIgnoreCase(symptoms, "thyroid") || listIncludesIgnoreCase(conditions, "thyroid")) {
-    hormonalSignals.push("thyroid");
-  }
-  if (listIncludesIgnoreCase(symptoms, "irregular periods")) hormonalSignals.push("irregular periods");
-  if (listIncludesIgnoreCase(symptoms, "extra hair on face")) hormonalSignals.push("androgen signs");
-  if (listIncludesIgnoreCase(symptoms, "pimples")) hormonalSignals.push("hormonal acne");
-  if (listIncludesIgnoreCase(conditions, "diabetes")) hormonalSignals.push("blood sugar");
-  if (
-    lifeStage &&
-    !/^none$/i.test(lifeStage.trim()) &&
-    (includesIgnoreCase(lifeStage, "pregnant") ||
-      includesIgnoreCase(lifeStage, "breastfeeding") ||
-      includesIgnoreCase(lifeStage, "periods anymore") ||
-      includesIgnoreCase(lifeStage, "planning"))
-  ) {
-    hormonalSignals.push("life-stage hormone shift");
-  }
-
-  if (hormonalSignals.length) {
-    causes.push({
-      id: "hormonal",
-      label: "Hormonal",
-      icon: "💊",
-      desc: `Your answers flagged ${hormonalSignals.slice(0, 2).join(" + ")}. Hormonal imbalance can accelerate shedding — we address this with targeted internal + topical support.`,
-    });
-  }
-
-  // 4) Nutrition / iron / gut absorption — quiz: iron, food, energy, bowel, gas, digestion, supplements
-  const nutritionBits = [];
-  if (includesIgnoreCase(iron, "low iron")) nutritionBits.push("low iron");
-  if (includesIgnoreCase(iron, "never checked")) nutritionBits.push("unchecked iron status");
-  if (includesIgnoreCase(energy, "very low") || includesIgnoreCase(energy, "low in afternoon")) {
-    nutritionBits.push("low daytime energy");
-  }
-  if (includesIgnoreCase(bowel, "irregular") || includesIgnoreCase(bowel, "constipation")) {
-    nutritionBits.push("irregular digestion");
-  }
-  if (includesIgnoreCase(gas, "frequently") || includesIgnoreCase(gas, "chronic")) {
-    nutritionBits.push("chronic bloating");
-  }
-  if (includesIgnoreCase(digestion, "bloating") || includesIgnoreCase(digestion, "constipation")) {
-    nutritionBits.push("gut absorption stress");
-  }
-  if (includesIgnoreCase(food, "vegetarian")) nutritionBits.push("vegetarian diet gaps");
-  if (String(internal.supplements || "").toLowerCase() === "no") {
-    nutritionBits.push("no current supplements");
-  }
-
-  if (nutritionBits.length) {
-    causes.push({
-      id: "nutrition",
-      label: includesIgnoreCase(iron, "low iron") ? "Iron & Nutrition" : "Nutrition",
-      icon: "🍎",
-      desc: `Based on your quiz (${nutritionBits.slice(0, 2).join(", ")}), nutrient support is important for stronger growth from the inside out.`,
-    });
-  }
-
-  // 5) Lifestyle — quiz: stress_level, sleep_cycle
-  const lifestyleBits = [];
-  if (includesIgnoreCase(stress, "high") || includesIgnoreCase(stress, "severe")) {
-    lifestyleBits.push("high stress");
-  } else if (includesIgnoreCase(stress, "moderate")) {
-    lifestyleBits.push("daily stress");
-  }
-  if (includesIgnoreCase(sleep, "less than 5")) lifestyleBits.push("short sleep");
-
-  if (lifestyleBits.length) {
+  if (dump.includes("stress") || dump.includes("anxiety") || dump.includes("sleep") || dump.includes("poor")) {
     causes.push({
       id: "lifestyle",
       label: "Lifestyle",
       icon: "❤️",
-      desc: `You reported ${lifestyleBits.join(" + ")}. Stress and poor sleep can push more follicles into shedding — your plan includes habits that calm these triggers.`,
+      desc: "High stress levels and poor sleep can accelerate hair fall. This plan includes strategies to manage these environmental triggers.",
     });
   }
 
-  // 6) Heavy shedding intensity — quiz: daily_loss_amount / shedding_amount
-  const heavyFall =
-    ["100_150", "over_150"].includes(dailyLoss) || shedding === "heavy";
-  if (heavyFall) {
+  if (dump.includes("diet") || dump.includes("nutrition") || dump.includes("iron") || dump.includes("veg") || dump.includes("food")) {
     causes.push({
-      id: "shedding",
-      label: "Heavy Shedding",
-      icon: "💨",
-      desc: "You reported heavy daily hair fall. Early fall-control is built into month 1 so density recovery can start sooner.",
+      id: "nutrition",
+      label: "Nutrition",
+      icon: "🍎",
+      desc: "Optimizing your intake is key to healthy growth. Our analysis identifies nutritional gaps to support your hair health from the inside out.",
+    });
+  } else {
+    causes.push({
+      id: "nutrition",
+      label: "Nutrition",
+      icon: "🍎",
+      desc: "Optimizing your intake is key to healthy growth. Our analysis identifies nutritional gaps to support your hair health from the inside out.",
     });
   }
 
-  // If quiz signals were sparse, keep one honest baseline so the section isn't empty
-  if (!causes.length) {
+  if (dump.includes("thyroid") || dump.includes("pcos") || dump.includes("hormone")) {
     causes.push({
-      id: "pattern",
-      label: isFemale ? "Part-line Thinning" : "Pattern Hair Loss",
-      icon: "🧬",
-      desc: isFemale
-        ? "Your photos and answers point to pattern thinning. We focus on scalp health and follicle support along the part and crown."
-        : "Your photos and answers point to pattern hair loss. We focus on DHT control and follicle nourishment for your stage.",
+      id: "hormonal",
+      label: "Hormonal",
+      icon: "💊",
+      desc: "Internal hormonal imbalance accelerates shedding. We address this with targeted internal + topical therapy.",
+    });
+  }
+
+  if (!causes.some((c) => c.id === "lifestyle")) {
+    causes.push({
+      id: "lifestyle",
+      label: "Lifestyle",
+      icon: "❤️",
+      desc: "High stress levels and poor sleep can accelerate hair fall. This plan includes strategies to manage these environmental triggers.",
     });
   }
 
   return causes;
-}
-
-function buildRootCauseTags(state, hasDandruff) {
-  const tags = [];
-  const internal = state?.internalHealth || {};
-  const symptoms = Array.isArray(internal.symptoms) ? internal.symptoms : [];
-  const conditions = Array.isArray(internal.health_conditions) ? internal.health_conditions : [];
-
-  if (hasDandruff) tags.push("Scalp Clear");
-  if (
-    includesIgnoreCase(internal.stress_level, "high") ||
-    includesIgnoreCase(internal.stress_level, "severe") ||
-    includesIgnoreCase(internal.stress_level, "moderate")
-  ) {
-    tags.push("Cortisol Control");
-  }
-  if (
-    includesIgnoreCase(internal.iron_level, "low") ||
-    includesIgnoreCase(internal.energy_level, "low") ||
-    includesIgnoreCase(internal.food_habits, "vegetarian") ||
-    includesIgnoreCase(internal.bowel, "irregular") ||
-    includesIgnoreCase(internal.bowel, "constipation") ||
-    includesIgnoreCase(internal.digestion, "bloating") ||
-    includesIgnoreCase(internal.digestion, "constipation")
-  ) {
-    tags.push("Nutrient Sync");
-  }
-  if (
-    listIncludesIgnoreCase(symptoms, "pcos") ||
-    listIncludesIgnoreCase(symptoms, "pcod") ||
-    listIncludesIgnoreCase(symptoms, "thyroid") ||
-    listIncludesIgnoreCase(conditions, "thyroid") ||
-    listIncludesIgnoreCase(symptoms, "irregular periods")
-  ) {
-    tags.push("Hormone Balancing");
-  }
-  return tags;
 }
 
 function getMonthPhase(month, totalMonths) {
@@ -369,40 +343,200 @@ function buildRoadmapMonths(totalMonths) {
 
 function ResultsSeeingTimeline({ roadmap, ageRange }) {
   const younger = ["18-25", "26-35"].includes(String(ageRange || ""));
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [autoProgress, setAutoProgress] = useState(0);
+  const [clockKey, setClockKey] = useState(0);
+  const itemRefs = useRef([]);
+  const listRef = useRef(null);
+  const pausedRef = useRef(false);
+  const AUTO_MS = 2000;
+
+  const jumpTo = (index) => {
+    setActiveIdx(index);
+    setAutoProgress(0);
+    setClockKey((key) => key + 1);
+  };
+
+  useEffect(() => {
+    if (!roadmap?.length) return undefined;
+    let acc = 0;
+    let last = performance.now();
+    let rafId = 0;
+
+    const loop = (now) => {
+      const dt = now - last;
+      last = now;
+      if (!pausedRef.current) {
+        acc += dt;
+        const p = Math.min(1, acc / AUTO_MS);
+        setAutoProgress(p);
+        if (acc >= AUTO_MS) {
+          acc = 0;
+          setAutoProgress(0);
+          setActiveIdx((prev) => (prev + 1) % roadmap.length);
+        }
+      }
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [roadmap.length, clockKey]);
+
+  useEffect(() => {
+    const el = itemRefs.current[activeIdx];
+    const container = listRef.current;
+    if (!el || !container) return;
+    const top = el.offsetTop - container.clientHeight / 2 + el.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }, [activeIdx]);
+
+  const active = roadmap[activeIdx];
 
   return (
-    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 text-left">
-      <p className="text-sm font-bold text-gray-900 mb-3">Start seeing results</p>
+    <div className="mt-4 rounded-2xl border border-[#d8e8c8] bg-[#f4f8ee] p-4 sm:p-5 text-left overflow-hidden">
+      <p className="text-base sm:text-lg font-bold text-gray-900">Start seeing results</p>
 
-      <div className="relative max-h-[168px] overflow-y-auto pr-1 scrollbar-thin">
-        <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-[#9ccc65]/70" />
-        <ul className="relative space-y-4">
+      <div className="mt-2.5 mb-4 h-1 w-full rounded-full bg-[#d8e8c8]/80 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-[#6f8f3d] transition-[width] duration-100 ease-linear"
+          style={{ width: `${autoProgress * 100}%` }}
+        />
+      </div>
+
+      <div
+        ref={listRef}
+        className="relative max-h-[240px] overflow-y-auto pr-1 scrollbar-thin"
+        onMouseEnter={() => {
+          pausedRef.current = true;
+        }}
+        onMouseLeave={() => {
+          pausedRef.current = false;
+        }}
+        onTouchStart={() => {
+          pausedRef.current = true;
+        }}
+        onTouchEnd={() => {
+          window.setTimeout(() => {
+            pausedRef.current = false;
+          }, 2000);
+        }}
+      >
+        <ul className="relative space-y-2 py-1">
           {roadmap.map((step, index) => {
-            const isFirst = index === 0;
-            const isEarly = index < 3;
+            const isActive = index === activeIdx;
+            const isPast = index < activeIdx;
+
             return (
-              <li key={step.month} className="flex items-start gap-3 pl-0">
-                <span
-                  className={`relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-                    isFirst
-                      ? "border-[#5a7a2f] bg-[#6f8f3d]"
-                      : isEarly
-                        ? "border-[#6f8f3d] bg-[#6f8f3d]"
-                        : "border-[#b7d48a] bg-[#dcecc0]"
-                  }`}
+              <li
+                key={step.month}
+                ref={(node) => {
+                  itemRefs.current[index] = node;
+                }}
+                className="relative"
+              >
+                <button
+                  type="button"
+                  onClick={() => jumpTo(index)}
+                  className="relative w-full flex items-start gap-3.5 text-left rounded-xl px-1 py-2.5 cursor-pointer"
                 >
-                  {isFirst && <span className="h-2 w-2 rounded-full bg-[#2f4514]" />}
-                </span>
-                <p className={`text-sm leading-snug pt-0.5 ${isEarly ? "text-gray-800" : "text-gray-500"}`}>
-                  <span className="font-bold">Month {step.month}:</span> {step.desc}
-                </p>
+                  {isActive && (
+                    <motion.span
+                      layoutId="results-timeline-active-bg"
+                      className="absolute inset-0 rounded-xl bg-white/80 border border-[#d8e8c8] shadow-[0_4px_14px_rgba(111,143,61,0.12)]"
+                      transition={{ type: "spring", stiffness: 340, damping: 32 }}
+                    />
+                  )}
+
+                  <span className="relative z-10 mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center">
+                    <motion.span
+                      className="relative flex h-7 w-7 items-center justify-center rounded-full border-2"
+                      animate={{
+                        scale: isActive ? 1.12 : 1,
+                        backgroundColor: isActive || isPast ? "#6f8f3d" : "#e8f0d8",
+                        borderColor: isActive || isPast ? "#5a7a2f" : "#c5ddb0",
+                      }}
+                      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                    >
+                      {isActive && (
+                        <motion.span
+                          className="absolute inset-[-5px] rounded-full border border-[#6f8f3d]/35"
+                          initial={{ opacity: 0, scale: 0.7 }}
+                          animate={{ opacity: [0.55, 0.15, 0.55], scale: [1, 1.12, 1] }}
+                          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                        />
+                      )}
+                      <motion.span
+                        className="rounded-full bg-white"
+                        animate={{
+                          width: isActive ? 8 : isPast ? 5 : 0,
+                          height: isActive ? 8 : isPast ? 5 : 0,
+                          opacity: isActive || isPast ? 1 : 0,
+                        }}
+                        transition={{ duration: 0.35 }}
+                      />
+                    </motion.span>
+                  </span>
+
+                  <motion.div
+                    className="relative z-10 min-w-0 flex-1 pt-0.5"
+                    animate={{
+                      opacity: isActive ? 1 : isPast ? 0.72 : 0.4,
+                      y: isActive ? 0 : 1,
+                    }}
+                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <p
+                      className={`text-[15px] sm:text-base leading-snug ${
+                        isActive ? "text-gray-900" : "text-gray-600"
+                      }`}
+                    >
+                      <span className={`font-bold ${isActive ? "text-[#5a7a2f]" : ""}`}>
+                        Month {step.month}:
+                      </span>{" "}
+                      <span className={isActive ? "text-gray-800" : ""}>{step.desc}</span>
+                    </p>
+                  </motion.div>
+                </button>
               </li>
             );
           })}
         </ul>
       </div>
 
-      <p className="mt-2 text-[10px] text-center text-gray-400">Scroll to see later months</p>
+      <div className="mt-3.5 flex items-center justify-center gap-1.5">
+        {roadmap.map((step, index) => (
+          <button
+            key={`dot-${step.month}`}
+            type="button"
+            aria-label={`Go to month ${step.month}`}
+            onClick={() => jumpTo(index)}
+            className="p-1 cursor-pointer"
+          >
+            <motion.span
+              className="block rounded-full bg-[#6f8f3d]"
+              animate={{
+                width: index === activeIdx ? 18 : 6,
+                height: 6,
+                opacity: index === activeIdx ? 1 : index < activeIdx ? 0.55 : 0.28,
+              }}
+              transition={{ type: "spring", stiffness: 380, damping: 28 }}
+            />
+          </button>
+        ))}
+      </div>
+
+      {active ? (
+        <motion.p
+          key={active.month}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="mt-2 text-center text-[11px] text-gray-500"
+        >
+          Month {active.month} of {roadmap.length}
+        </motion.p>
+      ) : null}
 
       <div className="mt-3 rounded-xl bg-[#e5f0d4] px-3 py-2.5 text-xs text-[#3d5a1f] leading-relaxed">
         {younger ? (
@@ -430,6 +564,19 @@ const MALE_STAGE_IMAGE = {
   "overall-thinning": "/stages/overall_thinning.png",
 };
 
+/** Male progression photos from treated folder (mstage1.png … mstage7.png).
+ *  Zylk treatment track only uses stages 1–5; untreated may use 6–7.
+ */
+const MALE_MSTAGE_IMAGE = {
+  1: "/stages/treated/mstage1.png",
+  2: "/stages/treated/mstage2.png",
+  3: "/stages/treated/mstage3.png",
+  4: "/stages/treated/mstage4.png",
+  5: "/stages/treated/mstage5.png",
+  6: "/stages/treated/mstage6.png",
+  7: "/stages/treated/mstage7.png",
+};
+
 const FEMALE_STAGE_IMAGE = {
   1: "/stagesf/stage1.png",
   2: "/stagesf/stage2.png",
@@ -439,12 +586,58 @@ const FEMALE_STAGE_IMAGE = {
 };
 
 const clampMaleStage = (n) => Math.min(7, Math.max(1, n));
+/** Male stages eligible for Zylk treatment kits (not transplant). */
+const clampMaleTreatableStage = (n) => Math.min(5, Math.max(1, n));
 const clampFemaleStage = (n) => Math.min(3, Math.max(1, n));
 
 function stageImageFor(stageKey, isFemale) {
   const key = String(stageKey || (isFemale ? "1" : "2"));
   if (isFemale) return FEMALE_STAGE_IMAGE[key] || FEMALE_STAGE_IMAGE["1"];
-  return MALE_STAGE_IMAGE[key] || MALE_STAGE_IMAGE["2"];
+  if (key === "overall-thinning") return MALE_STAGE_IMAGE["overall-thinning"];
+  const n = clampMaleStage(parseInt(key, 10) || 2);
+  return MALE_MSTAGE_IMAGE[n] || MALE_STAGE_IMAGE[n] || MALE_STAGE_IMAGE["2"];
+}
+
+/** Both untreated + Zylk tracks use images from public/stages/treated/mstageN.png */
+function maleStageCandidates(stageKey) {
+  const key = String(stageKey);
+  if (key === "overall-thinning") {
+    return [MALE_STAGE_IMAGE["overall-thinning"]];
+  }
+  const n = clampMaleStage(parseInt(key, 10) || 2);
+  return [
+    `/stages/treated/mstage${n}.png`,
+    `/stages/treated/mstage${n}.jpg`,
+    `/stages/Stage${n}.png`,
+  ];
+}
+
+function maleStepImage(stageKey) {
+  const candidates = maleStageCandidates(stageKey);
+  return {
+    image: candidates[0],
+    fallback: candidates[1] || candidates[0],
+    fallbacks: candidates.slice(1),
+  };
+}
+
+/**
+ * With Zylk: improve by at most ONE stage.
+ * Example Stage 4 → 4, 4, 3, 3
+ * Example Stage 5 → 5, 5, 4, 4
+ */
+function maleTreatedStageAt(base, stepIndex) {
+  const start = clampMaleTreatableStage(base);
+  if (stepIndex <= 1) return start;
+  return clampMaleTreatableStage(start - 1);
+}
+
+/**
+ * Untreated: can worsen into Stage 6–7.
+ * Example Stage 5 → 5, 6, 7, 7
+ */
+function maleUntreatedStageAt(base, stepIndex) {
+  return clampMaleStage(base + stepIndex);
 }
 
 function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8) {
@@ -481,28 +674,60 @@ function buildHairProgressionComparison(currentStage, isFemale, resultMonths = 8
 
   if (stage === "overall-thinning") {
     return {
-      untreated: untreatedLabels.map((label, i) => ({
-        label,
-        image: stageImageFor(i === 0 ? "overall-thinning" : String(clampMaleStage(3 + i)), false),
-      })),
-      treated: treatedLabels.map((label, i) => ({
-        label,
-        image: stageImageFor(i === 0 ? "overall-thinning" : String(Math.max(1, 3 - i)), false),
-      })),
+      untreated: untreatedLabels.map((label, i) => {
+        const key = i === 0 ? "overall-thinning" : String(maleUntreatedStageAt(3, i));
+        return { label, ...maleStepImage(key) };
+      }),
+      treated: treatedLabels.map((label, i) => {
+        const key = i === 0 ? "overall-thinning" : String(maleTreatedStageAt(3, i));
+        return { label, ...maleStepImage(key) };
+      }),
     };
   }
 
-  const base = clampMaleStage(parseInt(stage, 10) || 2);
+  // Male pattern stages: both tracks use mstage images from treated folder
+  const raw = parseInt(stage, 10) || 2;
+  const untreatedBase = clampMaleStage(raw);
+  const treatedBase = clampMaleTreatableStage(raw);
+
   return {
-    untreated: untreatedLabels.map((label, i) => ({
-      label,
-      image: stageImageFor(String(clampMaleStage(base + i)), false),
-    })),
-    treated: treatedLabels.map((label, i) => ({
-      label,
-      image: stageImageFor(String(clampMaleStage(base - Math.floor(i * 0.85))), false),
-    })),
+    untreated: untreatedLabels.map((label, i) => {
+      const key = String(maleUntreatedStageAt(untreatedBase, i));
+      return { label, ...maleStepImage(key) };
+    }),
+    treated: treatedLabels.map((label, i) => {
+      const key = String(maleTreatedStageAt(treatedBase, i));
+      return { label, ...maleStepImage(key) };
+    }),
   };
+}
+
+function StageProgressImage({ src, fallbacks = [], alt, className }) {
+  const candidates = useMemo(
+    () => [src, ...fallbacks].filter(Boolean).filter((url, i, arr) => arr.indexOf(url) === i),
+    [src, fallbacks]
+  );
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [candidates.join("|")]);
+
+  const current = candidates[Math.min(index, candidates.length - 1)] || "/stages/Stage2.png";
+
+  return (
+    <img
+      src={current}
+      alt={alt}
+      className={className}
+      onError={() => {
+        setIndex((prev) => {
+          if (prev + 1 < candidates.length) return prev + 1;
+          return prev;
+        });
+      }}
+    />
+  );
 }
 
 function ProgressionTrack({ title, steps, variant }) {
@@ -519,16 +744,13 @@ function ProgressionTrack({ title, steps, variant }) {
       <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-hide">
         {steps.map((step, index) => (
           <div key={`${step.label}-${index}`} className="flex items-center gap-1 shrink-0">
-            <div className="flex flex-col items-center w-[72px] sm:w-[78px]">
-              <div className="w-[68px] h-[68px] sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden bg-white border border-white shadow-sm">
-                <img
+            <div className="flex flex-col items-center w-[76px] sm:w-[84px]">
+              <div className="relative w-[72px] h-[72px] sm:w-[80px] sm:h-[80px] rounded-full overflow-hidden bg-[#f3f4f6] ring-1 ring-black/5 shadow-sm isolate">
+                <StageProgressImage
                   src={step.image}
+                  fallbacks={step.fallbacks || (step.fallback ? [step.fallback] : [])}
                   alt={step.label}
-                  className="w-full h-full object-cover object-top"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "/stages/Stage2.png";
-                  }}
+                  className="absolute inset-0 h-full w-full rounded-full object-cover object-center"
                 />
               </div>
               <span className="mt-2 text-[10px] font-semibold text-gray-700 text-center leading-tight">
@@ -562,7 +784,7 @@ function HairProgressionComparison({ currentStage, isFemale, resultMonths }) {
         Based on {isFemale ? "women" : "men"} with similar profile as you
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="flex flex-col gap-3">
         <ProgressionTrack title="If left untreated" steps={untreated} variant="untreated" />
         <ProgressionTrack title="With Zylk Treatment" steps={treated} variant="treated" />
       </div>
@@ -742,10 +964,14 @@ export default function Result() {
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
 
-  const hasDandruff = resolveHasDandruff(state);
+  const stateDump = JSON.stringify(state || {}).toLowerCase();
+  const hasDandruff = stateDump.includes("dandruff") && !stateDump.includes("no-dandruff");
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
-  const rootCauseTags = buildRootCauseTags(state, hasDandruff);
+  const rootCauseTags = [];
+  if (stateDump.includes("stress")) rootCauseTags.push("Cortisol Control");
+  if (stateDump.includes("diet") || stateDump.includes("nutrition")) rootCauseTags.push("Nutrient Sync");
+  if (stateDump.includes("hormone") || stateDump.includes("pcos") || stateDump.includes("thyroid")) rootCauseTags.push("Hormone Balancing");
 
   const recommendedBundle = !requiresDoctorConsultation
     ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, includeHealthMix)
@@ -788,6 +1014,7 @@ export default function Result() {
         ...formatted,
         id: prod.id,
         subtitle: prod.subtitle || null,
+        price: prod.price ?? null,
         isHealthMix,
       };
     })
@@ -795,11 +1022,22 @@ export default function Result() {
 
   const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
-  const healthMixDelta = recommendedBundle
-    ? Math.max(0, (recommendedBundle.bundlePrice || 0) - (recommendedBundle.priceWithoutMix || 0))
-    : 0;
+  // Sheet list price for Health Mix is ₹1799 (not the bundle price delta)
+  const healthMixPrice = healthMixProduct?.price || HAIR_HEALTH_MIX_PRICE;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
+  const testimonialPhotos = useMemo(
+    () => resolveTestimonialPhotos(testimonial.photos || []),
+    [testimonial]
+  );
+
+  useEffect(() => {
+    if (TESTIMONIALS.length <= 1) return undefined;
+    const timer = setInterval(() => {
+      setTestimonialIdx((prev) => (prev + 1) % TESTIMONIALS.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
   
   const handleBuyNow = () => {
     if (requiresDoctorConsultation) {
@@ -817,6 +1055,7 @@ export default function Result() {
       bundleNumber,
       includeHealthMix,
       coachCallOptIn,
+      healthMixPrice: HAIR_HEALTH_MIX_PRICE,
       wooProductId: getWooProductId(bundleNumber, includeHealthMix),
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
@@ -854,13 +1093,14 @@ export default function Result() {
       hairHealth: state.hairHealth || {},
       internalHealth: state.internalHealth || {},
       scalpAnalysis: rawAnalysis,
-      scalpImages: (state.scalpImages || []).map((img) => ({
-        type: img.type,
-        label: img.label,
-        // Omit full dataUrl from wire payload size; metadata is enough for archive.
-        // Backend PDF v1 is text-based; images stay on the client Result UI.
-        hasImage: Boolean(img.dataUrl || img.previewUrl || img.url),
-      })),
+      scalpImages: (state.scalpImages || [])
+        .filter((img) => img?.dataUrl || img?.previewUrl || img?.url)
+        .map((img) => ({
+          type: img.type,
+          label: img.label || img.type,
+          // Include compressed data URLs so the org PDF can embed both photos
+          dataUrl: img.dataUrl || img.previewUrl || img.url || null,
+        })),
       gender,
       clientReportId: reportId,
       reportMeta: {
@@ -901,71 +1141,85 @@ export default function Result() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-36 md:pb-10">
+    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-32 md:pb-10">
       <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:min-w-0">
         {/* Hair Assessment Report intro + scalp overview */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start">
-            <div className="flex-1 min-w-0 text-left space-y-3">
-              <h1 className="text-[1.75rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-3.5 sm:p-5">
+          <div className="flex flex-row gap-2.5 sm:gap-5 items-start">
+            <div className="flex-1 min-w-0 text-left space-y-1.5 sm:space-y-3">
+              <h1 className="text-[1.2rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
 
-              <h2 className="text-[1.35rem] sm:text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
+              {/* Mobile: stacked title rows */}
+              <div className="sm:hidden space-y-0.5">
+                <p className="text-[0.95rem] font-bold leading-tight text-[#6f8f3d]">
+                  Here is
+                </p>
+                <p className="text-[0.95rem] font-bold leading-tight text-gray-900">
+                  Your personalised
+                </p>
+                <p className="text-[0.95rem] font-bold leading-tight text-[#6f8f3d]">
+                  Hair assessment Report
+                </p>
+              </div>
+
+              {/* Desktop: single-line title */}
+              <h2 className="hidden sm:block text-[1.65rem] font-bold leading-[1.25] tracking-tight text-gray-900">
                 <span className="text-[#6f8f3d]">Here is</span> your personalized{" "}
                 <span className="text-[#6f8f3d]">Hair Assessment Report</span>
               </h2>
 
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#ececec] px-3.5 py-1.5">
-                <span className="inline-flex h-4 w-4 items-center justify-center shrink-0" aria-hidden="true">
-                  <svg className="h-4 w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
+              <div className="inline-flex items-start gap-1.5 sm:gap-2 rounded-2xl sm:rounded-full bg-[#ececec] px-2.5 sm:px-3.5 py-1.5 max-w-full">
+                <span className="inline-flex h-3.5 w-3.5 sm:h-4 sm:w-4 items-center justify-center shrink-0 mt-0.5" aria-hidden="true">
+                  <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#6f8f3d]" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 1.2l5.2 2.1v4.2c0 3.3-2.2 5.9-5.2 6.9-3-1-5.2-3.6-5.2-6.9V3.3L8 1.2z" />
                     <path d="M5.2 7.6l1.7 1.7 3.4-3.5" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <span className="text-[12px] font-medium text-[#555555]">
+                <span className="text-[10px] sm:text-[12px] font-medium text-[#555555] leading-snug break-words">
                   Report ID: {reportId} • {reportDate}
                 </span>
               </div>
 
-              <p className="text-[14px] sm:text-[15px] text-[#555555] leading-relaxed">
+              <p className="text-[12px] sm:text-[15px] text-[#555555] leading-relaxed">
                 Our AI scan + expert analysis of 14 key parameters gives us{" "}
                 <span className="font-bold text-[#6f8f3d]">{confidencePhrase}</span> in this report.
               </p>
             </div>
 
-            <div className="w-full sm:w-[180px] shrink-0 rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
-              <p className="px-3 pt-3 pb-2 text-sm font-semibold text-gray-900">Your Scalp Overview</p>
-              <div className="px-3 pb-3">
-                <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-50">
+            <div className="w-[84px] sm:w-[180px] shrink-0 rounded-xl sm:rounded-2xl border border-gray-100 bg-white shadow-[0_4px_16px_rgba(0,0,0,0.06)] overflow-hidden">
+              <p className="px-1 pt-1.5 pb-0.5 sm:px-3 sm:pt-3 sm:pb-2 text-[8px] sm:text-sm font-semibold text-gray-900 leading-tight text-center sm:text-left">
+                Your Scalp Overview
+              </p>
+              <div className="px-1 pb-1 sm:px-3 sm:pb-3">
+                <div className="relative w-full aspect-square rounded-md sm:rounded-xl overflow-hidden bg-gray-100">
                   <img
                     src={displayUserPhoto || AVATAR_FALLBACK}
                     alt="Your scalp overview"
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 h-full w-full object-contain object-center"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = AVATAR_FALLBACK;
                     }}
                   />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#6f8f3d]/25 via-transparent to-[#e67e22]/20" />
-                  <div className="pointer-events-none absolute left-[12%] right-[12%] top-[58%] h-[2px] bg-red-500/70" />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-5 pt-4 border-t border-gray-100 text-left">
+          <div className="mt-4 sm:mt-5 pt-3.5 sm:pt-4 border-t border-gray-100 text-left">
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
               Your Assessment
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug">
+            <div className="mt-2 flex flex-nowrap items-center gap-1.5 sm:gap-2">
+              <h3 className="min-w-0 text-[15px] sm:text-2xl font-bold text-gray-900 leading-tight">
                 {getStageTitle()}
               </h3>
               {getScaleBadge() && (
-                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2.5 py-1 text-xs font-semibold text-[#555555]">
+                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-[#555555] shrink-0 whitespace-nowrap">
                   {getScaleBadge()}
                 </span>
               )}
@@ -1020,37 +1274,7 @@ export default function Result() {
               </div>
             )}
 
-            {!requiresDoctorConsultation && !eligibilityTimeline.needsTransplant && (
-              <ResultsSeeingTimeline
-                roadmap={roadmap}
-                ageRange={state?.aboutMe?.ageRange}
-              />
-            )}
-
-            <div className="mt-4 bg-[#e8f5e9] rounded-xl p-4 text-sm text-[#1b4332] leading-relaxed">
-              <p className="font-bold mb-2">
-                {requiresDoctorConsultation
-                  ? "Your hair loss needs clinical intervention."
-                  : hasDandruff
-                    ? "Your hair fall has multiple root causes, but don't worry!"
-                    : "Your hair fall is genetic, but don't worry!"}
-              </p>
-              <ul className="list-disc pl-4 space-y-1 text-xs text-[#2d6a4f]">
-                {requiresDoctorConsultation ? (
-                  <>
-                    <li>Advanced follicular depletion at this stage needs specialist evaluation.</li>
-                    <li>Topical kits alone may not restore significant density.</li>
-                    <li>Book a consultation to explore transplant or clinical therapies.</li>
-                  </>
-                ) : (
-                  <>
-                    <li>This is caused by internal hormones and scalp environment working together.</li>
-                    <li>At your stage, most hair follicles are still active and can be revived.</li>
-                    <li>With consistent use of your customised Zylk kit, regrowth is achievable.</li>
-                  </>
-                )}
-              </ul>
-            </div>
+            
 
             <p className="text-[10px] text-gray-400 mt-3 italic">
               *Based on internal Zylk user outcomes for profiles matching your stage and age group.
@@ -1093,12 +1317,12 @@ export default function Result() {
         {!requiresDoctorConsultation && (
           <div className="bg-[#f0faf4] border border-[#b7e4c7] rounded-2xl p-4 flex gap-3 items-center">
             <div className="flex-1">
-              <p className="text-3xl font-black text-[#064e3b]">3 Times</p>
+              <p className="text-3xl font-black text-[#064e3b]">4X Growth</p>
               <p className="text-sm font-bold text-gray-800">Better results</p>
-              <p className="text-[10px] text-gray-500 uppercase mt-1">Based on a 5-month study*</p>
-              <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
-                Check Study →
-              </button>
+              <p className="text-[10px] text-gray-500 uppercase mt-1 leading-snug">
+                Based on DNA, Doctor, Nutrition, AI and Machine Learning
+              </p>
+             
             </div>
             <div className="w-28 shrink-0 flex items-end gap-1 h-24">
               <div className="flex flex-col items-center flex-1">
@@ -1107,7 +1331,7 @@ export default function Result() {
               </div>
               <div className="flex flex-col items-center flex-1">
                 <div className="w-full bg-[#52b788] rounded-t h-20 relative">
-                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">3x</span>
+                  <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] font-bold text-[#064e3b]">4X</span>
                 </div>
                 <span className="text-[8px] text-gray-500 mt-1 text-center leading-tight">Zylk Regimen</span>
               </div>
@@ -1122,12 +1346,29 @@ export default function Result() {
             </h2>
             <p className="text-sm text-gray-500 mb-3">Who Matches Your Profile</p>
             <div className="flex gap-2 overflow-x-auto pb-1">
-              {testimonial.months.map((label, i) => (
-                <div key={i} className="shrink-0 w-24">
-                  <div className="h-28 rounded-lg bg-gradient-to-b from-gray-200 to-gray-300 overflow-hidden border border-gray-200">
-                    <div className="w-full h-full flex items-center justify-center text-2xl opacity-40">👤</div>
+              {(testimonialPhotos.length > 0
+                ? testimonialPhotos
+                : (testimonial.photos || []).map((p) => ({
+                    label: p.label,
+                    src: null,
+                    fallbacks: [],
+                  }))
+              ).map((photo, i) => (
+                <div key={`${photo.label}-${i}`} className="shrink-0 w-[104px]">
+                  <div
+                    className={`relative rounded-xl overflow-hidden border border-gray-200 bg-gray-100 ${
+                      testimonial.photoFrameClass || "aspect-square"
+                    }`}
+                  >
+                    <TestimonialPhoto
+                      src={photo.src}
+                      fallbacks={photo.fallbacks}
+                      label={photo.label}
+                      alt={`${testimonial.name} — ${photo.label}`}
+                      fit={photo.fit || "cover"}
+                    />
                   </div>
-                  <p className="text-[10px] text-center text-gray-600 mt-1 font-medium">{label}</p>
+                  <p className="text-[10px] text-center text-gray-600 mt-1.5 font-medium">{photo.label}</p>
                 </div>
               ))}
             </div>
@@ -1167,12 +1408,12 @@ export default function Result() {
                   className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
                       <ProductImage
                         src={product.imgUrl}
                         fallbacks={product.imgFallbacks}
                         alt={product.shortName}
-                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
@@ -1201,12 +1442,12 @@ export default function Result() {
                   }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
                       <ProductImage
                         src={healthMixProduct.imgUrl}
                         fallbacks={healthMixProduct.imgFallbacks}
                         alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
                           includeHealthMix ? "" : "opacity-60"
                         }`}
                       />
@@ -1222,8 +1463,8 @@ export default function Result() {
                       )}
                       <p className="text-xs font-semibold text-[#064e3b] mt-1">
                         {includeHealthMix
-                          ? `Included · −₹${healthMixDelta} if removed`
-                          : `Add for +₹${healthMixDelta}`}
+                          ? `Included · ₹${healthMixPrice}`
+                          : `Add for ₹${healthMixPrice}`}
                       </p>
                     </div>
                   </div>
@@ -1276,69 +1517,79 @@ export default function Result() {
           </div>
         )}
 
-        {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <p className="text-base font-bold text-gray-900">Hair coach unlocked</p>
-                <p className="text-xs text-gray-500 mt-1">Dedicated hair expert just a call away to support you.</p>
-              </div>
-              <div className="w-16 h-16 rounded-full bg-[#e8eede] flex items-center justify-center text-3xl shrink-0">👩‍⚕️</div>
-            </div>
-            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-600 flex-1">Opt-in for a call immediately after placing your order</p>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={coachCallOptIn}
-                onClick={() => setCoachCallOptIn(!coachCallOptIn)}
-                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 cursor-pointer ${
-                  coachCallOptIn ? "bg-[#064e3b]" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    coachCallOptIn ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <h2 className="text-lg font-bold text-gray-900 leading-snug mb-4">
-              Your Routine Gets Easier And Cheaper Every Month
-            </h2>
-            <div className="border border-gray-200 rounded-xl p-4 bg-gray-50 relative h-44">
-              <p className="text-sm font-bold text-gray-500 mb-2">Less Products. Less Cost. Less Effort.</p>
-              <svg viewBox="0 0 300 100" className="w-full h-24" preserveAspectRatio="none">
-                <path d="M20,20 Q150,80 280,70" fill="none" stroke="#52b788" strokeWidth="4" />
-                <circle cx="20" cy="20" r="5" fill="#52b788" />
-                <circle cx="280" cy="70" r="5" fill="#52b788" />
-              </svg>
-              <div className="flex justify-between text-[10px] text-gray-400 mt-1 px-1">
-                <span>Month 1</span>
-                <span>Month 3</span>
-                <span>Month 5</span>
-                <span>Month 8</span>
-              </div>
-            </div>
-          </div>
-        )}
+       
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
-          <div className="border border-gray-100 rounded-xl p-4">
+          <div className="border border-gray-100 rounded-xl p-3 sm:p-4">
             <span className="inline-block text-[10px] font-bold bg-gray-800 text-white px-2 py-0.5 rounded mb-3">
               STAGE {testimonial.stage}
             </span>
-            <div className="flex gap-2 mb-3">
-              {testimonial.months.map((m, i) => (
-                <div key={i} className="w-16 h-16 rounded-lg bg-gray-200 flex items-center justify-center text-lg">📷</div>
-              ))}
-            </div>
+            {(() => {
+              const beforeAfter = testimonialPhotos.filter((photo) =>
+                /before|after/i.test(photo.label)
+              );
+              const gallery = beforeAfter.length >= 2 ? beforeAfter : testimonialPhotos;
+              const midPhotos =
+                beforeAfter.length >= 2
+                  ? testimonialPhotos.filter((photo) => !/before|after/i.test(photo.label))
+                  : [];
+
+              return (
+                <>
+                  <div
+                    className={`grid gap-2 sm:gap-3 mb-3 ${
+                      gallery.length === 1 ? "grid-cols-1" : "grid-cols-2"
+                    }`}
+                  >
+                    {gallery.map((photo, i) => (
+                      <div key={`${photo.label}-${i}`} className="min-w-0">
+                        <div
+                          className={`relative w-full rounded-xl overflow-hidden border border-gray-200 bg-gray-100 shadow-sm ${
+                            testimonial.photoFrameClass || "aspect-[4/5] sm:aspect-square"
+                          }`}
+                        >
+                          <TestimonialPhoto
+                            src={photo.src}
+                            fallbacks={photo.fallbacks}
+                            label={photo.label}
+                            alt={`${testimonial.name} — ${photo.label}`}
+                            fit={photo.fit || "cover"}
+                          />
+                        </div>
+                        <p className="text-[10px] text-center font-semibold text-gray-600 mt-1.5 uppercase tracking-wide">
+                          {photo.label}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  {midPhotos.length > 0 && (
+                    <div className="flex gap-2 mb-3 overflow-x-auto pb-0.5">
+                      {midPhotos.map((photo, i) => (
+                        <div key={`${photo.label}-mid-${i}`} className="shrink-0 w-[72px]">
+                          <div
+                            className={`relative rounded-lg overflow-hidden border border-gray-200 bg-gray-100 ${
+                              testimonial.photoFrameClass || "aspect-square"
+                            }`}
+                          >
+                            <TestimonialPhoto
+                              src={photo.src}
+                              fallbacks={photo.fallbacks}
+                              label={photo.label}
+                              alt={`${testimonial.name} — ${photo.label}`}
+                              fit={photo.fit || "cover"}
+                            />
+                          </div>
+                          <p className="text-[9px] text-center text-gray-500 mt-1 leading-tight">
+                            {photo.label}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <div className="flex items-center justify-between">
               <p className="font-bold text-sm">{testimonial.name}, {testimonial.age}</p>
               <span className="text-xs text-[#52b788] font-semibold flex items-center gap-1">✓ Verified</span>
@@ -1347,6 +1598,17 @@ export default function Result() {
             <p className="text-yellow-400 text-sm my-2">{"★".repeat(testimonial.rating)}</p>
             <p className="text-sm text-gray-700 leading-relaxed">{testimonial.review}</p>
             <p className="text-[10px] text-gray-400 mt-2">{testimonial.date}</p>
+            <div className="flex justify-center gap-1.5 mt-3">
+              {TESTIMONIALS.map((_, i) => (
+                <button
+                  key={`story-dot-${i}`}
+                  type="button"
+                  onClick={() => setTestimonialIdx(i)}
+                  aria-label={`Show testimonial ${i + 1}`}
+                  className={`w-2 h-2 rounded-full ${i === testimonialIdx ? "bg-gray-800" : "bg-gray-300"}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1426,12 +1688,12 @@ export default function Result() {
                   className="p-3 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                    <div className="w-16 h-16 xl:w-[72px] xl:h-[72px] rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
                       <ProductImage
                         src={product.imgUrl}
                         fallbacks={product.imgFallbacks}
                         alt={product.shortName}
-                        className="w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105"
+                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
                       />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
@@ -1460,12 +1722,12 @@ export default function Result() {
                   }`}
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                    <div className="w-16 h-16 xl:w-[72px] xl:h-[72px] rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
                       <ProductImage
                         src={healthMixProduct.imgUrl}
                         fallbacks={healthMixProduct.imgFallbacks}
                         alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1 transition-transform duration-300 group-hover:scale-105 ${
+                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
                           includeHealthMix ? "" : "opacity-60"
                         }`}
                       />
@@ -1481,8 +1743,8 @@ export default function Result() {
                       )}
                       <p className="text-xs font-semibold text-[#064e3b] mt-1">
                         {includeHealthMix
-                          ? `Included · −₹${healthMixDelta} if removed`
-                          : `Add for +₹${healthMixDelta}`}
+                          ? `Included · ₹${healthMixPrice}`
+                          : `Add for ₹${healthMixPrice}`}
                       </p>
                     </div>
                   </div>
@@ -1539,9 +1801,9 @@ export default function Result() {
                       />
                       <span className="text-[11px] text-gray-600 font-medium">
                         Include Hair Health Mix
-                        {healthMixDelta > 0 && (
+                        {healthMixPrice > 0 && (
                           <span className="font-bold text-[#1b5e20]">
-                            {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                            {" "}(₹{healthMixPrice})
                           </span>
                         )}
                       </span>
@@ -1576,10 +1838,6 @@ export default function Result() {
                 </svg>
                 Secure Checkout
               </div>
-
-              <p className="text-[10px] text-gray-400 text-center mt-1">
-                All of our products are GMP &amp; ISO 9001 certified
-              </p>
             </div>
           </div>
         </div>
@@ -1604,34 +1862,31 @@ export default function Result() {
       {/* END GRID */}
 
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        <div className="bg-gray-100 text-center py-1.5">
-          <p className="text-[10px] text-gray-600 font-medium">All of our products are GMP &amp; ISO 9001 certified</p>
-        </div>
-        <div className="max-w-lg mx-auto px-4 py-4 flex flex-col gap-3">
+        <div className="max-w-lg mx-auto px-4 py-3 flex flex-col gap-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {recommendedBundle && !requiresDoctorConsultation ? (
             <>
-              <div className="flex flex-col gap-1">
-                <span className="text-[11px] font-medium text-gray-500 tracking-wide uppercase">Your treatment plan price</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] font-medium text-gray-500 tracking-wide uppercase">Your treatment plan price</span>
                 
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-[26px] font-black text-gray-900 leading-none">₹{recommendedBundle.price}</span>
-                  <span className="text-xs font-semibold text-gray-500">/ month</span>
+                  <span className="text-xl font-extrabold text-gray-900 leading-none">₹{recommendedBundle.price}</span>
+                  <span className="text-[11px] font-semibold text-gray-500">/ month</span>
                 </div>
                 
-                <p className="text-xs font-medium text-gray-700">
+                <p className="text-[11px] font-medium text-gray-700">
                   (Less than ₹{Math.round(recommendedBundle.price / 30)} / day)
                 </p>
 
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-0.5">
                   {savings > 0 && (
-                    <span className="inline-block bg-[#e8f5e9] text-[#1b5e20] text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
+                    <span className="inline-block bg-[#e8f5e9] text-[#1b5e20] text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
                       You save ₹{savings}
                     </span>
                   )}
-                  <span className="text-xs text-gray-400 line-through font-medium">₹{recommendedBundle.originalPrice}</span>
+                  <span className="text-[11px] text-gray-400 line-through font-medium">₹{recommendedBundle.originalPrice}</span>
                 </div>
 
-                <label className="flex items-center gap-2 mt-2 cursor-pointer bg-gray-50 p-2 rounded-md border border-gray-100">
+                <label className="flex items-center gap-2 mt-1.5 cursor-pointer bg-gray-50 p-2 rounded-md border border-gray-100">
                   <input
                     type="checkbox"
                     checked={includeHealthMix}
@@ -1640,9 +1895,9 @@ export default function Result() {
                   />
                   <span className="text-[11px] text-gray-600 font-medium">
                     Include Hair Health Mix
-                    {healthMixDelta > 0 && (
+                    {healthMixPrice > 0 && (
                       <span className="font-bold text-[#1b5e20]">
-                        {" "}({includeHealthMix ? `−₹${healthMixDelta}` : `+₹${healthMixDelta}`})
+                        {" "}(₹{healthMixPrice})
                       </span>
                     )}
                   </span>
