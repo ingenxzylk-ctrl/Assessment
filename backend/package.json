@@ -2,12 +2,11 @@
   "name": "hair-scalp-quiz-backend",
   "version": "1.0.0",
   "description": "Backend for Zaftan Media Hair & Scalp Assessment Quiz",
-  "main": "server.js",
+  "main": "app.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
-    "drive:token": "node scripts/get-google-drive-token.js"
+    "dev": "nodemon app.js",
+    "start": "node app.js"
   },
   "dependencies": {
     "@google/genai": "^2.11.0",
