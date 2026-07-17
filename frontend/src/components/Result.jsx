@@ -1261,11 +1261,17 @@ export default function Result() {
               bundleTitle: kitDisplayName || recommendedBundle.bundleTitle,
               price: recommendedBundle.price,
               originalPrice: recommendedBundle.originalPrice,
-              products: kitProducts
-                .filter((p) => includeHealthMix || !p.isHealthMix)
+              // Use official sheet catalog names (not marketing short labels)
+              products: (recommendedBundle.items || [])
+                .filter((p) => {
+                  const isHealthMix =
+                    p.id === "zylk-hair-health-mix" ||
+                    String(p.id || "").startsWith("prod-supplements");
+                  return includeHealthMix || !isHealthMix;
+                })
                 .map((p) => ({
                   id: p.id,
-                  name: p.shortName || p.name || p.id,
+                  name: p.name,
                 })),
             }
           : null,
@@ -1286,7 +1292,6 @@ export default function Result() {
     eligibilityTimeline,
     recommendedBundle,
     kitDisplayName,
-    kitProducts,
     includeHealthMix,
   ]);
 

@@ -116,39 +116,43 @@ export function shortenProductName(name = "", isFemale = false) {
 
   if (isFemale && lower.includes("finasteride")) return null;
 
+  // Names must match the official Zylk Health products sheet
   if (lower.includes("minoxidil")) {
-    if (lower.includes("2%")) return "Minoxidil 2% Serum (Female)";
-    return isFemale ? "Minoxidil 2% Serum (Female)" : "Minoxidil 5% + Finasteride Serum";
+    if (lower.includes("2%")) return "Zylk Minoxidil 2% Solution";
+    return isFemale ? "Zylk Minoxidil 2% Solution" : "Zylk Minoxidil 5% Solution";
   }
   if (lower.includes("tea tree mist") || lower.includes("tea-tree mist")) {
     return "Zylk Tea Tree Mist Spray";
   }
   if (lower.includes("rosemary mist")) return "Zylk Rosemary Mist Spray";
   if (lower.includes("rosemary") && lower.includes("oil")) return "Zylk Rosemary Hair Oil";
-  if (lower.includes("rosemary")) return "Rosemary Growth Concentrate";
-  if (lower.includes("derma") || lower.includes("roller")) return "Scalp Derma Roller (0.5mm)";
+  if (lower.includes("rosemary")) return "Zylk Rosemary Hair Oil";
+  if (lower.includes("derma") || lower.includes("roller")) return "Zylk 0.5 mm Dermaroller";
   if (lower.includes("antidandruff") || lower.includes("anti-dandruff")) {
     return "Zylk Antidandruff Shampoo";
   }
-  if (lower.includes("detox")) return "Zylk Detox Salicylic Acid Shampoo";
-  if (lower.includes("shampoo") || lower.includes("cleanser")) return "Anti-Dandruff Cleanser";
+  if (lower.includes("detox") || lower.includes("salicylic")) {
+    return "Zylk Detox Salicylic Acid Shampoo";
+  }
+  if (lower.includes("shampoo") || lower.includes("cleanser")) {
+    return "Zylk Antidandruff Shampoo";
+  }
   if (lower.includes("massager") || lower.includes("brush")) return "Zylk Scalp Massager";
   if (lower.includes("conditioner")) return "Zylk Tea Tree Conditioner";
   if (lower.includes("health mix") || lower.includes("supplement") || lower.includes("vitality")) {
     return "Zylk Hair Health Mix";
   }
   if (lower.includes("progro")) return "Zylk ProGro Oil";
-  if (lower.includes("oil")) return "Custom ProGro Oil";
+  if (lower.includes("oil")) return "Zylk ProGro Oil";
 
   return name;
 }
 
 export function formatBundleProduct(product = {}, isFemale = false) {
-  // Prefer official catalog names so sheet products are not remapped incorrectly
-  const fromCatalog = String(product.id || "").startsWith("zylk-");
-  const shortName = fromCatalog
-    ? product.name || shortenProductName(product.name, isFemale)
-    : shortenProductName(product?.name, isFemale);
+  // Always prefer official sheet catalog name when present
+  const shortName =
+    product.name ||
+    shortenProductName(product?.name || product?.title || "", isFemale);
   if (!shortName) return null;
 
   if (product.imgUrl) {
