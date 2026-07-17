@@ -1258,9 +1258,15 @@ export default function Result() {
         recommendedBundle: recommendedBundle
           ? {
               bundleId: recommendedBundle.bundleId,
-              bundleTitle: recommendedBundle.bundleTitle,
+              bundleTitle: kitDisplayName || recommendedBundle.bundleTitle,
               price: recommendedBundle.price,
               originalPrice: recommendedBundle.originalPrice,
+              products: kitProducts
+                .filter((p) => includeHealthMix || !p.isHealthMix)
+                .map((p) => ({
+                  id: p.id,
+                  name: p.shortName || p.name || p.id,
+                })),
             }
           : null,
       },
@@ -1279,6 +1285,9 @@ export default function Result() {
     rootCauses,
     eligibilityTimeline,
     recommendedBundle,
+    kitDisplayName,
+    kitProducts,
+    includeHealthMix,
   ]);
 
   const confidencePhrase = (() => {
