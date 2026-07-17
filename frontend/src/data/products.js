@@ -9,10 +9,12 @@ import {
 import {
   getBundleItems,
   HAIR_HEALTH_MIX_ID as CATALOG_MIX_ID,
-  HAIR_HEALTH_MIX_PRICE,
 } from "./zylkProductCatalog";
 
-export { HAIR_HEALTH_MIX_ID, HAIR_HEALTH_MIX_PRICE };
+export { HAIR_HEALTH_MIX_ID };
+
+/** List price from Zylk Health product sheet */
+export const HAIR_HEALTH_MIX_PRICE = 1799;
 
 /**
  * @deprecated Prefer getRecommendedBundle() which uses the official Zylk sheet.
