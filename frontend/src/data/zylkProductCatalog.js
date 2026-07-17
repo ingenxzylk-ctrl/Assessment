@@ -19,14 +19,16 @@ export const ZYLK_PRODUCTS = {
   "zylk-rosemary-oil": {
     id: "zylk-rosemary-oil",
     name: "Zylk Rosemary Hair Oil",
-    subtitle: "2% Rosemary, 2% Peppermint, 48% Jojoba, 48% Grapeseed, 0.1% Vitamin E",
+    subtitle:
+      "2% Rosemary Oil, 2% Peppermint Oil, 48% Jojoba Oil, 48% Grapeseed Oil, 0.1% Vitamin E",
     price: 299,
     imgUrl: "/products/rosemary-oil.jpg",
   },
   "zylk-progro-oil": {
     id: "zylk-progro-oil",
     name: "Zylk ProGro Oil",
-    subtitle: "94% CCTG, 2% Tea Tree, 2% Rosemary, 2% Peppermint, 0.1% Vitamin E",
+    subtitle:
+      "94% CCTG, 2% Tea Tree Oil, 2% Rosemary Oil, 2% Peppermint Oil, 0.1% Vitamin E",
     price: 499,
     imgUrl: "/products/progro-oil.jpg",
   },
