@@ -242,72 +242,216 @@ function getOrCreateDailyReportMeta(fingerprint) {
   return { reportId, reportDate };
 }
 
-function buildRootCauses(state, hasDandruff, isFemale) {
-  const dump = JSON.stringify(state || {}).toLowerCase();
-  const causes = [];
+function getDandruffLevel(state) {
+  return String(state?.hairHealth?.dandruff_experience || "").toLowerCase().trim();
+}
 
+/** Quiz values: frequent | moderate | no */
+function resolveHasDandruff(state) {
+  const level = getDandruffLevel(state);
+  return level === "frequent" || level === "moderate";
+}
+
+function includesIgnoreCase(value, needle) {
+  return String(value || "").toLowerCase().includes(String(needle).toLowerCase());
+}
+
+function listIncludesIgnoreCase(list, needle) {
+  return (Array.isArray(list) ? list : []).some((item) => includesIgnoreCase(item, needle));
+}
+
+/**
+ * Root causes from important quiz answers only.
+ * Does not change UI layout — only which cards/copy appear.
+ */
+function buildRootCauses(state, hasDandruff, isFemale) {
+  const hair = state?.hairHealth || {};
+  const internal = state?.internalHealth || {};
+  const causes = [];
+  const dandruffLevel = getDandruffLevel(state);
+  const family = String(hair.family_history || "").toLowerCase();
+  const stress = String(internal.stress_level || "");
+  const sleep = String(internal.sleep_cycle || "");
+  const energy = String(internal.energy_level || "");
+  const bowel = String(internal.bowel || "");
+  const gas = String(internal.gas_acidity || "");
+  const digestion = String(internal.digestion || "");
+  const iron = String(internal.iron_level || "");
+  const food = String(internal.food_habits || "");
+  const lifeStage = String(internal.life_stage || "");
+  const conditions = Array.isArray(internal.health_conditions) ? internal.health_conditions : [];
+  const symptoms = Array.isArray(internal.symptoms) ? internal.symptoms : [];
+  const dailyLoss = String(hair.daily_loss_amount || "");
+  const shedding = String(hair.shedding_amount || "").toLowerCase();
+
+  // Dandruff ← dandruff_experience
   if (hasDandruff) {
     causes.push({
       id: "dandruff",
-      label: "Dandruff",
+      label: dandruffLevel === "frequent" ? "Heavy Dandruff" : "Dandruff",
       icon: "🧴",
-      desc: "Dandruff irritates your scalp and weakens hair roots. We clear it in 1 month for long-term regrowth.",
+      desc:
+        dandruffLevel === "frequent"
+          ? "You reported heavy dandruff. Flakes irritate the scalp and weaken roots — clearing this early is a priority in your plan."
+          : "You reported moderate dandruff. Reducing flakes helps calm the scalp so growth products can work better.",
     });
   }
 
-  causes.push({
-    id: "genetic",
-    label: "Genetics",
-    icon: "🧬",
-    desc: isFemale
-      ? "Hormonal shifts along the hair part line cause progressive thinning. Our kit targets receptors internally and topically."
-      : "DHT sensitivity shrinks follicles over time. Our dual-action serum blocks DHT locally while nourishing roots.",
-  });
-
-  if (dump.includes("stress") || dump.includes("anxiety") || dump.includes("sleep") || dump.includes("poor")) {
+  // Genetics ← family_history
+  if (family && family !== "none") {
+    const sideLabel =
+      family === "both"
+        ? "both sides of your family"
+        : family === "mother"
+          ? "your mother's side"
+          : "your father's side";
     causes.push({
-      id: "lifestyle",
-      label: "Lifestyle",
-      icon: "❤️",
-      desc: "High stress levels and poor sleep can accelerate hair fall. This plan includes strategies to manage these environmental triggers.",
+      id: "genetic",
+      label: "Genetics",
+      icon: "🧬",
+      desc: isFemale
+        ? `Family history on ${sideLabel} points to genetic thinning along the part line. Your kit targets follicle receptors internally and topically.`
+        : `Family history on ${sideLabel} increases DHT-related follicle shrinkage risk. Your plan blocks DHT locally while nourishing roots.`,
     });
   }
 
-  if (dump.includes("diet") || dump.includes("nutrition") || dump.includes("iron") || dump.includes("veg") || dump.includes("food")) {
-    causes.push({
-      id: "nutrition",
-      label: "Nutrition",
-      icon: "🍎",
-      desc: "Optimizing your intake is key to healthy growth. Our analysis identifies nutritional gaps to support your hair health from the inside out.",
-    });
-  } else {
-    causes.push({
-      id: "nutrition",
-      label: "Nutrition",
-      icon: "🍎",
-      desc: "Optimizing your intake is key to healthy growth. Our analysis identifies nutritional gaps to support your hair health from the inside out.",
-    });
+  // Hormonal ← symptoms / life_stage / health_conditions
+  const hormonalSignals = [];
+  if (listIncludesIgnoreCase(symptoms, "pcos") || listIncludesIgnoreCase(symptoms, "pcod")) {
+    hormonalSignals.push("PCOS/PCOD");
   }
-
-  if (dump.includes("thyroid") || dump.includes("pcos") || dump.includes("hormone")) {
+  if (listIncludesIgnoreCase(symptoms, "thyroid") || listIncludesIgnoreCase(conditions, "thyroid")) {
+    hormonalSignals.push("thyroid");
+  }
+  if (listIncludesIgnoreCase(symptoms, "irregular periods")) hormonalSignals.push("irregular periods");
+  if (listIncludesIgnoreCase(symptoms, "extra hair on face")) hormonalSignals.push("androgen signs");
+  if (listIncludesIgnoreCase(symptoms, "pimples")) hormonalSignals.push("hormonal acne");
+  if (listIncludesIgnoreCase(conditions, "diabetes")) hormonalSignals.push("blood sugar");
+  if (
+    lifeStage &&
+    !/^none$/i.test(lifeStage.trim()) &&
+    (includesIgnoreCase(lifeStage, "pregnant") ||
+      includesIgnoreCase(lifeStage, "breastfeeding") ||
+      includesIgnoreCase(lifeStage, "periods anymore") ||
+      includesIgnoreCase(lifeStage, "planning"))
+  ) {
+    hormonalSignals.push("life-stage hormone shift");
+  }
+  if (hormonalSignals.length) {
     causes.push({
       id: "hormonal",
       label: "Hormonal",
       icon: "💊",
-      desc: "Internal hormonal imbalance accelerates shedding. We address this with targeted internal + topical therapy.",
+      desc: `Your answers flagged ${hormonalSignals.slice(0, 2).join(" + ")}. Hormonal imbalance can accelerate shedding — we address this with targeted internal + topical support.`,
     });
   }
 
-  if (!causes.some((c) => c.id === "lifestyle")) {
+  // Nutrition ← iron / energy / gut / food / supplements
+  const nutritionBits = [];
+  if (includesIgnoreCase(iron, "low iron")) nutritionBits.push("low iron");
+  if (includesIgnoreCase(iron, "never checked")) nutritionBits.push("unchecked iron status");
+  if (includesIgnoreCase(energy, "very low") || includesIgnoreCase(energy, "low in afternoon")) {
+    nutritionBits.push("low daytime energy");
+  }
+  if (includesIgnoreCase(bowel, "irregular") || includesIgnoreCase(bowel, "constipation")) {
+    nutritionBits.push("irregular digestion");
+  }
+  if (includesIgnoreCase(gas, "frequently") || includesIgnoreCase(gas, "chronic")) {
+    nutritionBits.push("chronic bloating");
+  }
+  if (includesIgnoreCase(digestion, "bloating") || includesIgnoreCase(digestion, "constipation")) {
+    nutritionBits.push("gut absorption stress");
+  }
+  if (includesIgnoreCase(food, "vegetarian")) nutritionBits.push("vegetarian diet gaps");
+  if (String(internal.supplements || "").toLowerCase() === "no") {
+    nutritionBits.push("no current supplements");
+  }
+  if (nutritionBits.length) {
+    causes.push({
+      id: "nutrition",
+      label: includesIgnoreCase(iron, "low iron") ? "Iron & Nutrition" : "Nutrition",
+      icon: "🍎",
+      desc: `Based on your quiz (${nutritionBits.slice(0, 2).join(", ")}), nutrient support is important for stronger growth from the inside out.`,
+    });
+  }
+
+  // Lifestyle ← stress_level / sleep_cycle
+  const lifestyleBits = [];
+  if (includesIgnoreCase(stress, "high") || includesIgnoreCase(stress, "severe")) {
+    lifestyleBits.push("high stress");
+  } else if (includesIgnoreCase(stress, "moderate")) {
+    lifestyleBits.push("daily stress");
+  }
+  if (includesIgnoreCase(sleep, "less than 5")) lifestyleBits.push("short sleep");
+  if (lifestyleBits.length) {
     causes.push({
       id: "lifestyle",
       label: "Lifestyle",
       icon: "❤️",
-      desc: "High stress levels and poor sleep can accelerate hair fall. This plan includes strategies to manage these environmental triggers.",
+      desc: `You reported ${lifestyleBits.join(" + ")}. Stress and poor sleep can push more follicles into shedding — your plan includes habits that calm these triggers.`,
+    });
+  }
+
+  // Heavy shedding ← daily_loss_amount / shedding_amount
+  if (["100_150", "over_150"].includes(dailyLoss) || shedding === "heavy") {
+    causes.push({
+      id: "shedding",
+      label: "Heavy Shedding",
+      icon: "💨",
+      desc: "You reported heavy daily hair fall. Early fall-control is built into month 1 so density recovery can start sooner.",
+    });
+  }
+
+  // Keep section non-empty if quiz signals are sparse
+  if (!causes.length) {
+    causes.push({
+      id: "pattern",
+      label: isFemale ? "Part-line Thinning" : "Pattern Hair Loss",
+      icon: "🧬",
+      desc: isFemale
+        ? "Your photos and answers point to pattern thinning. We focus on scalp health and follicle support along the part and crown."
+        : "Your photos and answers point to pattern hair loss. We focus on DHT control and follicle nourishment for your stage.",
     });
   }
 
   return causes;
+}
+
+function buildRootCauseTags(state, hasDandruff) {
+  const tags = [];
+  const internal = state?.internalHealth || {};
+  const symptoms = Array.isArray(internal.symptoms) ? internal.symptoms : [];
+  const conditions = Array.isArray(internal.health_conditions) ? internal.health_conditions : [];
+
+  if (hasDandruff) tags.push("Scalp Clear");
+  if (
+    includesIgnoreCase(internal.stress_level, "high") ||
+    includesIgnoreCase(internal.stress_level, "severe") ||
+    includesIgnoreCase(internal.stress_level, "moderate")
+  ) {
+    tags.push("Cortisol Control");
+  }
+  if (
+    includesIgnoreCase(internal.iron_level, "low") ||
+    includesIgnoreCase(internal.energy_level, "low") ||
+    includesIgnoreCase(internal.food_habits, "vegetarian") ||
+    includesIgnoreCase(internal.bowel, "irregular") ||
+    includesIgnoreCase(internal.bowel, "constipation") ||
+    includesIgnoreCase(internal.digestion, "bloating") ||
+    includesIgnoreCase(internal.digestion, "constipation")
+  ) {
+    tags.push("Nutrient Sync");
+  }
+  if (
+    listIncludesIgnoreCase(symptoms, "pcos") ||
+    listIncludesIgnoreCase(symptoms, "pcod") ||
+    listIncludesIgnoreCase(symptoms, "thyroid") ||
+    listIncludesIgnoreCase(conditions, "thyroid") ||
+    listIncludesIgnoreCase(symptoms, "irregular periods")
+  ) {
+    tags.push("Hormone Balancing");
+  }
+  return tags;
 }
 
 function getMonthPhase(month, totalMonths) {
@@ -964,14 +1108,10 @@ export default function Result() {
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
 
-  const stateDump = JSON.stringify(state || {}).toLowerCase();
-  const hasDandruff = stateDump.includes("dandruff") && !stateDump.includes("no-dandruff");
+  const hasDandruff = resolveHasDandruff(state);
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
-  const rootCauseTags = [];
-  if (stateDump.includes("stress")) rootCauseTags.push("Cortisol Control");
-  if (stateDump.includes("diet") || stateDump.includes("nutrition")) rootCauseTags.push("Nutrient Sync");
-  if (stateDump.includes("hormone") || stateDump.includes("pcos") || stateDump.includes("thyroid")) rootCauseTags.push("Hormone Balancing");
+  const rootCauseTags = buildRootCauseTags(state, hasDandruff);
 
   const recommendedBundle = !requiresDoctorConsultation
     ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, includeHealthMix)
@@ -1093,13 +1233,14 @@ export default function Result() {
       hairHealth: state.hairHealth || {},
       internalHealth: state.internalHealth || {},
       scalpAnalysis: rawAnalysis,
-      scalpImages: (state.scalpImages || []).map((img) => ({
-        type: img.type,
-        label: img.label,
-        // Omit full dataUrl from wire payload size; metadata is enough for archive.
-        // Backend PDF v1 is text-based; images stay on the client Result UI.
-        hasImage: Boolean(img.dataUrl || img.previewUrl || img.url),
-      })),
+      scalpImages: (state.scalpImages || [])
+        .filter((img) => img?.dataUrl || img?.previewUrl || img?.url)
+        .map((img) => ({
+          type: img.type,
+          label: img.label || img.type,
+          // Include compressed data URLs so the org PDF can embed both photos
+          dataUrl: img.dataUrl || img.previewUrl || img.url || null,
+        })),
       gender,
       clientReportId: reportId,
       reportMeta: {
@@ -1213,12 +1354,12 @@ export default function Result() {
             <p className="text-[11px] font-bold tracking-[0.12em] uppercase text-[#6f8f3d]">
               Your Assessment
             </p>
-            <div className="mt-2 flex flex-row flex-wrap items-center gap-2">
-              <h3 className="text-lg sm:text-2xl font-bold text-gray-900 leading-snug">
+            <div className="mt-2 flex flex-nowrap items-center gap-1.5 sm:gap-2">
+              <h3 className="min-w-0 text-[15px] sm:text-2xl font-bold text-gray-900 leading-tight">
                 {getStageTitle()}
               </h3>
               {getScaleBadge() && (
-                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-[#555555] shrink-0">
+                <span className="inline-flex items-center rounded-full bg-[#ececec] px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-semibold text-[#555555] shrink-0 whitespace-nowrap">
                   {getScaleBadge()}
                 </span>
               )}
@@ -1273,37 +1414,7 @@ export default function Result() {
               </div>
             )}
 
-            {!requiresDoctorConsultation && !eligibilityTimeline.needsTransplant && (
-              <ResultsSeeingTimeline
-                roadmap={roadmap}
-                ageRange={state?.aboutMe?.ageRange}
-              />
-            )}
-
-            <div className="mt-4 bg-[#e8f5e9] rounded-xl p-4 text-sm text-[#1b4332] leading-relaxed">
-              <p className="font-bold mb-2">
-                {requiresDoctorConsultation
-                  ? "Your hair loss needs clinical intervention."
-                  : hasDandruff
-                    ? "Your hair fall has multiple root causes, but don't worry!"
-                    : "Your hair fall is genetic, but don't worry!"}
-              </p>
-              <ul className="list-disc pl-4 space-y-1 text-xs text-[#2d6a4f]">
-                {requiresDoctorConsultation ? (
-                  <>
-                    <li>Advanced follicular depletion at this stage needs specialist evaluation.</li>
-                    <li>Topical kits alone may not restore significant density.</li>
-                    <li>Book a consultation to explore transplant or clinical therapies.</li>
-                  </>
-                ) : (
-                  <>
-                    <li>This is caused by internal hormones and scalp environment working together.</li>
-                    <li>At your stage, most hair follicles are still active and can be revived.</li>
-                    <li>With consistent use of your customised Zylk kit, regrowth is achievable.</li>
-                  </>
-                )}
-              </ul>
-            </div>
+            
 
             <p className="text-[10px] text-gray-400 mt-3 italic">
               *Based on internal Zylk user outcomes for profiles matching your stage and age group.
@@ -1351,9 +1462,7 @@ export default function Result() {
               <p className="text-[10px] text-gray-500 uppercase mt-1 leading-snug">
                 Based on DNA, Doctor, Nutrition, AI and Machine Learning
               </p>
-              <button type="button" className="mt-2 text-xs font-semibold border border-gray-800 rounded-full px-3 py-1.5 bg-white">
-                Check Study →
-              </button>
+             
             </div>
             <div className="w-28 shrink-0 flex items-end gap-1 h-24">
               <div className="flex flex-col items-center flex-1">
@@ -1548,35 +1657,7 @@ export default function Result() {
           </div>
         )}
 
-        {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 relative overflow-hidden">
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <p className="text-base font-bold text-gray-900">Hair coach unlocked</p>
-                <p className="text-xs text-gray-500 mt-1">Dedicated hair expert just a call away to support you.</p>
-              </div>
-              <div className="w-16 h-16 rounded-full bg-[#e8eede] flex items-center justify-center text-3xl shrink-0">👩‍⚕️</div>
-            </div>
-            <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
-              <p className="text-xs text-gray-600 flex-1">Opt-in for a call immediately after placing your order</p>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={coachCallOptIn}
-                onClick={() => setCoachCallOptIn(!coachCallOptIn)}
-                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 cursor-pointer ${
-                  coachCallOptIn ? "bg-[#064e3b]" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                    coachCallOptIn ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-        )}
+       
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
