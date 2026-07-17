@@ -52,13 +52,59 @@ export const BUNDLE_CONFIG = {
 
 export const TEST_BUNDLE_NUMBER = 99;
 export const HAIR_HEALTH_MIX_ID = "hair-health-mix";
+
+/**
+ * Unique personalized name for each recommended kit.
+ * Bundle type + user stage (and gender when relevant).
+ */
 export function getBundleDisplayName(bundleNumber, gender, stage) {
   const stageStr = String(stage ?? "");
-  if (bundleNumber === 1) return "Stage 2-5 Men Product";
-  if (bundleNumber === 2) return "Stage 2-5 Men Product (Dandruff)";
-  if (bundleNumber === 4) return "Stage 2-3 Female Product";
-  if (stageStr === "overall-thinning") return "Overall Thinning Product";
-  return gender === "female" ? "Stage 1 Female Product" : "Stage 1 Men Product";
+  const stageLabel =
+    stageStr === "overall-thinning"
+      ? "Overall Thinning"
+      : /^\d+$/.test(stageStr)
+        ? `Stage ${stageStr}`
+        : stageStr
+          ? stageStr.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          : "";
+
+  if (bundleNumber === 99) return "Zylk ₹1 Test Kit";
+
+  if (bundleNumber === 1) {
+    // PDF Bundle-1 — male pattern loss, no dandruff
+    return stageLabel
+      ? `Zylk Pattern Restore Kit — ${stageLabel} Men`
+      : "Zylk Pattern Restore Kit — Men";
+  }
+
+  if (bundleNumber === 2) {
+    // PDF Bundle-2 — male pattern loss + dandruff (no dermaroller)
+    return stageLabel
+      ? `Zylk ProGro Scalp-Clear Kit — ${stageLabel} Men`
+      : "Zylk ProGro Scalp-Clear Kit — Men";
+  }
+
+  if (bundleNumber === 4) {
+    // PDF Bundle-7 — female stage 2–3
+    return stageLabel
+      ? `Zylk Women's Density Kit — ${stageLabel}`
+      : "Zylk Women's Density Kit";
+  }
+
+  // PDF Bundle-5 — stage 1 or overall thinning
+  if (stageStr === "overall-thinning") {
+    return gender === "female"
+      ? "Zylk Diffuse Thinning Care Kit — Women"
+      : "Zylk Diffuse Thinning Care Kit — Men";
+  }
+
+  if (stageLabel) {
+    return gender === "female"
+      ? `Zylk Early Care Kit — ${stageLabel} Women`
+      : `Zylk Early Care Kit — ${stageLabel} Men`;
+  }
+
+  return gender === "female" ? "Zylk Early Care Kit — Women" : "Zylk Early Care Kit — Men";
 }
 export function getWooProductId(bundleNumber, includeHealthMix = true) {
   const config = BUNDLE_CONFIG[bundleNumber];

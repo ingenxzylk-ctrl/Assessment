@@ -23,19 +23,19 @@ const FEMALE_GUIDES = [
     type: "front",
     label: "1. Front View",
     desc: "Face the camera directly. Pull hair back so your front hairline is visible.",
-    img: "/stages/female_front_guide.png",
+    img: "/guild/front.png",
   },
   {
     type: "side",
     label: "2. Side View (Ponytail)",
     desc: "Put hair in a ponytail. Turn head to show side profile — ear, temple, and side scalp visible.",
-    img: "/stages/female_side_guide.png",
+    img: "/guild/side.png",
   },
   {
     type: "back",
     label: "3. Back View (Ponytail Aside)",
     desc: "Keep ponytail and sweep it over one shoulder to the side. Tilt head so crown and back part-line show.",
-    img: "/stages/female_back_guide.png",
+    img: "/guild/back.png",
   },
 ];
 
