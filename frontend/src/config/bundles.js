@@ -51,11 +51,11 @@ export const BUNDLE_CONFIG = {
 
 
 export const TEST_BUNDLE_NUMBER = 99;
-export const HAIR_HEALTH_MIX_ID = "hair-health-mix";
+export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
 
 /**
- * Unique personalized name for each recommended kit.
- * Bundle type + user stage (and gender when relevant).
+ * Unique personalized name for each recommended kit (Zylk product sheet).
+ * Bundle 1 / 2 / 5 / 7 → distinct kit names + user stage.
  */
 export function getBundleDisplayName(bundleNumber, gender, stage) {
   const stageStr = String(stage ?? "");
@@ -71,27 +71,27 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
   if (bundleNumber === 99) return "Zylk ₹1 Test Kit";
 
   if (bundleNumber === 1) {
-    // PDF Bundle-1 — male pattern loss, no dandruff
+    // Bundle-1 — male pattern loss, no dandruff
     return stageLabel
       ? `Zylk Pattern Restore Kit — ${stageLabel} Men`
       : "Zylk Pattern Restore Kit — Men";
   }
 
   if (bundleNumber === 2) {
-    // PDF Bundle-2 — male pattern loss + dandruff (no dermaroller)
+    // Bundle-2 — male pattern loss + dandruff
     return stageLabel
       ? `Zylk ProGro Scalp-Clear Kit — ${stageLabel} Men`
       : "Zylk ProGro Scalp-Clear Kit — Men";
   }
 
   if (bundleNumber === 4) {
-    // PDF Bundle-7 — female stage 2–3
+    // Bundle-7 — female stage 2–3
     return stageLabel
       ? `Zylk Women's Density Kit — ${stageLabel}`
       : "Zylk Women's Density Kit";
   }
 
-  // PDF Bundle-5 — stage 1 or overall thinning
+  // Bundle-5 — stage 1 or overall thinning
   if (stageStr === "overall-thinning") {
     return gender === "female"
       ? "Zylk Diffuse Thinning Care Kit — Women"
