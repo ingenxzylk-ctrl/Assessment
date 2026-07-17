@@ -1164,8 +1164,15 @@ export default function Result() {
 
   const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
-  // Sheet list price for Health Mix is ₹1799 (not the bundle price delta)
-  const healthMixPrice = healthMixProduct?.price || HAIR_HEALTH_MIX_PRICE;
+  // Always show Zylk sheet list price ₹1799 (never bundle delta / stale product price)
+  const healthMixPrice = HAIR_HEALTH_MIX_PRICE;
+  const kitDisplayName = recommendedBundle
+    ? getBundleDisplayName(
+        recommendedBundle.bundleNumber,
+        gender,
+        aiPredictedStageNumber
+      )
+    : null;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
   const testimonialPhotos = useMemo(
@@ -1536,9 +1543,9 @@ export default function Result() {
               <p className="text-xs text-gray-400 mt-1">
                 Personalized Zylk Health bundle for your stage
               </p>
-              {recommendedBundle?.bundleTitle && (
+              {kitDisplayName && (
                 <p className="text-sm font-bold text-[#064e3b] mt-2">
-                  {recommendedBundle.bundleTitle}
+                  {kitDisplayName}
                 </p>
               )}
             </div>
@@ -1816,9 +1823,9 @@ export default function Result() {
               <p className="text-xs text-gray-400 mt-1">
                 Personalized Zylk Health bundle for your stage
               </p>
-              {recommendedBundle?.bundleTitle && (
+              {kitDisplayName && (
                 <p className="text-sm font-bold text-[#064e3b] mt-2">
-                  {recommendedBundle.bundleTitle}
+                  {kitDisplayName}
                 </p>
               )}
             </div>
