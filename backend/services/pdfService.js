@@ -327,6 +327,26 @@ export function buildAssessmentPdf(payload) {
           ? `₹${reportMeta.recommendedBundle.originalPrice}`
           : null
       );
+
+      const products =
+        reportMeta.recommendedBundle.products ||
+        reportMeta.recommendedBundle.items ||
+        [];
+      if (Array.isArray(products) && products.length > 0) {
+        doc.x = doc.page.margins.left;
+        const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+        doc.text("Products:");
+        products.forEach((p) => {
+          const name =
+            (typeof p === "string" && p) ||
+            p?.name ||
+            p?.shortName ||
+            p?.title ||
+            p?.id ||
+            "—";
+          doc.text(`  • ${String(name)}`, { width: contentWidth });
+        });
+      }
     }
 
     doc.moveDown(1);
