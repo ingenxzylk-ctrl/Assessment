@@ -127,9 +127,8 @@ export const BUNDLE_PRODUCT_IDS = {
 
 export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
 
-/** List price from Zylk Health product sheet */
-export const HAIR_HEALTH_MIX_PRICE =
-  ZYLK_PRODUCTS["zylk-hair-health-mix"]?.price ?? 1799;
+/** List price from Zylk Health product sheet (₹1799) */
+export const HAIR_HEALTH_MIX_PRICE = 1799;
 
 export function getProductById(id) {
   return ZYLK_PRODUCTS[id] ? { ...ZYLK_PRODUCTS[id] } : null;

@@ -1,11 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuiz } from "../context/QuizContext";
 import { useCart } from "../context/CartContext";
-import { getRecommendedBundle } from "../data/products";
+import { getRecommendedBundle, HAIR_HEALTH_MIX_PRICE } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
-import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
 
