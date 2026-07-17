@@ -6,9 +6,13 @@ import {
   getWooProductId,
   HAIR_HEALTH_MIX_ID,
 } from "../config/bundles";
-import { getBundleItems, HAIR_HEALTH_MIX_ID as CATALOG_MIX_ID } from "./zylkProductCatalog";
+import {
+  getBundleItems,
+  HAIR_HEALTH_MIX_ID as CATALOG_MIX_ID,
+  HAIR_HEALTH_MIX_PRICE,
+} from "./zylkProductCatalog";
 
-export { HAIR_HEALTH_MIX_ID };
+export { HAIR_HEALTH_MIX_ID, HAIR_HEALTH_MIX_PRICE };
 
 /**
  * @deprecated Prefer getRecommendedBundle() which uses the official Zylk sheet.
