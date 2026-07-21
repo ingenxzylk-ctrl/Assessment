@@ -31,7 +31,7 @@ export const BUNDLE_CONFIG = {
     originalPrice: 3273,
   },
   4: {
-    label: "Bundle 7 — Female Stage 2–3",
+    label: "Bundle 7 — Female Stage 2–3 (No Dandruff)",
     pdfBundle: "Bundle-7",
     wooProductId: 8317,
     wooProductIdNoMix: 8327,
@@ -39,10 +39,21 @@ export const BUNDLE_CONFIG = {
     priceWithoutMix: 1699,
     originalPrice: 3523,
   },
-    99: {
+  // Female stage 2–3 WITH dandruff (ProGro Scalp-Clear variant, Minoxidil 2%)
+  5: {
+    label: "Female Stage 2–3 (Dandruff)",
+    pdfBundle: "Bundle-7-Dandruff",
+    // Reuse Bundle-7 Woo IDs until a dedicated female-dandruff SKU is configured
+    wooProductId: 8317,
+    wooProductIdNoMix: 8327,
+    priceWithMix: 2999,
+    priceWithoutMix: 1699,
+    originalPrice: 3523,
+  },
+  99: {
     label: "₹1 Test Bundle",
-    wooProductId: 8363 , // Replace with your real WooCommerce test product ID
-    wooProductIdNoMix: 8363 ,
+    wooProductId: 8363, // Replace with your real WooCommerce test product ID
+    wooProductIdNoMix: 8363,
     priceWithMix: 1,
     priceWithoutMix: 1,
     originalPrice: 1,
@@ -77,16 +88,17 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
       : "Zylk Pattern Restore Kit — Men";
   }
 
-  if (bundleNumber === 2) {
-    // Bundle-2 — dandruff / ProGro Scalp-Clear (no dermaroller)
-    const genderLabel = gender === "female" ? "Women" : "Men";
+  if (bundleNumber === 2 || bundleNumber === 5) {
+    // Dandruff / ProGro Scalp-Clear (no dermaroller)
+    // Bundle 2 = male Minoxidil 5%; Bundle 5 = female Minoxidil 2%
+    const genderLabel = gender === "female" || bundleNumber === 5 ? "Women" : "Men";
     return stageLabel
       ? `Zylk ProGro Scalp-Clear Kit — ${stageLabel} ${genderLabel}`
       : `Zylk ProGro Scalp-Clear Kit — ${genderLabel}`;
   }
 
   if (bundleNumber === 4) {
-    // Bundle-7 — female stage 2–3
+    // Bundle-7 — female stage 2–3, no dandruff (includes dermaroller)
     return stageLabel
       ? `Zylk Women's Density Kit — ${stageLabel}`
       : "Zylk Women's Density Kit";
@@ -127,15 +139,17 @@ export function resolveBundleNumber(gender, stage, hasDandruff) {
   const isFemale = gender === "female";
 
   // Sheet 1 — Bundle-5: stage 1 (any gender) and overall thinning
-  // Takes priority over dandruff (Bundle-2 is only for male stage 2–5)
   if (stageStr === "1" || stageStr === "overall-thinning") return 3;
 
-  // Sheet 1 — Bundle-7: female stage 2–3
-  if (isFemale && ["2", "3"].includes(stageStr)) return 4;
+  // Female stage 2–3:
+  // - with dandruff → quiz bundle 5 (antidandruff / ProGro / Minoxidil 2%, no dermaroller)
+  // - without dandruff → quiz bundle 4 (Sheet Bundle-7, includes dermaroller)
+  if (isFemale && ["2", "3"].includes(stageStr)) {
+    return hasDandruff ? 5 : 4;
+  }
 
   // Sheet 1 — male stage 2–5
   if (isMale && ["2", "3", "4", "5"].includes(stageStr)) {
-    // Bundle-2 when dandruff; Bundle-1 otherwise
     return hasDandruff ? 2 : 1;
   }
 

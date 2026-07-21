@@ -1172,8 +1172,13 @@ export default function Result() {
         name.includes("derma") ||
         name.includes("roller") ||
         name.includes("micro-needling");
-      // Dandruff / Bundle-2: never show dermaroller (including legacy prod-derma)
-      if ((hasDandruff || recommendedBundle?.bundleNumber === 2) && isDerma) {
+      // Dandruff kits (2 / 5): never show dermaroller (including legacy prod-derma)
+      if (
+        (hasDandruff ||
+          recommendedBundle?.bundleNumber === 2 ||
+          recommendedBundle?.bundleNumber === 5) &&
+        isDerma
+      ) {
         return false;
       }
       return true;

@@ -52,7 +52,8 @@ export const getCustomBundle = (gender, stage, hasDandruff, rootCauses = []) => 
  * - Stage 1 / overall thinning → Bundle-5 (never Minoxidil / never Bundle-2)
  * - Male stage 2–5 + dandruff → Bundle-2 (no dermaroller)
  * - Male stage 2–5 no dandruff → Bundle-1
- * - Female stage 2–3 → Bundle-7
+ * - Female stage 2–3 no dandruff → Bundle-7 (includes dermaroller)
+ * - Female stage 2–3 + dandruff → Female Scalp-Clear (Minoxidil 2%, no dermaroller)
  */
 export const getRecommendedBundle = (
   gender,

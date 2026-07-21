@@ -98,7 +98,11 @@ export const ZYLK_PRODUCTS = {
 
 /**
  * Official Sheet 1 allocation (quiz bundle numbers → PDF bundle numbers):
- * 1 → Bundle-1, 2 → Bundle-2, 3 → Bundle-5, 4 → Bundle-7
+ * 1 → Bundle-1 (male 2–5, no dandruff)
+ * 2 → Bundle-2 (male 2–5, dandruff)
+ * 3 → Bundle-5 (stage 1 / overall thinning)
+ * 4 → Bundle-7 (female 2–3, no dandruff — includes dermaroller)
+ * 5 → Female 2–3 WITH dandruff (Minoxidil 2% + ProGro Scalp-Clear items, no dermaroller)
  */
 export const BUNDLE_PRODUCT_IDS = {
   // Bundle-1 — male pattern loss stage 2–5, no dandruff
@@ -127,7 +131,7 @@ export const BUNDLE_PRODUCT_IDS = {
     "zylk-scalp-massager",
     "zylk-tea-tree-conditioner",
   ],
-  // Bundle-7 — female stage 2–3
+  // Bundle-7 — female stage 2–3, NO dandruff (includes dermaroller)
   4: [
     "zylk-minoxidil-2",
     "zylk-rosemary-oil",
@@ -135,6 +139,15 @@ export const BUNDLE_PRODUCT_IDS = {
     "zylk-dermaroller",
     "zylk-scalp-massager",
     "zylk-tea-tree-conditioner",
+  ],
+  // Female stage 2–3 WITH dandruff — no dermaroller
+  // Antidandruff shampoo, Minoxidil 2%, scalp massager, ProGro oil, tea-tree mist (+ Health Mix optional)
+  5: [
+    "zylk-minoxidil-2",
+    "zylk-progro-oil",
+    "zylk-tea-tree-mist",
+    "zylk-antidandruff-shampoo",
+    "zylk-scalp-massager",
   ],
 };
 
@@ -156,9 +169,9 @@ export function getBundleItems(bundleNumber, includeHealthMix = true, hasDandruf
   const ids = [...(BUNDLE_PRODUCT_IDS[bundleNumber] || [])];
 
   // Never recommend a dermaroller when the user has dandruff
-  // (Bundle-2 already omits it; also strip from Bundle-5 / Bundle-7 if dandruff)
+  // (Bundles 2 and 5 already omit it; also strip from other kits if dandruff)
   const filteredIds =
-    hasDandruff || Number(bundleNumber) === 2
+    hasDandruff || Number(bundleNumber) === 2 || Number(bundleNumber) === 5
       ? ids.filter((id) => id !== "zylk-dermaroller")
       : ids;
 
