@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon app.js",
-    "start": "node app.js"
+    "start": "node app.js",
+    "drive:token": "node scripts/get-google-drive-token.js"
   },
   "dependencies": {
     "@google/genai": "^2.11.0",
