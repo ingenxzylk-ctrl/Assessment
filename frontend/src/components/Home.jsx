@@ -48,15 +48,15 @@ export default function Home({ onStart }) {
           </div>
 
           {/* Core Trust Feature Bullet Lists */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-gray-200/50 max-w-xl">
-            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
-              <span className="text-amber-500 font-bold tracking-tight">★★★★★</span>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-6 border-t border-gray-200/50 max-w-xl">
+            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium whitespace-nowrap">
+              <span className="text-amber-500 font-bold tracking-tight shrink-0">★★★★★</span>
               <span>4.8/5 from 1,000+ users</span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium whitespace-nowrap">
               <span className="text-emerald-700 font-bold">✓</span> AI-powered analysis
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
+            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium whitespace-nowrap">
               <span className="text-emerald-700 font-bold">✓</span> Doctor-reviewed
             </div>
           </div>
