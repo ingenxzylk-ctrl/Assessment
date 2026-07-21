@@ -1,5 +1,5 @@
 import { QuizProvider, useQuiz } from "./context/QuizContext";
-import { CartProvider, useCart } from "./context/CartContext"; 
+import { CartProvider } from "./context/CartContext"; 
 import CartDrawer from "./components/ui/CartDrawer"; 
 import ProgressBar from "./components/ProgressBar";
 import Home from "./components/Home"; 
@@ -15,7 +15,6 @@ import "./styles/index.css";
 
 function QuizFlow() {
   const { state, nextStep, prevStep, goToStep } = useQuiz();
-  const { setIsCartOpen, cartCount } = useCart(); 
   const { step, aboutMe, isLoading } = state;
 
   const isMale = aboutMe?.gender === "male";
@@ -73,37 +72,6 @@ function QuizFlow() {
         >
           <div className="w-8 h-8 rounded-full bg-[#064e3b] flex items-center justify-center text-white text-xs font-serif shadow-sm">✦</div>
           <span className="text-xl font-bold tracking-tight text-[#064e3b] font-serif">Zylk Health</span>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          {/* Cart only on result page — hide during quiz flow */}
-          {step === 5 && (
-            <button
-              type="button"
-              onClick={() => setIsCartOpen(true)}
-              className="relative text-white p-1 cursor-pointer"
-              aria-label="Open cart"
-            >
-              <svg
-                className="w-6 h-6 text-[#064e3b]"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-          )}
         </div>
       </header>
 
