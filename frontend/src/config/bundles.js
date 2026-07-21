@@ -124,12 +124,17 @@ export function resolveBundleNumber(gender, stage, hasDandruff) {
   const stageStr = String(stage ?? "");
   const isMale = gender === "male";
   const isFemale = gender === "female";
-  // Stage 1 / overall thinning → Bundle-5 (dermaroller stripped later if dandruff)
+
+  // Sheet rule from product owner: if user reports dandruff → always Bundle-2
+  // (ProGro Scalp-Clear — no dermaroller)
+  if (hasDandruff) return 2;
+
+  // Stage 1 / overall thinning → Bundle-5
   if (stageStr === "1" || stageStr === "overall-thinning") return 3;
-  // Female stage 2–3 → Bundle-7 (dermaroller stripped later if dandruff)
+  // Female stage 2–3 → Bundle-7
   if (isFemale && ["2", "3"].includes(stageStr)) return 4;
-  // Male stage 2–5: dandruff → Bundle-2 (no dermaroller); otherwise Bundle-1
-  if (isMale && ["2", "3", "4", "5"].includes(stageStr)) return hasDandruff ? 2 : 1;
+  // Male stage 2–5 (no dandruff) → Bundle-1
+  if (isMale && ["2", "3", "4", "5"].includes(stageStr)) return 1;
   return 3;
 }
 export function getTestBundle() {
