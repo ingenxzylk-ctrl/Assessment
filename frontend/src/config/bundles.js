@@ -78,10 +78,11 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
   }
 
   if (bundleNumber === 2) {
-    // Bundle-2 — male pattern loss + dandruff
+    // Bundle-2 — dandruff / ProGro Scalp-Clear (no dermaroller)
+    const genderLabel = gender === "female" ? "Women" : "Men";
     return stageLabel
-      ? `Zylk ProGro Scalp-Clear Kit — ${stageLabel} Men`
-      : "Zylk ProGro Scalp-Clear Kit — Men";
+      ? `Zylk ProGro Scalp-Clear Kit — ${stageLabel} ${genderLabel}`
+      : `Zylk ProGro Scalp-Clear Kit — ${genderLabel}`;
   }
 
   if (bundleNumber === 4) {
@@ -124,12 +125,17 @@ export function resolveBundleNumber(gender, stage, hasDandruff) {
   const stageStr = String(stage ?? "");
   const isMale = gender === "male";
   const isFemale = gender === "female";
-  // Stage 1 / overall thinning → Bundle-5 (dermaroller stripped later if dandruff)
+
+  // Sheet rule from product owner: if user reports dandruff → always Bundle-2
+  // (ProGro Scalp-Clear — no dermaroller)
+  if (hasDandruff) return 2;
+
+  // Stage 1 / overall thinning → Bundle-5
   if (stageStr === "1" || stageStr === "overall-thinning") return 3;
-  // Female stage 2–3 → Bundle-7 (dermaroller stripped later if dandruff)
+  // Female stage 2–3 → Bundle-7
   if (isFemale && ["2", "3"].includes(stageStr)) return 4;
-  // Male stage 2–5: dandruff → Bundle-2 (no dermaroller); otherwise Bundle-1
-  if (isMale && ["2", "3", "4", "5"].includes(stageStr)) return hasDandruff ? 2 : 1;
+  // Male stage 2–5 (no dandruff) → Bundle-1
+  if (isMale && ["2", "3", "4", "5"].includes(stageStr)) return 1;
   return 3;
 }
 export function getTestBundle() {
