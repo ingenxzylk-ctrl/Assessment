@@ -1146,6 +1146,13 @@ export default function Result() {
   };
 
   const kitProducts = (recommendedBundle?.items ?? [])
+    .filter((prod) => {
+      // Sheet 1: Bundle-2 (ProGro Scalp-Clear) never includes a dermaroller
+      if (recommendedBundle?.bundleNumber === 2 && prod.id === "zylk-dermaroller") {
+        return false;
+      }
+      return true;
+    })
     .map((prod) => {
       const formatted = formatBundleProduct(prod, isFemale);
       if (!formatted) return null;

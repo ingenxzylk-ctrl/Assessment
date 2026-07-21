@@ -1,5 +1,10 @@
 /**
- * Zylk Health product catalog — from official bundle sheet
+ * Zylk Health product catalog — from official Sheet 1 (bundle allocation).
+ *
+ * Bundle-1: pattern hair loss, male stage 2–5 (no dandruff)
+ * Bundle-2: pattern hair loss + dandruff, male stage 2–5  ← NO dermaroller
+ * Bundle-5: stage 1 men/women, overall thinning
+ * Bundle-7: female stage 2–3
  */
 export const ZYLK_PRODUCTS = {
   "zylk-minoxidil-5": {
@@ -72,7 +77,6 @@ export const ZYLK_PRODUCTS = {
     name: "Zylk Tea Tree Mist Spray",
     subtitle: "Refreshing scalp mist for dandruff care",
     price: 249,
-    // Dedicated asset can be added later; rosemary mist is the closest available image
     imgUrl: "/products/rosemary-mist.jpg",
     imgFallbacks: ["/products/tea-tree-mist.jpg"],
   },
@@ -92,8 +96,12 @@ export const ZYLK_PRODUCTS = {
   },
 };
 
-/** Products per quiz bundle (maps to PDF Bundle 1, 2, 5, 7) */
+/**
+ * Official Sheet 1 allocation (quiz bundle numbers → PDF bundle numbers):
+ * 1 → Bundle-1, 2 → Bundle-2, 3 → Bundle-5, 4 → Bundle-7
+ */
 export const BUNDLE_PRODUCT_IDS = {
+  // Bundle-1 — male pattern loss stage 2–5, no dandruff
   1: [
     "zylk-minoxidil-5",
     "zylk-rosemary-oil",
@@ -102,6 +110,7 @@ export const BUNDLE_PRODUCT_IDS = {
     "zylk-scalp-massager",
     "zylk-tea-tree-conditioner",
   ],
+  // Bundle-2 — male pattern loss stage 2–5 WITH dandruff (no dermaroller)
   2: [
     "zylk-minoxidil-5",
     "zylk-progro-oil",
@@ -109,6 +118,7 @@ export const BUNDLE_PRODUCT_IDS = {
     "zylk-antidandruff-shampoo",
     "zylk-scalp-massager",
   ],
+  // Bundle-5 — stage 1 / overall thinning
   3: [
     "zylk-rosemary-oil",
     "zylk-rosemary-mist",
@@ -117,6 +127,7 @@ export const BUNDLE_PRODUCT_IDS = {
     "zylk-scalp-massager",
     "zylk-tea-tree-conditioner",
   ],
+  // Bundle-7 — female stage 2–3
   4: [
     "zylk-minoxidil-2",
     "zylk-rosemary-oil",
@@ -137,8 +148,15 @@ export function getProductById(id) {
 }
 
 export function getBundleItems(bundleNumber, includeHealthMix = true) {
-  const ids = BUNDLE_PRODUCT_IDS[bundleNumber] || [];
-  const items = ids.map((id) => getProductById(id)).filter(Boolean);
+  const ids = [...(BUNDLE_PRODUCT_IDS[bundleNumber] || [])];
+
+  // Sheet 1 guard: Bundle-2 (dandruff kit) must never include a dermaroller
+  const filteredIds =
+    Number(bundleNumber) === 2
+      ? ids.filter((id) => id !== "zylk-dermaroller")
+      : ids;
+
+  const items = filteredIds.map((id) => getProductById(id)).filter(Boolean);
 
   if (includeHealthMix) {
     const mix = getProductById(HAIR_HEALTH_MIX_ID);
