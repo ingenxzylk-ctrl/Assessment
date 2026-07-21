@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
+import { COUNTRY_CODES } from "../../data/countryCodes";
 
 const STEPS = ["name", "contact", "age", "gender"];
 
@@ -11,22 +12,35 @@ const STEP_TITLES = {
   gender: { title: "How do you identify?", subtitle: "This helps us tailor the assessment to you." },
 };
 
-const COUNTRY_CODES = [
-  { code: "+91", flag: "🇮🇳" },
-  { code: "+1", flag: "🇺🇸" },
-  { code: "+44", flag: "🇬🇧" }
-];
+const DEFAULT_COUNTRY = COUNTRY_CODES.find((c) => c.name === "India") || COUNTRY_CODES[0];
+
+function countryOptionValue(country) {
+  return `${country.code}|${country.name}`;
+}
+
+function parseCountryOption(value) {
+  const [code, ...nameParts] = value.split("|");
+  return { code, name: nameParts.join("|") };
+}
 
 export default function Section1AboutMe({ onComplete, onBack }) {
   const { state, updateAboutMe } = useQuiz(); 
   const [step, setStep] = useSectionStep("section1AboutMe", STEPS.length - 1, 0);
   const [errors, setErrors] = useState({});
+
+  const initialCountry =
+    COUNTRY_CODES.find(
+      (c) =>
+        c.code === (state?.aboutMe?.countryCode || DEFAULT_COUNTRY.code) &&
+        (state?.aboutMe?.countryName ? c.name === state.aboutMe.countryName : true)
+    ) || DEFAULT_COUNTRY;
   
   const [localForm, setLocalForm] = useState({
     fullName: state?.aboutMe?.fullName || "",
     whatsapp: state?.aboutMe?.whatsapp || "",
     email: state?.aboutMe?.email || "",
-    countryCode: "+91",
+    countryCode: initialCountry.code,
+    countryName: state?.aboutMe?.countryName || initialCountry.name,
     ageRange: state?.aboutMe?.ageRange || "",
     gender: state?.aboutMe?.gender || "",
   });
@@ -125,13 +139,20 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                 {/* Mobile-friendly: stacked on small screens, side-by-side on sm+ */}
                 <div className="flex gap-2 w-full min-w-0 max-w-full">
   <select
-    value={localForm.countryCode}
-    onChange={(e) => handleChange({ countryCode: e.target.value })}
-    className="h-14 w-[5.5rem] shrink-0 px-2 border border-gray-200 rounded-2xl bg-white text-gray-900 focus:outline-none focus:border-[#064e3b] text-sm font-medium"
+    value={countryOptionValue({
+      code: localForm.countryCode,
+      name: localForm.countryName || DEFAULT_COUNTRY.name,
+    })}
+    onChange={(e) => {
+      const { code, name } = parseCountryOption(e.target.value);
+      handleChange({ countryCode: code, countryName: name });
+    }}
+    className="h-14 w-[8.5rem] sm:w-[11rem] shrink-0 px-2 border border-gray-200 rounded-2xl bg-white text-gray-900 focus:outline-none focus:border-[#064e3b] text-sm font-medium"
+    aria-label="WhatsApp country code"
   >
     {COUNTRY_CODES.map((c) => (
-      <option key={c.code} value={c.code}>
-        {c.flag} {c.code}
+      <option key={`${c.name}-${c.code}`} value={countryOptionValue(c)}>
+        {c.flag} {c.code} {c.name}
       </option>
     ))}
   </select>
