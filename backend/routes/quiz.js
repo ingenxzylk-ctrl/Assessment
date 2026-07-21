@@ -1,7 +1,10 @@
 import express from "express";
 import { analyzeScalp } from "../controllers/analyzeController.js";
 import { generateResult } from "../controllers/resultController.js";
-import { submitAssessmentReport } from "../controllers/reportController.js";
+import {
+  submitAssessmentReport,
+  getAssessmentReport,
+} from "../controllers/reportController.js";
 
 const router = express.Router();
 
@@ -25,5 +28,6 @@ router.get("/health", (_req, res) => {
 router.post("/analyze", analyzeScalp);
 router.post("/result", generateResult);
 router.post("/report/submit", submitAssessmentReport);
+router.get("/report/:reportId", getAssessmentReport);
 
 export default router;

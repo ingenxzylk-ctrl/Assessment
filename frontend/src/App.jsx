@@ -1,8 +1,9 @@
+import { useEffect, useState } from "react";
 import { QuizProvider, useQuiz } from "./context/QuizContext";
-import { CartProvider } from "./context/CartContext"; 
-import CartDrawer from "./components/ui/CartDrawer"; 
+import { CartProvider } from "./context/CartContext";
+import CartDrawer from "./components/ui/CartDrawer";
 import ProgressBar from "./components/ProgressBar";
-import Home from "./components/Home"; 
+import Home from "./components/Home";
 import Section1AboutMe from "./components/sections/Section1AboutMe";
 import Section2Male from "./components/sections/Section2Male";
 import Section2Female from "./components/sections/Section2Female";
@@ -11,17 +12,77 @@ import Section3Female from "./components/sections/Section3Female";
 import Section4Scalp from "./components/sections/Section4Scalp";
 import Result from "./components/Result";
 import Section0Consent from "./components/sections/Section0Consent";
+import { fetchAssessmentReport } from "./api/quizApi";
 import "./styles/index.css";
 
 function QuizFlow() {
-  const { state, nextStep, prevStep, goToStep } = useQuiz();
+  const { state, nextStep, prevStep, goToStep, hydrateFromReport, setError } = useQuiz();
   const { step, aboutMe, isLoading } = state;
+  const [reportBoot, setReportBoot] = useState(() => {
+    if (typeof window === "undefined") return { status: "idle" };
+    const id = new URLSearchParams(window.location.search).get("report");
+    return id ? { status: "loading", reportId: id } : { status: "idle" };
+  });
+
+  useEffect(() => {
+    if (reportBoot.status !== "loading" || !reportBoot.reportId) return undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const data = await fetchAssessmentReport(reportBoot.reportId);
+        if (cancelled) return;
+        hydrateFromReport(data);
+        setReportBoot({ status: "ready", reportId: data.reportId });
+      } catch (err) {
+        if (cancelled) return;
+        setError(err?.message || "Could not open this assessment report.");
+        setReportBoot({
+          status: "error",
+          reportId: reportBoot.reportId,
+          message: err?.message || "Report not found.",
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reportBoot.status, reportBoot.reportId, hydrateFromReport, setError]);
 
   const isMale = aboutMe?.gender === "male";
 
   let content;
 
-  if (isLoading && step === 5) {
+  if (reportBoot.status === "loading") {
+    content = (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl shadow-xs text-center border border-gray-100 max-w-md mx-auto my-12">
+        <div className="w-12 h-12 rounded-full border-4 border-t-[#064e3b] border-gray-100 animate-spin mb-4" />
+        <h3 className="text-lg font-bold text-gray-900">Opening your report</h3>
+        <p className="text-xs text-gray-400 mt-2">Loading assessment {reportBoot.reportId}…</p>
+      </div>
+    );
+  } else if (reportBoot.status === "error") {
+    content = (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl shadow-xs text-center border border-gray-100 max-w-md mx-auto my-12">
+        <h3 className="text-lg font-bold text-gray-900">Report unavailable</h3>
+        <p className="text-sm text-gray-500 mt-2">{reportBoot.message}</p>
+        <button
+          type="button"
+          className="mt-6 px-5 py-2.5 rounded-full bg-[#064e3b] text-white text-sm font-semibold"
+          onClick={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("report");
+            window.history.replaceState({}, "", url);
+            setReportBoot({ status: "idle" });
+            goToStep(0);
+          }}
+        >
+          Start a new assessment
+        </button>
+      </div>
+    );
+  } else if (isLoading && step === 5) {
     content = (
       <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl shadow-xs text-center border border-gray-100 max-w-md mx-auto my-12 animate-[fadeIn_0.2s_ease-out]">
         <div className="w-12 h-12 rounded-full border-4 border-t-[#064e3b] border-gray-100 animate-spin mb-4" />
@@ -48,9 +109,11 @@ function QuizFlow() {
         }
         break;
       case 3:
-        content = isMale ? 
-          <Section3Male onComplete={nextStep} onBack={prevStep} /> : 
-          <Section3Female onComplete={nextStep} onBack={prevStep} />;
+        content = isMale ? (
+          <Section3Male onComplete={nextStep} onBack={prevStep} />
+        ) : (
+          <Section3Female onComplete={nextStep} onBack={prevStep} />
+        );
         break;
       case 4:
         content = <Section4Scalp onComplete={nextStep} onBack={prevStep} />;
@@ -66,7 +129,7 @@ function QuizFlow() {
   return (
     <div className="min-h-screen bg-[#f4f6f0] text-gray-900 px-4 md:px-8 pb-16 antialiased">
       <header className="max-w-6xl mx-auto flex items-center justify-between py-5 border-b border-gray-200/60 mb-8">
-        <div 
+        <div
           className="flex items-center gap-2 cursor-pointer select-none active:opacity-80 transition-opacity"
           onClick={() => window.location.reload()}
         >
@@ -75,7 +138,7 @@ function QuizFlow() {
         </div>
       </header>
 
-      {step >= 1 && step <= 4 && (
+      {step >= 1 && step <= 4 && reportBoot.status !== "loading" && reportBoot.status !== "error" && (
         <div className="max-w-xl mx-auto mb-8">
           <ProgressBar step={step} />
         </div>
@@ -88,13 +151,12 @@ function QuizFlow() {
   );
 }
 
-// 🟢 Global Context Wrapper Matrix Setup with standard export default statement
 export default function App() {
   return (
     <CartProvider>
       <QuizProvider>
         <QuizFlow />
-        <CartDrawer /> 
+        <CartDrawer />
       </QuizProvider>
     </CartProvider>
   );

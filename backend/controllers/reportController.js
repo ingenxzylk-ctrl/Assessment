@@ -2,13 +2,18 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { buildAssessmentPdf } from "../services/pdfService.js";
-import { saveReportArtifacts } from "../services/storageService.js";
+import {
+  saveReportArtifacts,
+  loadReportJson,
+} from "../services/storageService.js";
 import { sendReportToOrganisation } from "../services/emailService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COUNTER_DIR =
   process.env.REPORT_STORAGE_DIR ||
   path.join(__dirname, "..", "storage", "reports");
+
+const REPORT_ID_RE = /^TR-\d{8}-\d{2,}$/i;
 
 function pad2(n) {
   return String(n).padStart(2, "0");
@@ -24,6 +29,10 @@ function formatReportDate(d = new Date()) {
 
 function dateKey(d = new Date()) {
   return `${pad2(d.getDate())}${pad2(d.getMonth() + 1)}${d.getFullYear()}`;
+}
+
+function isValidReportId(id) {
+  return REPORT_ID_RE.test(String(id || "").trim());
 }
 
 async function allocateReportId() {
@@ -44,6 +53,49 @@ async function allocateReportId() {
     reportId: `TR-${key}-${pad2(next)}`,
     reportDate: formatReportDate(now),
   };
+}
+
+/**
+ * Prefer the client-facing report id so the PDF, archive folder, and
+ * in-app `?report=` link all share the same identifier.
+ */
+async function resolveReportIdentity(clientReportId, clientReportDate) {
+  const now = new Date();
+  const reportDate =
+    (typeof clientReportDate === "string" && clientReportDate.trim()) ||
+    formatReportDate(now);
+
+  if (isValidReportId(clientReportId)) {
+    return {
+      reportId: String(clientReportId).trim().toUpperCase(),
+      reportDate,
+    };
+  }
+
+  return allocateReportId();
+}
+
+function buildResultPageUrl({ resultPageUrl, appOrigin, reportId }) {
+  if (typeof resultPageUrl === "string" && /^https?:\/\//i.test(resultPageUrl)) {
+    return resultPageUrl.trim();
+  }
+
+  const base =
+    (typeof appOrigin === "string" && appOrigin.trim()) ||
+    process.env.RESULT_APP_BASE_URL ||
+    process.env.FRONTEND_ORIGIN ||
+    "";
+
+  if (!base) return null;
+
+  try {
+    const url = new URL(base);
+    url.searchParams.set("report", reportId);
+    return url.toString();
+  } catch {
+    const trimmed = base.replace(/\/$/, "");
+    return `${trimmed}/?report=${encodeURIComponent(reportId)}`;
+  }
 }
 
 /**
@@ -75,7 +127,10 @@ export async function submitAssessmentReport(req, res) {
       scalpImages,
       reportMeta,
       clientReportId,
+      clientReportDate,
       gender,
+      resultPageUrl: bodyResultPageUrl,
+      appOrigin,
     } = req.body || {};
 
     if (!aboutMe || !scalpAnalysis) {
@@ -84,7 +139,16 @@ export async function submitAssessmentReport(req, res) {
       });
     }
 
-    const { reportId, reportDate } = await allocateReportId();
+    const { reportId, reportDate } = await resolveReportIdentity(
+      clientReportId,
+      clientReportDate
+    );
+
+    const resultPageUrl = buildResultPageUrl({
+      resultPageUrl: bodyResultPageUrl,
+      appOrigin,
+      reportId,
+    });
 
     const payload = {
       reportId,
@@ -97,6 +161,7 @@ export async function submitAssessmentReport(req, res) {
       scalpImages: scalpImages || [],
       reportMeta: reportMeta || {},
       gender: gender || aboutMe.gender,
+      resultPageUrl,
       submittedAt: new Date().toISOString(),
     };
 
@@ -128,6 +193,7 @@ export async function submitAssessmentReport(req, res) {
       ok: true,
       reportId,
       reportDate,
+      resultPageUrl,
       storage: storageInfo.storage,
       pdfPath: storageInfo.pdfPath,
       pdfUrl: storageInfo.pdfUrl,
@@ -138,6 +204,42 @@ export async function submitAssessmentReport(req, res) {
     console.error("[report] submit failed:", err);
     return res.status(500).json({
       error: err.message || "Failed to generate and store assessment report.",
+    });
+  }
+}
+
+/**
+ * Fetch a previously archived assessment so the app can restore the Result page.
+ * GET /api/report/:reportId
+ */
+export async function getAssessmentReport(req, res) {
+  try {
+    const { reportId } = req.params;
+    const loaded = await loadReportJson(reportId);
+    const data = loaded.data || {};
+
+    return res.json({
+      ok: true,
+      reportId: loaded.reportId,
+      reportDate: data.reportDate || null,
+      resultPageUrl: data.resultPageUrl || null,
+      aboutMe: data.aboutMe || {},
+      hairHealth: data.hairHealth || {},
+      internalHealth: data.internalHealth || {},
+      scalpAnalysis: data.scalpAnalysis || null,
+      scalpImages: data.scalpImages || [],
+      reportMeta: data.reportMeta || {},
+      gender: data.gender || data.aboutMe?.gender || null,
+      submittedAt: data.submittedAt || null,
+    });
+  } catch (err) {
+    const status = err.status || 500;
+    if (status === 404 || status === 400) {
+      return res.status(status).json({ error: err.message });
+    }
+    console.error("[report] get failed:", err);
+    return res.status(500).json({
+      error: err.message || "Failed to load assessment report.",
     });
   }
 }

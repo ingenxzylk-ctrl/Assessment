@@ -1262,6 +1262,18 @@ export default function Result() {
   };
 
   const { reportId, reportDate } = useMemo(() => {
+    if (state?.archivedReportId) {
+      return {
+        reportId: state.archivedReportId,
+        reportDate:
+          state.archivedReportDate ||
+          new Date().toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }),
+      };
+    }
     const fingerprint = [
       userName,
       state?.aboutMe?.email || "",
@@ -1270,14 +1282,37 @@ export default function Result() {
       rawAnalysis?.model || "",
     ].join("|");
     return getOrCreateDailyReportMeta(fingerprint);
-  }, [userName, state?.aboutMe?.email, state?.aboutMe?.whatsapp, aiPredictedStageNumber, rawAnalysis?.model]);
+  }, [
+    userName,
+    state?.aboutMe?.email,
+    state?.aboutMe?.whatsapp,
+    state?.archivedReportId,
+    state?.archivedReportDate,
+    aiPredictedStageNumber,
+    rawAnalysis?.model,
+  ]);
 
   // Persist quiz + report as PDF → storage → org email (once per Result visit).
   const reportSubmitRef = useRef(false);
   useEffect(() => {
     if (reportSubmitRef.current) return;
+    // Archived deep-link views should not regenerate / re-email the PDF.
+    if (state?.archivedReportId) return;
     if (!state?.aboutMe || !rawAnalysis || analysisMissing) return;
     reportSubmitRef.current = true;
+
+    const resultPageUrl =
+      typeof window !== "undefined"
+        ? (() => {
+            const url = new URL(window.location.href);
+            url.searchParams.set("report", reportId);
+            return url.toString();
+          })()
+        : null;
+    const appOrigin =
+      typeof window !== "undefined"
+        ? `${window.location.origin}${window.location.pathname || "/"}`
+        : "";
 
     submitAssessmentReport({
       aboutMe: state.aboutMe,
@@ -1294,6 +1329,9 @@ export default function Result() {
         })),
       gender,
       clientReportId: reportId,
+      clientReportDate: reportDate,
+      appOrigin,
+      resultPageUrl,
       reportMeta: {
         rootCauses,
         eligibilityTimeline,
@@ -1333,23 +1371,40 @@ export default function Result() {
             }
           : null,
       },
-    }).catch((err) => {
-      console.warn("[report] submit failed:", err?.message || err);
-    });
+    })
+      .then((data) => {
+        if (typeof window === "undefined") return;
+        const id = data?.reportId || reportId;
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set("report", id);
+          window.history.replaceState({}, "", url);
+        } catch {
+          // ignore
+        }
+      })
+      .catch((err) => {
+        console.warn("[report] submit failed:", err?.message || err);
+      });
   }, [
     state?.aboutMe,
     state?.hairHealth,
     state?.internalHealth,
     state?.scalpImages,
+    state?.archivedReportId,
     rawAnalysis,
     analysisMissing,
     gender,
     reportId,
+    reportDate,
     rootCauses,
     eligibilityTimeline,
     recommendedBundle,
     kitDisplayName,
     includeHealthMix,
+    kitSourceItems,
+    hasDandruff,
+    isFemale,
   ]);
 
   const confidencePhrase = (() => {

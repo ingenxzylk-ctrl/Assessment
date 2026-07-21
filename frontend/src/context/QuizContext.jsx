@@ -30,6 +30,9 @@ const INITIAL_STATE = {
   internalHealth: {},
   scalpAnalysis: null,
   scalpImages: [],
+  /** When set, Result was opened from an archived `?report=` link — skip re-PDF. */
+  archivedReportId: null,
+  archivedReportDate: null,
   sectionSteps: {
     section1AboutMe: 0,
     section2Male: 0,
@@ -77,6 +80,8 @@ function loadPersistedState() {
       internalHealth: { ...(parsed.internalHealth || {}) },
       sectionSteps: { ...INITIAL_STATE.sectionSteps, ...(parsed.sectionSteps || {}) },
       scalpImages: Array.isArray(parsed.scalpImages) ? parsed.scalpImages : [],
+      archivedReportId: parsed.archivedReportId || null,
+      archivedReportDate: parsed.archivedReportDate || null,
       isLoading: false,
       error: null,
     };
@@ -221,6 +226,30 @@ export function QuizProvider({ children }) {
     setState(INITIAL_STATE);
   };
 
+  const hydrateFromReport = useCallback((report) => {
+    if (!report || typeof report !== "object") return;
+    setState((prev) => ({
+      ...prev,
+      step: 5,
+      aboutMe: {
+        ...INITIAL_STATE.aboutMe,
+        ...(report.aboutMe || {}),
+      },
+      hairHealth: {
+        ...INITIAL_STATE.hairHealth,
+        ...(report.hairHealth || {}),
+      },
+      internalHealth: { ...(report.internalHealth || {}) },
+      scalpAnalysis: report.scalpAnalysis || null,
+      scalpImages: Array.isArray(report.scalpImages) ? report.scalpImages : [],
+      archivedReportId: report.reportId || null,
+      archivedReportDate: report.reportDate || null,
+      isLoading: false,
+      error: null,
+      navDirection: "forward",
+    }));
+  }, []);
+
   const flushPersistence = useCallback(() => {
     persistQuizStateNow(stateRef.current);
   }, []);
@@ -255,6 +284,7 @@ export function QuizProvider({ children }) {
         setLoading,
         setError,
         resetQuiz,
+        hydrateFromReport,
         updateSectionStep,
         flushPersistence,
       }}
