@@ -10,6 +10,7 @@ const INITIAL_STATE = {
     whatsapp: "",
     email: "",
     countryCode: "+91",
+    countryName: "India",
     ageRange: "",
     gender: "",
     scalpConsent: false,

@@ -21,13 +21,15 @@ export default function Home({ onStart }) {
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight font-serif text-gray-900 leading-[1.15]">
-            Discover the root cause of your hair <br />
-            <span className="text-[#064e3b]">thinning in 2 min</span>
+            Why are you losing hair? Find out in 2 minutes—with an{" "}
+            <span className="text-[#064e3b]">AI scalp analysis</span>{" "}
+            built to identify your most likely cause.
           </h1>
 
           <p className="text-gray-600 text-base sm:text-lg max-w-xl leading-relaxed font-medium">
-            Take our FREE AI scalp analysis to uncover why you have hair-loss and get the exact routine to fix it.
-
+            Upload 2 photos of your scalp. Our AI analyzes visible hair density, recession
+            patterns and scalp condition, then provides a personalized report reviewed
+            against clinical guidelines.
           </p>
 
           {/* Action Trigger Row */}
@@ -37,7 +39,7 @@ export default function Home({ onStart }) {
               onClick={onStart}
               className="h-14 px-8 bg-[#064e3b] text-white font-semibold rounded-2xl hover:bg-[#043427] transition-all transform hover:scale-[1.01] shadow-[0_4px_18px_rgba(6,78,59,0.25)] flex items-center justify-center gap-3 group text-base cursor-pointer"
             >
-              <span>START FREE ASSESSMENT</span>
+              <span>Get My Personalized Report</span>
               <span className="group-hover:translate-x-1 transition-transform">→</span>
             </button>
             <div className="text-xs text-gray-400 font-medium sm:pl-2">
@@ -48,7 +50,8 @@ export default function Home({ onStart }) {
           {/* Core Trust Feature Bullet Lists */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-gray-200/50 max-w-xl">
             <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
-              <span className="text-emerald-700 font-bold">✓</span> 10,000+ assessments
+              <span className="text-amber-500 font-bold tracking-tight">★★★★★</span>
+              <span>4.8/5 from 1,000+ users</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
               <span className="text-emerald-700 font-bold">✓</span> AI-powered analysis
@@ -88,7 +91,7 @@ export default function Home({ onStart }) {
                 <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-lg shadow-sm">🩺</div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-900"><span className="text-blue-600 font-mono text-xs mr-1 font-normal">03</span> AI Analysis</h4>
-                  <p className="text-xs text-gray-400 mt-0.5">Our advanced tech instantly pinpoints your root causes.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">AI analyzes your scalp together with your hair history to generate personalized insights.</p>
                 </div>
               </div>
               {/* Step 4 */}
@@ -96,7 +99,7 @@ export default function Home({ onStart }) {
                 <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center text-lg shadow-sm">📸</div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-900"><span className="text-teal-600 font-mono text-xs mr-1 font-normal">04</span> Your Custom Routine</h4>
-                  <p className="text-xs text-gray-400 mt-0.5">Get a targeted hair therapy plan with the exact oils , rollers , and massagers you need.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Receive your personalized hair care routine with recommended products selected for your needs.</p>
                 </div>
               </div>
             </div>
@@ -112,25 +115,25 @@ export default function Home({ onStart }) {
           {/* Card 1 */}
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] text-left space-y-4">
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#064e3b] flex items-center justify-center text-lg font-bold">🧪</div>
-            <h3 className="font-bold text-lg text-gray-900">AI Scalp Analysis</h3>
+            <h3 className="font-bold text-lg text-gray-900">AI Hair Assessment</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Dual-angle photo capture with confidence-scored stage classification.
+              Upload two photos and receive a personalized analysis of your scalp and hair thinning pattern.
             </p>
           </div>
 
           {/* Card 2 */}
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] text-left space-y-4">
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#064e3b] flex items-center justify-center text-lg font-bold">✦</div>
-            <h3 className="font-bold text-lg text-gray-900">Root Cause Mapping</h3>
+            <h3 className="font-bold text-lg text-gray-900">Personalized Insights</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
-              Genetic, hormonal, nutritional, and lifestyle factors analyzed together.
+              We combine your photos with your answers to identify the factors most likely affecting your hair health.
             </p>
           </div>
 
           {/* Card 3 */}
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.02)] text-left space-y-4">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#064e3b] flex items-center justify-center text-lg font-bold">❤️</div>
-            <h3 className="font-bold text-lg text-gray-900">Hope-Forward Results</h3>
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#064e3b] flex items-center justify-center text-lg font-bold">✅</div>
+            <h3 className="font-bold text-lg text-gray-900">Personalized Action Plan</h3>
             <p className="text-sm text-gray-500 leading-relaxed">
               Honest, reassuring guidance with clear next steps — never alarmist.
             </p>
@@ -165,7 +168,7 @@ export default function Home({ onStart }) {
           onClick={onStart}
           className="h-14 px-10 bg-[#064e3b] text-white font-semibold rounded-2xl hover:bg-[#043427] transition-all transform hover:scale-[1.01] shadow-md text-base cursor-pointer inline-flex items-center justify-center"
         >
-          Begin Your Assessment
+          Find My Hair Loss Cause
         </button>
       </div>
 

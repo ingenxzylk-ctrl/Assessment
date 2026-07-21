@@ -40,7 +40,7 @@ export default function Section0Consent({ onComplete, onBack }) {
             Privacy & Trust
           </span>
           <h2 className="text-[26px] font-bold text-gray-900 mt-4 leading-tight">
-            Data Authorization & Terms
+            Privacy & Consent
           </h2>
           <p className="text-gray-500 mt-2 text-sm">
             Please review how we handle your information before starting the diagnosis.
@@ -61,9 +61,6 @@ export default function Section0Consent({ onComplete, onBack }) {
           </p>
         </div>
 
-        {/* WhatsApp info badge */}
-       
-
         {/* Single checkbox */}
         <label className="flex items-start gap-4 p-4 rounded-2xl border border-gray-200/60 cursor-pointer hover:border-[#064e3b]/20 transition-all select-none bg-white">
           <input
@@ -73,12 +70,14 @@ export default function Section0Consent({ onComplete, onBack }) {
             className="mt-0.5 w-5 h-5 rounded accent-[#064e3b] text-[#064e3b] focus:ring-[#064e3b] shrink-0"
           />
           <div className="text-sm text-gray-700 font-medium leading-relaxed">
-            I have read and agree to all terms and conditions,including WhatsApp notifications, contact updates, data processing, and AI scalp
-            analysis authorization.
+            I have read and agree to the Terms of Service and Privacy Policy. I understand that
+            Zylk Health will process my information to provide my personalized assessment and,
+            with this consent, send my assessment results, hair-care recommendations, promotional
+            offers, and updates via WhatsApp and email.
           </div>
         </label>
 
-        {/* Terms link below checkbox */}
+        {/* Legal document link below checkbox */}
         <p className="text-center mt-4 text-xs text-gray-500">
           Read full details in our{" "}
           <button
@@ -86,7 +85,7 @@ export default function Section0Consent({ onComplete, onBack }) {
             onClick={() => setShowTerms(true)}
             className="text-[#064e3b] font-semibold underline underline-offset-2 hover:text-[#043427] cursor-pointer"
           >
-            Terms & Conditions
+            Terms of Service & Privacy Policy
           </button>
         </p>
 
@@ -105,12 +104,12 @@ export default function Section0Consent({ onComplete, onBack }) {
             onClick={onComplete}
             className="flex-[2] h-14 bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm text-base cursor-pointer"
           >
-            Accept & Start Quiz
+            Find My Hair Loss Cause
           </button>
         </div>
       </div>
 
-      {/* Terms & Conditions Modal */}
+      {/* Legal document modal */}
       {showTerms && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
@@ -123,7 +122,7 @@ export default function Section0Consent({ onComplete, onBack }) {
             {/* Modal header */}
             <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Terms & Conditions</h3>
+                <h3 className="text-lg font-bold text-gray-900">Terms of Service & Privacy Policy</h3>
                 <p className="text-xs text-gray-400 mt-0.5">Zylk Health — Hair & Scalp Assessment</p>
               </div>
               <button
