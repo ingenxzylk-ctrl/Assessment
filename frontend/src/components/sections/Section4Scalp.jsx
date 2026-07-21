@@ -54,6 +54,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const guideOptions = isFemale ? FEMALE_GUIDES : MALE_GUIDES;
 
   const [step, setStep] = useSectionStep("section4Scalp", "upload", "guide");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const [useCamera, setUseCamera] = useState(false);
   const [activeCaptureType, setActiveCaptureType] = useState("");
@@ -64,6 +65,14 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Legacy cache may still have section4Scalp === "analyzing" — never restore that screen
+  useEffect(() => {
+    if (step === "analyzing") {
+      setStep("upload");
+      if (setLoading) setLoading(false);
+    }
+  }, [step, setStep, setLoading]);
 
   useEffect(() => {
     if (useCamera) {
@@ -159,18 +168,20 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
       setError("Please provide Front and Top images to proceed.");
       return;
     }
-    setStep("analyzing");
     await runAnalysis();
   };
 
   const runAnalysis = async () => {
-    setStep("analyzing");
+    setIsAnalyzing(true);
+    // Keep persisted step on upload so Back from Result never restores analyzing
+    setStep("upload");
     setError(null);
     setAnalysisStatus("Compressing photos...");
     if (setLoading) setLoading(true);
 
     const timeoutId = setTimeout(() => {
       setError("Analysis is taking longer than expected. Please check your connection and try again.");
+      setIsAnalyzing(false);
       setStep("upload");
       if (setLoading) setLoading(false);
     }, 180000);
@@ -209,10 +220,13 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
       setScalpAnalysis(aiResponse);
       setScalpImages(imagePayloads);
+      setIsAnalyzing(false);
+      setStep("upload");
       if (setLoading) setLoading(false);
       if (onComplete) onComplete(aiResponse);
     } catch (err) {
       clearTimeout(timeoutId);
+      setIsAnalyzing(false);
       if (setLoading) setLoading(false);
       console.error("AI diagnostics pipeline failed:", err);
 
@@ -228,14 +242,39 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   };
 
   const handleBackNavigation = () => {
+    if (isAnalyzing) {
+      // Don't cancel mid-flight via back; keep user on analyzing until done/error
+      return;
+    }
     if (step === "upload") {
       setStep("guide");
-    } else if (step === "analyzing") {
-      setStep("upload");
     } else if (onBack) {
       onBack();
     }
   };
+
+  if (isAnalyzing) {
+    return (
+      <div className="max-w-xl mx-auto mt-6 px-4">
+        <div className="bg-white rounded-[32px] p-12 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 text-center space-y-6">
+          <div className="relative w-20 h-20 mx-auto">
+            <div className="absolute inset-0 rounded-full border-4 border-[#e8eede]" />
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#064e3b] animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center text-2xl">🔬</div>
+          </div>
+          <div>
+            <h3 className="font-bold text-xl text-gray-900">Analyzing Your Scalp Photos</h3>
+            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+              {analysisStatus}
+            </p>
+            <p className="text-xs text-gray-400 mt-3">
+              This usually takes 20–60 seconds. Please don't close the page.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (step === "guide") {
     return (
@@ -302,29 +341,6 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             >
               Got It — Open Scanner
             </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === "analyzing") {
-    return (
-      <div className="max-w-xl mx-auto mt-6 px-4">
-        <div className="bg-white rounded-[32px] p-12 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 text-center space-y-6">
-          <div className="relative w-20 h-20 mx-auto">
-            <div className="absolute inset-0 rounded-full border-4 border-[#e8eede]" />
-            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#064e3b] animate-spin" />
-            <div className="absolute inset-0 flex items-center justify-center text-2xl">🔬</div>
-          </div>
-          <div>
-            <h3 className="font-bold text-xl text-gray-900">Analyzing Your Scalp Photos</h3>
-            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
-              {analysisStatus}
-            </p>
-            <p className="text-xs text-gray-400 mt-3">
-              This usually takes 20–60 seconds. Please don't close the page.
-            </p>
           </div>
         </div>
       </div>
