@@ -488,8 +488,11 @@ function buildRoadmapMonths(totalMonths) {
   return months;
 }
 
-function ResultsSeeingTimeline({ roadmap, ageRange }) {
-  const younger = ["18-25", "26-35"].includes(String(ageRange || ""));
+function ResultsSeeingTimeline({ roadmap, ageRange, age }) {
+  const ageNum = Number(age);
+  const younger = Number.isFinite(ageNum) && ageNum > 0
+    ? ageNum <= 35
+    : ["18-25", "26-35"].includes(String(ageRange || ""));
   const [activeIdx, setActiveIdx] = useState(0);
   const [autoProgress, setAutoProgress] = useState(0);
   const [clockKey, setClockKey] = useState(0);
