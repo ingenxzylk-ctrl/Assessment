@@ -1,7 +1,9 @@
-
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 
 const QuizContext = createContext();
+
+const STORAGE_KEY = "zylk_quiz_state_v1";
+const CHECKOUT_RETURN_KEY = "zylk_checkout_return";
 
 const INITIAL_STATE = {
   step: 0,
@@ -11,6 +13,7 @@ const INITIAL_STATE = {
     email: "",
     countryCode: "+91",
     countryName: "India",
+    age: "",
     ageRange: "",
     gender: "",
     scalpConsent: false,
@@ -40,8 +43,109 @@ const INITIAL_STATE = {
   error: null,
 };
 
+function stripHeavyImageData(images = []) {
+  return (Array.isArray(images) ? images : []).map((img) => ({
+    type: img?.type,
+    label: img?.label || img?.type,
+    // Keep compressed data URLs so Result/PDF still work after reload when possible
+    dataUrl: img?.dataUrl || img?.previewUrl || img?.url || null,
+  }));
+}
+
+function serializeState(state) {
+  return {
+    ...state,
+    isLoading: false,
+    error: null,
+    scalpImages: stripHeavyImageData(state.scalpImages),
+  };
+}
+
+function loadPersistedState() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    return {
+      ...INITIAL_STATE,
+      ...parsed,
+      aboutMe: { ...INITIAL_STATE.aboutMe, ...(parsed.aboutMe || {}) },
+      hairHealth: { ...INITIAL_STATE.hairHealth, ...(parsed.hairHealth || {}) },
+      internalHealth: { ...(parsed.internalHealth || {}) },
+      sectionSteps: { ...INITIAL_STATE.sectionSteps, ...(parsed.sectionSteps || {}) },
+      scalpImages: Array.isArray(parsed.scalpImages) ? parsed.scalpImages : [],
+      isLoading: false,
+      error: null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function persistQuizStateNow(state) {
+  if (typeof window === "undefined" || !state) return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState(state)));
+  } catch (err) {
+    // Quota exceeded — retry without image payloads
+    try {
+      const light = {
+        ...serializeState(state),
+        scalpImages: (state.scalpImages || []).map((img) => ({
+          type: img?.type,
+          label: img?.label || img?.type,
+          dataUrl: null,
+        })),
+      };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(light));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+export function markCheckoutReturn() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(CHECKOUT_RETURN_KEY, "1");
+  } catch {
+    // ignore
+  }
+}
+
+export function clearPersistedQuizState() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.sessionStorage.removeItem(CHECKOUT_RETURN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function QuizProvider({ children }) {
-  const [state, setState] = useState(INITIAL_STATE);
+  const [state, setState] = useState(() => loadPersistedState() || INITIAL_STATE);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Persist on every meaningful state change so reload / WP-cart return can resume
+  useEffect(() => {
+    persistQuizStateNow(state);
+  }, [state]);
+
+  // Browser back from WordPress may restore via bfcache — rehydrate from storage
+  useEffect(() => {
+    const onPageShow = (event) => {
+      if (!event.persisted) return;
+      const restored = loadPersistedState();
+      if (restored) setState(restored);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   const nextStep = () => {
     setState((prev) => ({
@@ -113,13 +217,18 @@ export function QuizProvider({ children }) {
   };
 
   const resetQuiz = () => {
+    clearPersistedQuizState();
     setState(INITIAL_STATE);
   };
 
-   const updateSectionStep = useCallback((section, targetStep) => {
+  const flushPersistence = useCallback(() => {
+    persistQuizStateNow(stateRef.current);
+  }, []);
+
+  const updateSectionStep = useCallback((section, targetStep) => {
     setState((prev) => {
       if (prev.sectionSteps[section] === targetStep) {
-        return prev; // no change → no re-render
+        return prev;
       }
       return {
         ...prev,
@@ -130,6 +239,7 @@ export function QuizProvider({ children }) {
       };
     });
   }, []);
+
   return (
     <QuizContext.Provider
       value={{
@@ -146,6 +256,7 @@ export function QuizProvider({ children }) {
         setError,
         resetQuiz,
         updateSectionStep,
+        flushPersistence,
       }}
     >
       {children}

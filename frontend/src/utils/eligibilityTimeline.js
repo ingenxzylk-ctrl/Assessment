@@ -14,6 +14,25 @@ export const isUnderOrEqual50 = (ageRange) => ["18-25", "26-35", "36-45"].includ
 
 export const isOver50 = (ageRange) => ageRange === "46+";
 
+/** Convert typed numeric age → legacy ageRange buckets used by eligibility tables */
+export function ageToRange(age) {
+  const n = Number(age);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (n <= 25) return "18-25";
+  if (n <= 35) return "26-35";
+  if (n <= 45) return "36-45";
+  return "46+";
+}
+
+/** Prefer typed age; fall back to stored ageRange */
+export function resolveAgeRange(aboutMe = {}) {
+  if (aboutMe.age !== undefined && aboutMe.age !== null && String(aboutMe.age).trim() !== "") {
+    const derived = ageToRange(aboutMe.age);
+    if (derived) return derived;
+  }
+  return aboutMe.ageRange || "";
+}
+
 export const hasHeavyDandruff = (hairHealth = {}) =>
   hairHealth.dandruff_experience === "frequent";
 
@@ -78,7 +97,7 @@ const femaleWideningCategory = (aiStage, hairHealth = {}) => {
  */
 export function getEligibilityTimeline(state, aiPredictedStage) {
   const gender = state?.aboutMe?.gender || "male";
-  const ageRange = state?.aboutMe?.ageRange || "26-35";
+  const ageRange = resolveAgeRange(state?.aboutMe) || "26-35";
   const hairHealth = state?.hairHealth || {};
 
   if (gender === "female") {

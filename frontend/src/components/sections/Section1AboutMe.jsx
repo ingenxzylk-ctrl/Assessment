@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
+import { ageToRange } from "../../utils/eligibilityTimeline";
+
 const STEPS = ["name", "contact", "age", "gender"];
 
 const STEP_TITLES = {
   name: { title: "What's your name?", subtitle: "We'll personalize your report." },
   contact: { title: "How can we reach you?", subtitle: "Your final report will be sent to your WhatsApp number or Email." },
-  age: { title: "What's your age range?", subtitle: "Hair health varies across life stages." },
+  age: { title: "What's your age?", subtitle: "Enter your age in years so we can tailor your plan." },
   gender: { title: "How do you identify?", subtitle: "This helps us tailor the assessment to you." },
 };
 
@@ -234,6 +236,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     email: state?.aboutMe?.email || "",
     countryCode: initialCountry.code,
     countryName: state?.aboutMe?.countryName || initialCountry.name,
+    age: state?.aboutMe?.age || "",
     ageRange: state?.aboutMe?.ageRange || "",
     gender: state?.aboutMe?.gender || "",
   });
@@ -277,7 +280,14 @@ export default function Section1AboutMe({ onComplete, onBack }) {
         e.email = "Invalid email format";
       }
     }
-    if (step === 2 && !localForm.ageRange) e.ageRange = "Please select your age range";
+    if (step === 2) {
+      const ageNum = Number(localForm.age);
+      if (!localForm.age || !Number.isFinite(ageNum)) {
+        e.age = "Please enter your age";
+      } else if (ageNum < 13 || ageNum > 100) {
+        e.age = "Please enter an age between 13 and 100";
+      }
+    }
     if (step === 3 && !localForm.gender) e.gender = "Please select your gender";
 
     setErrors(e);
@@ -287,12 +297,15 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   const handleContinue = () => {
     if (!validate()) return;
 
+    // Persist answers as the user advances so reload mid-section can resume
+    if (updateAboutMe) {
+      const ageRange = ageToRange(localForm.age) || localForm.ageRange || "";
+      updateAboutMe({ ...localForm, ageRange });
+    }
+
     if (step < STEPS.length - 1) {
       setStep((prev) => prev + 1);
     } else {
-      if (updateAboutMe) {
-        updateAboutMe(localForm);
-      }
       if (onComplete) onComplete();
     }
   };
@@ -440,29 +453,26 @@ export default function Section1AboutMe({ onComplete, onBack }) {
               </div>
             </div>
           )}
-          {/* STEP 2: AGE INTERVAL SELECTORS */}
+          {/* STEP 2: AGE NUMBER INPUT */}
           {step === 2 && (
-            <div className="grid grid-cols-1 gap-3">
-              {["18-25", "26-35", "36-45", "46+"].map((age) => (
-                <button
-                  key={age}
-                  type="button"
-                  onClick={() => handleChange({ ageRange: age })}
-                  className={`w-full h-14 px-5 flex items-center justify-between border rounded-2xl transition-all font-medium text-base text-left ${
-                    localForm.ageRange === age
-                      ? "border-[#064e3b] bg-[#064e3b]/5 text-[#064e3b] ring-1 ring-[#064e3b]"
-                      : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-50/50"
-                  }`}
-                >
-                  <span>{age} years old</span>
-                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
-                    localForm.ageRange === age ? "border-[#064e3b] bg-[#064e3b]" : "border-gray-300"
-                  }`}>
-                    {localForm.ageRange === age && <div className="w-2 h-2 rounded-full bg-white" />}
-                  </div>
-                </button>
-              ))}
-              {errors.ageRange && <p className="text-sm text-red-500 font-medium mt-1">{errors.ageRange}</p>}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-gray-700">Age (years)</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={13}
+                max={100}
+                value={localForm.age}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/[^\d]/g, "").slice(0, 3);
+                  handleChange({ age: digits, ageRange: ageToRange(digits) });
+                }}
+                placeholder="e.g. 28"
+                className={`w-full h-14 px-4 bg-white border rounded-2xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#064e3b]/20 focus:border-[#064e3b] transition-all text-base ${
+                  errors.age ? "border-red-500 bg-red-50/10" : "border-gray-200"
+                }`}
+              />
+              {errors.age && <p className="text-sm text-red-500 font-medium mt-1">{errors.age}</p>}
             </div>
           )}
 

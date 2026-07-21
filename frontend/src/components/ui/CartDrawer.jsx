@@ -1,7 +1,9 @@
 import { useCart } from "../../context/CartContext";
+import { useQuiz } from "../../context/QuizContext";
 import { redirectToWordPressCheckout } from "../../utils/wordpressCheckout";
 
 export default function CartDrawer() {
+  const { state, flushPersistence } = useQuiz();
   const {
     cartItems,
     isCartOpen,
@@ -14,6 +16,11 @@ export default function CartDrawer() {
   } = useCart();
 
   if (!isCartOpen) return null;
+
+  const handleCheckout = () => {
+    if (flushPersistence) flushPersistence();
+    redirectToWordPressCheckout(cartItems, state);
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
@@ -76,7 +83,7 @@ export default function CartDrawer() {
               <span className="text-[#064e3b] font-bold text-lg">₹{cartTotal}</span>
             </div>
             <button
-              onClick={() => redirectToWordPressCheckout(cartItems)}
+              onClick={handleCheckout}
               className="w-full h-13 bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all tracking-wide text-sm shadow-sm cursor-pointer"
             >
               Proceed to Checkout on Zylk Health
