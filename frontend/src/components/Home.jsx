@@ -20,7 +20,7 @@ export default function Home({ onStart }) {
             </span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight font-serif text-gray-900 leading-[1.15]">
+          <h1 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-bold tracking-tight font-serif text-gray-900 leading-[1.25]">
             Why are you losing hair? Find out in 2 minutes—with an{" "}
             <span className="text-[#064e3b]">AI scalp analysis</span>{" "}
             built to identify your most likely cause.
