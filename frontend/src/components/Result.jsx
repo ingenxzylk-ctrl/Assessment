@@ -1301,18 +1301,28 @@ export default function Result() {
     if (!state?.aboutMe || !rawAnalysis || analysisMissing) return;
     reportSubmitRef.current = true;
 
+    const publicAppBase =
+      (typeof import.meta !== "undefined" &&
+        (import.meta.env?.VITE_PUBLIC_APP_URL || import.meta.env?.VITE_APP_ORIGIN)) ||
+      "";
     const resultPageUrl =
       typeof window !== "undefined"
         ? (() => {
-            const url = new URL(window.location.href);
+            const base =
+              publicAppBase && /^https?:\/\//i.test(publicAppBase)
+                ? publicAppBase
+                : window.location.href;
+            const url = new URL(base, window.location.origin);
             url.searchParams.set("report", reportId);
             return url.toString();
           })()
         : null;
     const appOrigin =
-      typeof window !== "undefined"
-        ? `${window.location.origin}${window.location.pathname || "/"}`
-        : "";
+      publicAppBase && /^https?:\/\//i.test(publicAppBase)
+        ? publicAppBase
+        : typeof window !== "undefined"
+          ? `${window.location.origin}${window.location.pathname || "/"}`
+          : "";
 
     submitAssessmentReport({
       aboutMe: state.aboutMe,
