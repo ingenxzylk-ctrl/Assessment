@@ -1,5 +1,8 @@
 import PDFDocument from "pdfkit";
 
+/** Bump when PDF layout changes — exposed via GET /api/health for deploy checks. */
+export const PDF_FORMAT_VERSION = "v2-result-link";
+
 const BRAND = "#064e3b";
 const MUTED = "#6b7280";
 const INK = "#111827";
@@ -100,7 +103,7 @@ function drawFooter(doc, pageLabel) {
     .fillColor("#9ca3af")
     .font("Helvetica")
     .text(
-      "Confidential — for Zylk Health internal use only.  ·  Generated automatically from the Hair & Scalp Assessment · zylkhealth.com",
+      `Confidential — for Zylk Health internal use only.  ·  PDF ${PDF_FORMAT_VERSION} · zylkhealth.com`,
       left,
       y,
       { width: width * 0.68, lineBreak: false }
@@ -501,7 +504,27 @@ export function buildAssessmentPdf(payload) {
         "A personalised, AI-assisted analysis of hair health, scalp condition and a tailored recovery timeline based on uploaded photos and quiz responses.",
         { width }
       );
-    doc.moveDown(0.45);
+    doc.moveDown(0.35);
+
+    // Plain-text Result URL first (always visible, even if styled box is overlooked)
+    if (resultPageUrl) {
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(11)
+        .fillColor(INK)
+        .text("Result page URL (click to open):", { width });
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(10)
+        .fillColor("#1d4ed8")
+        .text(resultPageUrl, {
+          width,
+          link: resultPageUrl,
+          underline: true,
+        });
+      doc.link(left, doc.y - 14, width, 16, resultPageUrl);
+      doc.moveDown(0.35);
+    }
 
     // Org-facing Result page link — always drawn when reportId exists
     drawResultPageLink(doc, resultPageUrl, { reportId });

@@ -5,6 +5,7 @@ import {
   submitAssessmentReport,
   getAssessmentReport,
 } from "../controllers/reportController.js";
+import { PDF_FORMAT_VERSION } from "../services/pdfService.js";
 
 const router = express.Router();
 
@@ -23,6 +24,8 @@ router.get("/health", (_req, res) => {
     model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
     hasApiKey: keys.length > 0,
     apiKeyCount: [...new Set(keys)].length,
+    // If this field is missing, the running backend is older than the Result-link PDF work
+    pdfFormatVersion: PDF_FORMAT_VERSION,
   });
 });
 router.post("/analyze", analyzeScalp);
