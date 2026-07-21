@@ -5,6 +5,7 @@ import { getRecommendedBundle } from "../data/products";
 import { getBundleDisplayName, getWooProductId } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
+import { getBundleItems } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
 
@@ -1145,11 +1146,34 @@ export default function Result() {
     return `Norwood ${aiPredictedStageNumber}`;
   };
 
-  const kitProducts = (recommendedBundle?.items ?? [])
+  const kitSourceItems = useMemo(() => {
+    // Hard rule: dandruff → always render official Sheet Bundle-2 catalog items
+    if (hasDandruff) {
+      return getBundleItems(2, true, true).map((item) => {
+        if (item.id === "zylk-hair-health-mix" && rootCauseTags.length > 0) {
+          return {
+            ...item,
+            subtitle: `Daily capsules targeting: ${rootCauseTags.join(" + ")}`,
+          };
+        }
+        return item;
+      });
+    }
+    return recommendedBundle?.items ?? [];
+  }, [hasDandruff, recommendedBundle?.items, rootCauseTags]);
+
+  const kitProducts = kitSourceItems
     .filter((prod) => {
-      // If dandruff is present, never show a dermaroller in the recommended kit
-      if (hasDandruff && prod.id === "zylk-dermaroller") return false;
-      if (recommendedBundle?.bundleNumber === 2 && prod.id === "zylk-dermaroller") {
+      const id = String(prod.id || "").toLowerCase();
+      const name = String(prod.name || "").toLowerCase();
+      const isDerma =
+        id.includes("derma") ||
+        id.includes("roller") ||
+        name.includes("derma") ||
+        name.includes("roller") ||
+        name.includes("micro-needling");
+      // Dandruff / Bundle-2: never show dermaroller (including legacy prod-derma)
+      if ((hasDandruff || recommendedBundle?.bundleNumber === 2) && isDerma) {
         return false;
       }
       return true;
@@ -1159,10 +1183,12 @@ export default function Result() {
       if (!formatted) return null;
       const isHealthMix =
         prod.id === "zylk-hair-health-mix" ||
-        String(prod.id || "").startsWith("prod-supplements");
+        formatted.catalogId === "zylk-hair-health-mix" ||
+        String(prod.id || "").startsWith("prod-supplements") ||
+        /vitality|health mix|supplement/i.test(String(prod.name || ""));
       return {
         ...formatted,
-        id: prod.id,
+        id: formatted.catalogId || prod.id,
         subtitle: prod.subtitle || null,
         price: prod.price ?? null,
         isHealthMix,
@@ -1174,13 +1200,15 @@ export default function Result() {
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
   // Always show Zylk sheet list price ₹1799 (never bundle delta / stale product price)
   const healthMixPrice = HAIR_HEALTH_MIX_PRICE;
-  const kitDisplayName = recommendedBundle
-    ? getBundleDisplayName(
-        recommendedBundle.bundleNumber,
-        gender,
-        aiPredictedStageNumber
-      )
-    : null;
+  const kitDisplayName = hasDandruff
+    ? getBundleDisplayName(2, gender, aiPredictedStageNumber)
+    : recommendedBundle
+      ? getBundleDisplayName(
+          recommendedBundle.bundleNumber,
+          gender,
+          aiPredictedStageNumber
+        )
+      : null;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
   const testimonialPhotos = useMemo(
@@ -1270,17 +1298,32 @@ export default function Result() {
               price: recommendedBundle.price,
               originalPrice: recommendedBundle.originalPrice,
               // Use official sheet catalog names (not marketing short labels)
-              products: (recommendedBundle.items || [])
+              products: (kitSourceItems.length ? kitSourceItems : recommendedBundle.items || [])
                 .filter((p) => {
                   const isHealthMix =
                     p.id === "zylk-hair-health-mix" ||
                     String(p.id || "").startsWith("prod-supplements");
-                  return includeHealthMix || !isHealthMix;
+                  if (!(includeHealthMix || !isHealthMix)) return false;
+                  const id = String(p.id || "").toLowerCase();
+                  const name = String(p.name || "").toLowerCase();
+                  if (
+                    hasDandruff &&
+                    (id.includes("derma") ||
+                      id.includes("roller") ||
+                      name.includes("derma") ||
+                      name.includes("roller"))
+                  ) {
+                    return false;
+                  }
+                  return true;
                 })
-                .map((p) => ({
-                  id: p.id,
-                  name: p.name,
-                })),
+                .map((p) => {
+                  const formatted = formatBundleProduct(p, isFemale);
+                  return {
+                    id: formatted?.catalogId || p.id,
+                    name: formatted?.shortName || p.name,
+                  };
+                }),
             }
           : null,
       },

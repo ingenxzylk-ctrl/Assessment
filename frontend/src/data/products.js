@@ -16,6 +16,19 @@ export { HAIR_HEALTH_MIX_ID };
 /** List price from Zylk Health product sheet */
 export const HAIR_HEALTH_MIX_PRICE = 1799;
 
+function isDermarollerProduct(item = {}) {
+  const id = String(item.id || "").toLowerCase();
+  const name = String(item.name || item.title || "").toLowerCase();
+  return (
+    id.includes("derma") ||
+    id.includes("roller") ||
+    name.includes("derma") ||
+    name.includes("roller") ||
+    name.includes("micro-needling") ||
+    name.includes("microneedl")
+  );
+}
+
 /**
  * @deprecated Prefer getRecommendedBundle() which uses the official Zylk sheet.
  * Kept for any legacy callers.
@@ -34,6 +47,8 @@ export const getCustomBundle = (gender, stage, hasDandruff, rootCauses = []) => 
 /**
  * Routes quiz result → official Zylk bundle (PDF Bundle 1 / 2 / 5 / 7)
  * with correct product list, WooCommerce IDs, and unique display name.
+ *
+ * Rule: if user reports dandruff → always Bundle-2 products (no dermaroller).
  */
 export const getRecommendedBundle = (
   gender,
@@ -42,15 +57,15 @@ export const getRecommendedBundle = (
   rootCauses = [],
   includeHealthMix = true
 ) => {
-  const bundleNumber = resolveBundleNumber(gender, stage, hasDandruff);
+  // Dandruff always forces Sheet Bundle-2 (ProGro Scalp-Clear)
+  const bundleNumber = hasDandruff ? 2 : resolveBundleNumber(gender, stage, false);
   const config = BUNDLE_CONFIG[bundleNumber];
   const prices = getBundlePrices(bundleNumber);
   const displayName = getBundleDisplayName(bundleNumber, gender, stage);
 
-  // Always include Health Mix in the list so the Result UI can show the toggle;
-  // price still respects includeHealthMix.
-  // Sheet rule: if dandruff → never include dermaroller in recommended items.
-  const items = getBundleItems(bundleNumber, true, hasDandruff).map((item) => {
+  // Always pull items from the official catalog for this bundle number.
+  // Pass hasDandruff so dermaroller is stripped if present.
+  let items = getBundleItems(bundleNumber, true, Boolean(hasDandruff)).map((item) => {
     if (item.id === CATALOG_MIX_ID || item.id === HAIR_HEALTH_MIX_ID) {
       return {
         ...item,
@@ -62,6 +77,11 @@ export const getRecommendedBundle = (
     }
     return item;
   });
+
+  // Hard guarantee: never ship a dermaroller when dandruff was reported
+  if (hasDandruff) {
+    items = items.filter((item) => !isDermarollerProduct(item));
+  }
 
   return {
     bundleNumber,
