@@ -95,3 +95,30 @@ export async function submitAssessmentReport(payload) {
   }
   return data;
 }
+
+/**
+ * Load an archived assessment by report id (for `?report=TR-…` deep links).
+ */
+export async function fetchAssessmentReport(reportId) {
+  const id = encodeURIComponent(String(reportId || "").trim());
+  let res;
+  try {
+    res = await fetch(`${API_URL}/report/${id}`);
+  } catch {
+    throw new Error(
+      "Cannot reach backend server to load this assessment report."
+    );
+  }
+
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error("Backend returned an invalid response while loading the report.");
+  }
+
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to load assessment report.");
+  }
+  return data;
+}

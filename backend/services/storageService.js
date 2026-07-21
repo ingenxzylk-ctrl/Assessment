@@ -83,6 +83,55 @@ async function saveToS3({ reportId, pdfBuffer, jsonData }) {
 }
 
 /**
+ * Load archived assessment JSON by report id (local first, then S3 if configured).
+ */
+export async function loadReportJson(reportId) {
+  const safeId = String(reportId || "").trim();
+  if (!/^TR-\d{8}-\d{2,}$/i.test(safeId)) {
+    const err = new Error("Invalid report id.");
+    err.status = 400;
+    throw err;
+  }
+
+  const localJson = path.join(LOCAL_ROOT, safeId, "assessment.json");
+  try {
+    const raw = await fs.readFile(localJson, "utf8");
+    return { storage: "local", reportId: safeId, data: JSON.parse(raw) };
+  } catch {
+    // fall through to S3
+  }
+
+  if (useS3()) {
+    const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const bucket = process.env.AWS_S3_BUCKET;
+    const region = process.env.AWS_REGION || "ap-south-1";
+    const prefix = (process.env.AWS_S3_PREFIX || "assessment-reports").replace(
+      /\/$/,
+      ""
+    );
+    const client = new S3Client({ region });
+    const jsonKey = `${prefix}/${safeId}/assessment.json`;
+    try {
+      const out = await client.send(
+        new GetObjectCommand({ Bucket: bucket, Key: jsonKey })
+      );
+      const body = await out.Body.transformToString();
+      return {
+        storage: "s3",
+        reportId: safeId,
+        data: JSON.parse(body),
+      };
+    } catch (err) {
+      console.error("[storage] S3 load failed:", err.message);
+    }
+  }
+
+  const notFound = new Error("Report not found.");
+  notFound.status = 404;
+  throw notFound;
+}
+
+/**
  * Persist PDF + JSON.
  * Priority: Google Drive (if configured) → S3 → local disk.
  * When Drive is used, also keep a local backup copy.
