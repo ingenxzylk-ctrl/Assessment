@@ -114,6 +114,9 @@ export async function saveReportArtifacts({
           localBackup: { pdfPath: local.pdfPath, jsonPath: local.jsonPath },
         };
       }
+      local.driveSkipReason =
+        drive.reason ||
+        "Google Drive upload was skipped (check GOOGLE_DRIVE_* env vars).";
     } catch (err) {
       console.error(
         "[storage] Google Drive upload failed, falling back:",
@@ -121,6 +124,9 @@ export async function saveReportArtifacts({
       );
       local.driveError = err.message;
     }
+  } else {
+    local.driveSkipReason =
+      "Google Drive is not configured. Set GOOGLE_DRIVE_FOLDER_ID plus OAuth (GOOGLE_DRIVE_CLIENT_ID/SECRET/REFRESH_TOKEN) or a service account.";
   }
 
   if (useS3()) {

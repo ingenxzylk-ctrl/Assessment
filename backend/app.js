@@ -3,6 +3,11 @@ import express from "express";
 import cors from "cors";
 import quizRouter from "./routes/quiz.js";
 import { setGlobalDispatcher, Agent } from "undici";
+import {
+  isDriveConfigured,
+  hasOAuthConfig,
+  hasServiceAccountConfig,
+} from "./services/googleDriveService.js";
 
 setGlobalDispatcher(
   new Agent({
@@ -27,4 +32,18 @@ app.listen(PORT, () => {
   console.log(
     `API key loaded: ${process.env.GEMINI_API_KEY ? "yes" : "NO — add GEMINI_API_KEY to .env"}`
   );
+  if (isDriveConfigured()) {
+    const mode = hasOAuthConfig()
+      ? "oauth"
+      : hasServiceAccountConfig()
+        ? "service_account"
+        : "unknown";
+    console.log(
+      `Google Drive: configured (${mode}), folder=${process.env.GOOGLE_DRIVE_FOLDER_ID}`
+    );
+  } else {
+    console.warn(
+      "Google Drive: NOT configured — assessment PDFs will stay local only. Set GOOGLE_DRIVE_FOLDER_ID + OAuth or service account (see backend/.env.example)."
+    );
+  }
 });

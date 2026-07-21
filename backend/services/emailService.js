@@ -66,6 +66,15 @@ export async function sendReportToOrganisation({
   const name = aboutMe.fullName || "Guest";
   const drivePdfLink = resolveDrivePdfLink(storageInfo);
   const driveFileName = storageInfo.drive?.pdfName || null;
+  const driveFailReason =
+    storageInfo.driveError ||
+    storageInfo.driveSkipReason ||
+    (storageInfo.storage === "local"
+      ? "Google Drive upload did not run or failed; PDF is only on the server disk."
+      : null);
+  const localPdfPath =
+    storageInfo.localBackup?.pdfPath ||
+    (storageInfo.storage === "local" ? storageInfo.pdfPath : null);
 
   const transporter = createTransport();
   const info = await transporter.sendMail({
@@ -85,8 +94,14 @@ export async function sendReportToOrganisation({
       "",
       drivePdfLink
         ? `PDF in Google Drive:\n${drivePdfLink}`
-        : "PDF Drive link is not available. Check the Google Drive assessment folder.",
+        : "PDF Drive link is not available. The file was NOT uploaded to Google Drive.",
       driveFileName ? `File name: ${driveFileName}` : "",
+      !drivePdfLink && driveFailReason
+        ? `Why: ${driveFailReason}`
+        : "",
+      !drivePdfLink && localPdfPath
+        ? `Local backup on server: ${localPdfPath}`
+        : "",
     ]
       .filter(Boolean)
       .join("\n"),
@@ -121,9 +136,19 @@ export async function sendReportToOrganisation({
                   ? `<p style="margin:0;font-size:13px;color:#555"><strong>File:</strong> ${driveFileName}</p>`
                   : ""
               }`
-            : `<p style="margin:0;color:#b45309">
-                 Drive link not available for <strong>${reportId}</strong>. Check the Google Drive assessment folder.
-               </p>`
+            : `<p style="margin:0 0 8px;color:#b45309">
+                 Drive link not available for <strong>${reportId}</strong> — the PDF was <strong>not</strong> uploaded to Google Drive.
+               </p>
+               ${
+                 driveFailReason
+                   ? `<p style="margin:0 0 8px;font-size:13px;color:#7c2d12"><strong>Why:</strong> ${driveFailReason}</p>`
+                   : ""
+               }
+               ${
+                 localPdfPath
+                   ? `<p style="margin:0;font-size:13px;color:#555"><strong>Local backup on server:</strong> ${localPdfPath}</p>`
+                   : ""
+               }`
         }
       </div>
     `,
