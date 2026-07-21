@@ -147,12 +147,18 @@ export function getProductById(id) {
   return ZYLK_PRODUCTS[id] ? { ...ZYLK_PRODUCTS[id] } : null;
 }
 
-export function getBundleItems(bundleNumber, includeHealthMix = true) {
+/**
+ * @param {number} bundleNumber
+ * @param {boolean} includeHealthMix
+ * @param {boolean} [hasDandruff=false] — Sheet rule: never include dermaroller when dandruff is present
+ */
+export function getBundleItems(bundleNumber, includeHealthMix = true, hasDandruff = false) {
   const ids = [...(BUNDLE_PRODUCT_IDS[bundleNumber] || [])];
 
-  // Sheet 1 guard: Bundle-2 (dandruff kit) must never include a dermaroller
+  // Never recommend a dermaroller when the user has dandruff
+  // (Bundle-2 already omits it; also strip from Bundle-5 / Bundle-7 if dandruff)
   const filteredIds =
-    Number(bundleNumber) === 2
+    hasDandruff || Number(bundleNumber) === 2
       ? ids.filter((id) => id !== "zylk-dermaroller")
       : ids;
 
