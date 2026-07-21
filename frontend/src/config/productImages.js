@@ -130,8 +130,10 @@ export function shortenProductName(name = "", isFemale = false) {
   if (lower.includes("rosemary") && lower.includes("oil")) return "Zylk Rosemary Hair Oil";
   if (lower.includes("rosemary")) return "Zylk Rosemary Hair Oil";
   if (lower.includes("progro")) return "Zylk ProGro Oil";
-  if (lower.includes("derma") || lower.includes("roller")) return "Zylk 0.5 mm Dermaroller";
-  if (lower.includes("antidandruff") || lower.includes("anti-dandruff")) {
+  if (lower.includes("derma") || lower.includes("roller") || lower.includes("micro-needling")) {
+    return "Zylk 0.5 mm Dermaroller";
+  }
+  if (lower.includes("antidandruff") || lower.includes("anti-dandruff") || lower.includes("anti dandruff")) {
     return "Zylk Antidandruff Shampoo";
   }
   if (lower.includes("detox") || lower.includes("salicylic")) {
@@ -145,18 +147,36 @@ export function shortenProductName(name = "", isFemale = false) {
   if (lower.includes("shampoo") || lower.includes("cleanser")) {
     return "Zylk Antidandruff Shampoo";
   }
+  if (lower.includes("mist")) return "Zylk Tea Tree Mist Spray";
   if (lower.includes("oil")) return "Zylk ProGro Oil";
 
   return name;
 }
 
+/** Map legacy Result product ids → official Sheet catalog ids */
+const LEGACY_ID_TO_CATALOG = {
+  "prod-minox-male-rx": "zylk-minoxidil-5",
+  "prod-minox-female-rx": "zylk-minoxidil-2",
+  "prod-rosemary-concentrate": "zylk-rosemary-oil",
+  "prod-derma": "zylk-dermaroller",
+  "prod-shampoo": "zylk-antidandruff-shampoo",
+  "prod-massager": "zylk-scalp-massager",
+  "prod-oil-mct-dandruff": "zylk-progro-oil",
+  "prod-oil-jojoba-clear": "zylk-rosemary-oil",
+};
+
 export function formatBundleProduct(product = {}, isFemale = false) {
-  // Always prefer official sheet catalog name by id, then explicit name, then heuristic
-  const catalog = product.id ? ZYLK_PRODUCTS[product.id] : null;
-  const shortName =
-    catalog?.name ||
-    product.name ||
-    shortenProductName(product?.name || product?.title || "", isFemale);
+  const legacyCatalogId = LEGACY_ID_TO_CATALOG[product.id];
+  const catalogId =
+    legacyCatalogId ||
+    (String(product.id || "").startsWith("prod-supplements")
+      ? "zylk-hair-health-mix"
+      : product.id);
+  const catalog = catalogId ? ZYLK_PRODUCTS[catalogId] : null;
+
+  // Prefer catalog name; otherwise convert marketing labels → sheet names
+  const mapped = shortenProductName(product?.name || product?.title || "", isFemale);
+  const shortName = catalog?.name || mapped || product.name || null;
   if (!shortName) return null;
 
   const imgUrl = catalog?.imgUrl || product.imgUrl;
@@ -167,15 +187,20 @@ export function formatBundleProduct(product = {}, isFemale = false) {
       shortName,
       imgUrl,
       imgFallbacks,
+      catalogId: catalog?.id || catalogId || product.id,
     };
   }
 
-  const { src, fallbacks } = getProductImageSources(product, isFemale);
+  const { src, fallbacks } = getProductImageSources(
+    catalog || product,
+    isFemale
+  );
 
   return {
     shortName,
     imgUrl: src,
     imgFallbacks: fallbacks,
+    catalogId: catalog?.id || catalogId || product.id,
   };
 }
 
