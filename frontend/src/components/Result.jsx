@@ -1532,7 +1532,7 @@ export default function Result() {
                 <p className="text-xs text-red-600 mt-1">Please retake the scalp scan to get your photo-based stage.</p>
                 <button
                   type="button"
-                  onClick={() => { if (prevStep) prevStep(); else window.history.back(); }}
+                  onClick={handleBack}
                   className="mt-2 text-xs font-bold uppercase tracking-wider bg-red-600 text-white px-3 py-1.5 rounded-full cursor-pointer"
                 >
                   Retake Scalp Scan

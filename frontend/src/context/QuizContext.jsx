@@ -56,8 +56,13 @@ function stripHeavyImageData(images = []) {
 }
 
 function serializeState(state) {
+  const sectionSteps = { ...(state.sectionSteps || {}) };
+  if (sectionSteps.section4Scalp === "analyzing") {
+    sectionSteps.section4Scalp = "upload";
+  }
   return {
     ...state,
+    sectionSteps,
     isLoading: false,
     error: null,
     scalpImages: stripHeavyImageData(state.scalpImages),
@@ -72,13 +77,22 @@ function loadPersistedState() {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return null;
 
+    const sectionSteps = {
+      ...INITIAL_STATE.sectionSteps,
+      ...(parsed.sectionSteps || {}),
+    };
+    // Never restore the transient analyzing screen from cache
+    if (sectionSteps.section4Scalp === "analyzing") {
+      sectionSteps.section4Scalp = "upload";
+    }
+
     return {
       ...INITIAL_STATE,
       ...parsed,
       aboutMe: { ...INITIAL_STATE.aboutMe, ...(parsed.aboutMe || {}) },
       hairHealth: { ...INITIAL_STATE.hairHealth, ...(parsed.hairHealth || {}) },
       internalHealth: { ...(parsed.internalHealth || {}) },
-      sectionSteps: { ...INITIAL_STATE.sectionSteps, ...(parsed.sectionSteps || {}) },
+      sectionSteps,
       scalpImages: Array.isArray(parsed.scalpImages) ? parsed.scalpImages : [],
       archivedReportId: parsed.archivedReportId || null,
       archivedReportDate: parsed.archivedReportDate || null,
@@ -161,11 +175,25 @@ export function QuizProvider({ children }) {
   };
 
   const prevStep = () => {
-    setState((prev) => ({
-      ...prev,
-      step: Math.max(0, prev.step - 1),
-      navDirection: "backward",
-    }));
+    setState((prev) => {
+      const nextStep = Math.max(0, prev.step - 1);
+      const next = {
+        ...prev,
+        step: nextStep,
+        navDirection: "backward",
+        isLoading: false,
+      };
+
+      // Result → scalp scan: always land on photo upload, never the analyzing screen
+      if (prev.step === 5 && nextStep === 4) {
+        next.sectionSteps = {
+          ...prev.sectionSteps,
+          section4Scalp: "upload",
+        };
+      }
+
+      return next;
+    });
   };
 
   const goToStep = (targetStep, direction = "forward") => {
