@@ -75,27 +75,64 @@ async function resolveReportIdentity(clientReportId, clientReportDate) {
   return allocateReportId();
 }
 
-function buildResultPageUrl({ resultPageUrl, appOrigin, reportId }) {
-  if (typeof resultPageUrl === "string" && /^https?:\/\//i.test(resultPageUrl)) {
-    return resultPageUrl.trim();
+function isLoopbackHost(hostname) {
+  const h = String(hostname || "").toLowerCase();
+  return h === "localhost" || h === "127.0.0.1" || h === "0.0.0.0" || h === "::1";
+}
+
+function isLoopbackUrl(value) {
+  try {
+    return isLoopbackHost(new URL(value).hostname);
+  } catch {
+    return true;
   }
+}
 
-  const base =
-    (typeof appOrigin === "string" && appOrigin.trim()) ||
-    process.env.RESULT_APP_BASE_URL ||
-    process.env.FRONTEND_ORIGIN ||
-    "";
-
-  if (!base) return null;
-
+function appendReportParam(base, reportId) {
   try {
     const url = new URL(base);
     url.searchParams.set("report", reportId);
     return url.toString();
   } catch {
-    const trimmed = base.replace(/\/$/, "");
+    const trimmed = String(base || "").replace(/\/$/, "");
+    if (!trimmed) return null;
     return `${trimmed}/?report=${encodeURIComponent(reportId)}`;
   }
+}
+
+/**
+ * Build an org-shareable Result page URL.
+ * Prefer RESULT_APP_BASE_URL / FRONTEND_ORIGIN so emailed PDFs do not point at localhost.
+ */
+function buildResultPageUrl({ resultPageUrl, appOrigin, reportId }) {
+  const envBase =
+    process.env.RESULT_APP_BASE_URL || process.env.FRONTEND_ORIGIN || "";
+
+  if (envBase) {
+    return appendReportParam(envBase, reportId);
+  }
+
+  if (
+    typeof resultPageUrl === "string" &&
+    /^https?:\/\//i.test(resultPageUrl) &&
+    !isLoopbackUrl(resultPageUrl)
+  ) {
+    return resultPageUrl.trim();
+  }
+
+  if (typeof appOrigin === "string" && appOrigin.trim() && !isLoopbackUrl(appOrigin)) {
+    return appendReportParam(appOrigin.trim(), reportId);
+  }
+
+  if (typeof resultPageUrl === "string" && /^https?:\/\//i.test(resultPageUrl)) {
+    return resultPageUrl.trim();
+  }
+
+  if (typeof appOrigin === "string" && appOrigin.trim()) {
+    return appendReportParam(appOrigin.trim(), reportId);
+  }
+
+  return null;
 }
 
 /**

@@ -25,7 +25,7 @@ function contentWidth(doc) {
   return doc.page.width - doc.page.margins.left - doc.page.margins.right;
 }
 
-function drawHeader(doc, { reportId, reportDate, model }) {
+function drawHeader(doc, { reportId, reportDate, model, resultPageUrl = null }) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
 
@@ -66,8 +66,21 @@ function drawHeader(doc, { reportId, reportDate, model }) {
       lineBreak: false,
     });
   }
+  if (resultPageUrl) {
+    doc
+      .fillColor("#1d4ed8")
+      .font("Helvetica-Bold")
+      .fontSize(8)
+      .text("Open Result Page ->", metaX, doc.page.margins.top + (model ? 36 : 24), {
+        width: width * 0.45,
+        align: "right",
+        link: resultPageUrl,
+        underline: true,
+        lineBreak: false,
+      });
+  }
 
-  doc.y = doc.page.margins.top + 42;
+  doc.y = doc.page.margins.top + (resultPageUrl ? 52 : 42);
   doc
     .strokeColor(LINE)
     .lineWidth(1)
@@ -97,6 +110,86 @@ function drawFooter(doc, pageLabel) {
     align: "right",
     lineBreak: false,
   });
+}
+
+/**
+ * Prominent, reliably clickable Result-page link for organisation review.
+ * Uses a filled CTA + blue underlined URL + full-width link annotation.
+ */
+function drawResultPageLink(doc, resultPageUrl, { compact = false } = {}) {
+  if (!resultPageUrl) return;
+  const left = doc.page.margins.left;
+  const width = contentWidth(doc);
+  const needed = compact ? 52 : 78;
+  if (doc.y + needed > doc.page.height - 56) {
+    doc.addPage();
+    doc.y = doc.page.margins.top + 8;
+  }
+
+  const boxY = doc.y;
+  const boxH = compact ? 48 : 70;
+  doc.roundedRect(left, boxY, width, boxH, 6).fill("#ecfdf5").strokeColor(BRAND).lineWidth(1).stroke();
+
+  doc
+    .fillColor(BRAND)
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .text(
+      compact ? "ONLINE RESULT PAGE" : "ONLINE RESULT PAGE  ·  FOR ORGANISATION REVIEW",
+      left + 12,
+      boxY + 8,
+      { width: width - 24, lineBreak: false }
+    );
+
+  if (!compact) {
+    doc
+      .fillColor(INK)
+      .font("Helvetica")
+      .fontSize(8)
+      .text(
+        "Click the button or URL below to open this same assessment Result page in the Zylk Health app.",
+        left + 12,
+        boxY + 22,
+        { width: width - 24, lineBreak: false }
+      );
+  }
+
+  const btnY = compact ? boxY + 24 : boxY + 38;
+  const btnLabel = "Open Result Page  ->";
+  const btnW = Math.min(190, width - 24);
+  doc.roundedRect(left + 12, btnY, btnW, 20, 4).fill(BRAND);
+  doc
+    .fillColor("#ffffff")
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .text(btnLabel, left + 12, btnY + 5, {
+      width: btnW,
+      align: "center",
+      lineBreak: false,
+    });
+  doc.link(left + 12, btnY, btnW, 20, resultPageUrl);
+
+  // Blue underlined URL — most reliable click target across PDF readers
+  const urlX = left + 12 + btnW + 10;
+  const urlW = width - btnW - 34;
+  if (urlW > 80) {
+    doc
+      .fillColor("#1d4ed8")
+      .font("Helvetica")
+      .fontSize(7.5)
+      .text(resultPageUrl, urlX, btnY + 5, {
+        width: urlW,
+        link: resultPageUrl,
+        underline: true,
+        lineBreak: false,
+      });
+  }
+
+  // Full box is also clickable
+  doc.link(left, boxY, width, boxH, resultPageUrl);
+  doc.y = boxY + boxH + 10;
+  doc.x = left;
+  doc.fillColor(INK).font("Helvetica").fontSize(9);
 }
 
 function sectionBanner(doc, number, title) {
@@ -384,7 +477,7 @@ export function buildAssessmentPdf(payload) {
     const model = scalpAnalysis.model || null;
 
     // ───────── PAGE 1: Profile & Quiz ─────────
-    drawHeader(doc, { reportId, reportDate, model });
+    drawHeader(doc, { reportId, reportDate, model, resultPageUrl });
 
     doc
       .font("Helvetica-Bold")
@@ -402,30 +495,8 @@ export function buildAssessmentPdf(payload) {
       );
     doc.moveDown(0.6);
 
-    // View results CTA
-    if (resultPageUrl) {
-      const ctaY = doc.y;
-      doc.roundedRect(left, ctaY, width, 28, 6).fill(BRAND);
-      doc
-        .fillColor("#ffffff")
-        .font("Helvetica-Bold")
-        .fontSize(10)
-        .text("View interactive results in the app  ->", left + 12, ctaY + 9, {
-          width: width - 24,
-          link: resultPageUrl,
-          underline: false,
-          lineBreak: false,
-        });
-      // Invisible link area for PDF readers
-      doc.link(left, ctaY, width, 28, resultPageUrl);
-      doc.y = ctaY + 36;
-      doc
-        .font("Helvetica")
-        .fontSize(8)
-        .fillColor(MUTED)
-        .text(resultPageUrl, { width, link: resultPageUrl });
-      doc.moveDown(0.5);
-    }
+    // Org-facing Result page link (clickable)
+    drawResultPageLink(doc, resultPageUrl);
 
     sectionBanner(doc, "1", "PATIENT PROFILE");
     const name = aboutMe.fullName || "Guest";
@@ -495,7 +566,7 @@ export function buildAssessmentPdf(payload) {
 
     // ───────── PAGE 2: Assessment & Plan ─────────
     doc.addPage();
-    drawHeader(doc, { reportId, reportDate, model });
+    drawHeader(doc, { reportId, reportDate, model, resultPageUrl });
     const isFemale = (payload.gender || aboutMe.gender) === "female";
 
     doc
@@ -682,21 +753,8 @@ export function buildAssessmentPdf(payload) {
     }
 
     if (resultPageUrl) {
-      doc.moveDown(0.8);
-      const ctaY = doc.y;
-      if (ctaY + 40 < doc.page.height - 56) {
-        doc.roundedRect(left, ctaY, width, 28, 6).fill(BRAND);
-        doc
-          .fillColor("#ffffff")
-          .font("Helvetica-Bold")
-          .fontSize(10)
-          .text("Open this result in the Zylk Health app  ->", left + 12, ctaY + 9, {
-            width: width - 24,
-            lineBreak: false,
-          });
-        doc.link(left, ctaY, width, 28, resultPageUrl);
-        doc.y = ctaY + 34;
-      }
+      doc.moveDown(0.5);
+      drawResultPageLink(doc, resultPageUrl, { compact: true });
     }
 
     drawFooter(doc, "PAGE 2 OF 2 · ASSESSMENT & PLAN");
