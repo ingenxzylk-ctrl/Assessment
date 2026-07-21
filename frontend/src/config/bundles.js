@@ -78,10 +78,11 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
   }
 
   if (bundleNumber === 2) {
-    // Bundle-2 — male pattern loss + dandruff
+    // Bundle-2 — dandruff / ProGro Scalp-Clear (no dermaroller)
+    const genderLabel = gender === "female" ? "Women" : "Men";
     return stageLabel
-      ? `Zylk ProGro Scalp-Clear Kit — ${stageLabel} Men`
-      : "Zylk ProGro Scalp-Clear Kit — Men";
+      ? `Zylk ProGro Scalp-Clear Kit — ${stageLabel} ${genderLabel}`
+      : `Zylk ProGro Scalp-Clear Kit — ${genderLabel}`;
   }
 
   if (bundleNumber === 4) {
