@@ -114,28 +114,33 @@ function drawFooter(doc, pageLabel) {
 
 /**
  * Prominent, reliably clickable Result-page link for organisation review.
- * Uses a filled CTA + blue underlined URL + full-width link annotation.
+ * Always renders when a URL or reportId is available — never silently skip.
+ * Uses a filled CTA + blue underlined URL on its own line + link annotations.
  */
-function drawResultPageLink(doc, resultPageUrl, { compact = false } = {}) {
-  if (!resultPageUrl) return;
+function drawResultPageLink(doc, resultPageUrl, { compact = false, reportId = null } = {}) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
-  const needed = compact ? 52 : 78;
+  const url =
+    (typeof resultPageUrl === "string" && resultPageUrl.trim()) ||
+    (reportId ? `/?report=${encodeURIComponent(reportId)}` : null);
+  if (!url) return;
+
+  const needed = compact ? 58 : 92;
   if (doc.y + needed > doc.page.height - 56) {
     doc.addPage();
     doc.y = doc.page.margins.top + 8;
   }
 
   const boxY = doc.y;
-  const boxH = compact ? 48 : 70;
-  doc.roundedRect(left, boxY, width, boxH, 6).fill("#ecfdf5").strokeColor(BRAND).lineWidth(1).stroke();
+  const boxH = compact ? 54 : 86;
+  doc.roundedRect(left, boxY, width, boxH, 6).fill("#ecfdf5").strokeColor(BRAND).lineWidth(1.2).stroke();
 
   doc
     .fillColor(BRAND)
     .font("Helvetica-Bold")
-    .fontSize(9)
+    .fontSize(10)
     .text(
-      compact ? "ONLINE RESULT PAGE" : "ONLINE RESULT PAGE  ·  FOR ORGANISATION REVIEW",
+      compact ? "RESULT PAGE LINK" : "RESULT PAGE LINK  ·  FOR ORGANISATION REVIEW",
       left + 12,
       boxY + 8,
       { width: width - 24, lineBreak: false }
@@ -147,47 +152,45 @@ function drawResultPageLink(doc, resultPageUrl, { compact = false } = {}) {
       .font("Helvetica")
       .fontSize(8)
       .text(
-        "Click the button or URL below to open this same assessment Result page in the Zylk Health app.",
+        "Click the button or the blue URL below to open this assessment Result page in the app.",
         left + 12,
         boxY + 22,
         { width: width - 24, lineBreak: false }
       );
   }
 
-  const btnY = compact ? boxY + 24 : boxY + 38;
-  const btnLabel = "Open Result Page  ->";
-  const btnW = Math.min(190, width - 24);
-  doc.roundedRect(left + 12, btnY, btnW, 20, 4).fill(BRAND);
+  const btnY = compact ? boxY + 26 : boxY + 38;
+  const btnLabel = "Open Result Page";
+  const btnW = Math.min(150, width - 24);
+  doc.roundedRect(left + 12, btnY, btnW, 18, 4).fill(BRAND);
   doc
     .fillColor("#ffffff")
     .font("Helvetica-Bold")
     .fontSize(9)
-    .text(btnLabel, left + 12, btnY + 5, {
+    .text(btnLabel, left + 12, btnY + 4, {
       width: btnW,
       align: "center",
       lineBreak: false,
     });
-  doc.link(left + 12, btnY, btnW, 20, resultPageUrl);
+  doc.link(left + 12, btnY, btnW, 18, url);
 
-  // Blue underlined URL — most reliable click target across PDF readers
-  const urlX = left + 12 + btnW + 10;
-  const urlW = width - btnW - 34;
-  if (urlW > 80) {
-    doc
-      .fillColor("#1d4ed8")
-      .font("Helvetica")
-      .fontSize(7.5)
-      .text(resultPageUrl, urlX, btnY + 5, {
-        width: urlW,
-        link: resultPageUrl,
-        underline: true,
-        lineBreak: false,
-      });
-  }
+  // Full URL on its own line — most reliable click + copy target in PDF readers
+  const urlY = compact ? btnY + 22 : boxY + 62;
+  doc
+    .fillColor("#1d4ed8")
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .text(url, left + 12, urlY, {
+      width: width - 24,
+      link: url,
+      underline: true,
+      lineBreak: false,
+    });
+  // Extra hit area over the URL line
+  doc.link(left + 12, urlY - 2, width - 24, 14, url);
+  doc.link(left, boxY, width, boxH, url);
 
-  // Full box is also clickable
-  doc.link(left, boxY, width, boxH, resultPageUrl);
-  doc.y = boxY + boxH + 10;
+  doc.y = boxY + boxH + 12;
   doc.x = left;
   doc.fillColor(INK).font("Helvetica").fontSize(9);
 }
@@ -444,8 +447,13 @@ export function buildAssessmentPdf(payload) {
     scalpAnalysis = {},
     scalpImages = [],
     reportMeta = {},
-    resultPageUrl = null,
+    resultPageUrl: rawResultPageUrl = null,
   } = payload;
+
+  // Never omit the link — fall back to a report deep-link if URL missing
+  const resultPageUrl =
+    (typeof rawResultPageUrl === "string" && rawResultPageUrl.trim()) ||
+    (reportId ? `/?report=${encodeURIComponent(reportId)}` : null);
 
   const predicted = scalpAnalysis.aiPredictedStage || scalpAnalysis.finalStage || "—";
   const selfReported = scalpAnalysis.selfReportedStage || aboutMe?.norwood_stage || "—";
@@ -493,10 +501,10 @@ export function buildAssessmentPdf(payload) {
         "A personalised, AI-assisted analysis of hair health, scalp condition and a tailored recovery timeline based on uploaded photos and quiz responses.",
         { width }
       );
-    doc.moveDown(0.6);
+    doc.moveDown(0.45);
 
-    // Org-facing Result page link (clickable)
-    drawResultPageLink(doc, resultPageUrl);
+    // Org-facing Result page link — always drawn when reportId exists
+    drawResultPageLink(doc, resultPageUrl, { reportId });
 
     sectionBanner(doc, "1", "PATIENT PROFILE");
     const name = aboutMe.fullName || "Guest";
@@ -752,9 +760,9 @@ export function buildAssessmentPdf(payload) {
       }
     }
 
-    if (resultPageUrl) {
+    if (resultPageUrl || reportId) {
       doc.moveDown(0.5);
-      drawResultPageLink(doc, resultPageUrl, { compact: true });
+      drawResultPageLink(doc, resultPageUrl, { compact: true, reportId });
     }
 
     drawFooter(doc, "PAGE 2 OF 2 · ASSESSMENT & PLAN");

@@ -47,6 +47,7 @@ export async function sendReportToOrganisation({
   aboutMe = {},
   scalpAnalysis = {},
   storageInfo = {},
+  resultPageUrl = null,
 }) {
   if (!isEmailConfigured()) {
     console.warn(
@@ -66,6 +67,9 @@ export async function sendReportToOrganisation({
   const name = aboutMe.fullName || "Guest";
   const drivePdfLink = resolveDrivePdfLink(storageInfo);
   const driveFileName = storageInfo.drive?.pdfName || null;
+  const resultLink =
+    (typeof resultPageUrl === "string" && resultPageUrl.trim()) ||
+    (reportId ? `/?report=${encodeURIComponent(reportId)}` : null);
 
   const transporter = createTransport();
   const info = await transporter.sendMail({
@@ -82,6 +86,8 @@ export async function sendReportToOrganisation({
       `Stage: ${stage}`,
       aboutMe.whatsapp ? `WhatsApp: ${aboutMe.whatsapp}` : "",
       aboutMe.email ? `Email: ${aboutMe.email}` : "",
+      "",
+      resultLink ? `Result page (open in app):\n${resultLink}` : "",
       "",
       drivePdfLink
         ? `PDF in Google Drive:\n${drivePdfLink}`
@@ -104,6 +110,20 @@ export async function sendReportToOrganisation({
           ${aboutMe.whatsapp ? `<br/><strong>WhatsApp:</strong> ${aboutMe.whatsapp}` : ""}
           ${aboutMe.email ? `<br/><strong>Email:</strong> ${aboutMe.email}` : ""}
         </p>
+        ${
+          resultLink
+            ? `<p style="margin:0 0 8px;font-weight:bold;color:#111">Result page in app</p>
+               <p style="margin:0 0 16px">
+                 <a href="${resultLink}"
+                    style="display:inline-block;background:#064e3b;color:#fff;text-decoration:none;font-weight:bold;padding:10px 16px;border-radius:8px">
+                   Open Result Page
+                 </a>
+               </p>
+               <p style="margin:0 0 20px;font-size:13px;color:#1d4ed8;word-break:break-all">
+                 <a href="${resultLink}">${resultLink}</a>
+               </p>`
+            : ""
+        }
         <p style="margin:0 0 8px;font-weight:bold;color:#111">PDF in Google Drive</p>
         ${
           drivePdfLink

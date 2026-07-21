@@ -100,11 +100,27 @@ function appendReportParam(base, reportId) {
   }
 }
 
+function getRequestOrigin(req) {
+  if (!req || typeof req.get !== "function") return null;
+  const origin = req.get("origin");
+  if (origin && /^https?:\/\//i.test(origin)) return origin.replace(/\/$/, "");
+  const referer = req.get("referer");
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
 /**
  * Build an org-shareable Result page URL.
  * Prefer RESULT_APP_BASE_URL / FRONTEND_ORIGIN so emailed PDFs do not point at localhost.
+ * Always returns a URL when reportId is present so the PDF never omits the link.
  */
-function buildResultPageUrl({ resultPageUrl, appOrigin, reportId }) {
+function buildResultPageUrl({ resultPageUrl, appOrigin, reportId, requestOrigin }) {
   const envBase =
     process.env.RESULT_APP_BASE_URL || process.env.FRONTEND_ORIGIN || "";
 
@@ -124,6 +140,10 @@ function buildResultPageUrl({ resultPageUrl, appOrigin, reportId }) {
     return appendReportParam(appOrigin.trim(), reportId);
   }
 
+  if (requestOrigin && !isLoopbackUrl(requestOrigin)) {
+    return appendReportParam(requestOrigin, reportId);
+  }
+
   if (typeof resultPageUrl === "string" && /^https?:\/\//i.test(resultPageUrl)) {
     return resultPageUrl.trim();
   }
@@ -132,7 +152,12 @@ function buildResultPageUrl({ resultPageUrl, appOrigin, reportId }) {
     return appendReportParam(appOrigin.trim(), reportId);
   }
 
-  return null;
+  if (requestOrigin) {
+    return appendReportParam(requestOrigin, reportId);
+  }
+
+  // Last resort — still embed a deep link so the PDF always shows something clickable/copyable
+  return appendReportParam("http://localhost:5173/", reportId);
 }
 
 /**
@@ -185,7 +210,14 @@ export async function submitAssessmentReport(req, res) {
       resultPageUrl: bodyResultPageUrl,
       appOrigin,
       reportId,
+      requestOrigin: getRequestOrigin(req),
     });
+
+    if (!resultPageUrl) {
+      console.warn("[report] resultPageUrl could not be resolved for", reportId);
+    } else {
+      console.log("[report] embedding result page link:", resultPageUrl);
+    }
 
     const payload = {
       reportId,
@@ -220,6 +252,7 @@ export async function submitAssessmentReport(req, res) {
         aboutMe,
         scalpAnalysis,
         storageInfo,
+        resultPageUrl,
       });
     } catch (emailErr) {
       console.error("[report] email failed:", emailErr.message);
