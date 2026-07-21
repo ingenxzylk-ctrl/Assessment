@@ -48,17 +48,19 @@ export default function Home({ onStart }) {
           </div>
 
           {/* Core Trust Feature Bullet Lists */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 pt-6 border-t border-gray-200/50 max-w-xl">
-            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium whitespace-nowrap">
-              <span className="text-amber-500 font-bold tracking-tight shrink-0">★★★★★</span>
-              <span>4.8/5 from 1,000+ users</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium whitespace-nowrap">
+          <div className="flex flex-col gap-3 pt-6 border-t border-gray-200/50 max-w-xl sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-3">
+            <p className="m-0 flex w-max max-w-none shrink-0 items-center gap-2 text-sm font-medium text-gray-700 whitespace-nowrap">
+              <span className="shrink-0 tracking-tight text-amber-500 font-bold" aria-hidden="true">
+                ★★★★★
+              </span>
+              <span className="whitespace-nowrap">4.8/5 from 1,000+ users</span>
+            </p>
+            <p className="m-0 flex w-max shrink-0 items-center gap-2 text-sm font-medium text-gray-700 whitespace-nowrap">
               <span className="text-emerald-700 font-bold">✓</span> AI-powered analysis
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-700 font-medium whitespace-nowrap">
+            </p>
+            <p className="m-0 flex w-max shrink-0 items-center gap-2 text-sm font-medium text-gray-700 whitespace-nowrap">
               <span className="text-emerald-700 font-bold">✓</span> Doctor-reviewed
-            </div>
+            </p>
           </div>
         </div>
 
