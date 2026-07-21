@@ -6,6 +6,8 @@
  *   frontend/public/products/       ← served at /products/filename.jpg
  */
 
+import { ZYLK_PRODUCTS } from "../data/zylkProductCatalog.js";
+
 const EXTENSIONS = ["jpg", "jpeg", "png", "webp", "svg"];
 
 const bundledAssets = import.meta.glob("../assets/products/*", {
@@ -116,7 +118,7 @@ export function shortenProductName(name = "", isFemale = false) {
 
   if (isFemale && lower.includes("finasteride")) return null;
 
-  // Names must match the official Zylk Health products sheet
+  // Names must match the official Zylk Health products sheet (most-specific first)
   if (lower.includes("minoxidil")) {
     if (lower.includes("2%")) return "Zylk Minoxidil 2% Solution";
     return isFemale ? "Zylk Minoxidil 2% Solution" : "Zylk Minoxidil 5% Solution";
@@ -127,6 +129,7 @@ export function shortenProductName(name = "", isFemale = false) {
   if (lower.includes("rosemary mist")) return "Zylk Rosemary Mist Spray";
   if (lower.includes("rosemary") && lower.includes("oil")) return "Zylk Rosemary Hair Oil";
   if (lower.includes("rosemary")) return "Zylk Rosemary Hair Oil";
+  if (lower.includes("progro")) return "Zylk ProGro Oil";
   if (lower.includes("derma") || lower.includes("roller")) return "Zylk 0.5 mm Dermaroller";
   if (lower.includes("antidandruff") || lower.includes("anti-dandruff")) {
     return "Zylk Antidandruff Shampoo";
@@ -134,32 +137,36 @@ export function shortenProductName(name = "", isFemale = false) {
   if (lower.includes("detox") || lower.includes("salicylic")) {
     return "Zylk Detox Salicylic Acid Shampoo";
   }
-  if (lower.includes("shampoo") || lower.includes("cleanser")) {
-    return "Zylk Antidandruff Shampoo";
-  }
   if (lower.includes("massager") || lower.includes("brush")) return "Zylk Scalp Massager";
   if (lower.includes("conditioner")) return "Zylk Tea Tree Conditioner";
   if (lower.includes("health mix") || lower.includes("supplement") || lower.includes("vitality")) {
     return "Zylk Hair Health Mix";
   }
-  if (lower.includes("progro")) return "Zylk ProGro Oil";
+  if (lower.includes("shampoo") || lower.includes("cleanser")) {
+    return "Zylk Antidandruff Shampoo";
+  }
   if (lower.includes("oil")) return "Zylk ProGro Oil";
 
   return name;
 }
 
 export function formatBundleProduct(product = {}, isFemale = false) {
-  // Always prefer official sheet catalog name when present
+  // Always prefer official sheet catalog name by id, then explicit name, then heuristic
+  const catalog = product.id ? ZYLK_PRODUCTS[product.id] : null;
   const shortName =
+    catalog?.name ||
     product.name ||
     shortenProductName(product?.name || product?.title || "", isFemale);
   if (!shortName) return null;
 
-  if (product.imgUrl) {
+  const imgUrl = catalog?.imgUrl || product.imgUrl;
+  const imgFallbacks = catalog?.imgFallbacks || product.imgFallbacks || [];
+
+  if (imgUrl) {
     return {
       shortName,
-      imgUrl: product.imgUrl,
-      imgFallbacks: product.imgFallbacks || [],
+      imgUrl,
+      imgFallbacks,
     };
   }
 
