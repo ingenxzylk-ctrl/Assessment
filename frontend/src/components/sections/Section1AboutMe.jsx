@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
 const STEPS = ["name", "contact", "age", "gender"];
@@ -214,19 +214,12 @@ const COUNTRY_CODES = [
 
 const DEFAULT_COUNTRY = COUNTRY_CODES.find((c) => c.name === "India") || COUNTRY_CODES[0];
 
-function countryOptionValue(country) {
-  return `${country.code}|${country.name}`;
-}
-
-function parseCountryOption(value) {
-  const [code, ...nameParts] = value.split("|");
-  return { code, name: nameParts.join("|") };
-}
-
 export default function Section1AboutMe({ onComplete, onBack }) {
   const { state, updateAboutMe } = useQuiz(); 
   const [step, setStep] = useSectionStep("section1AboutMe", STEPS.length - 1, 0);
   const [errors, setErrors] = useState({});
+  const [countryMenuOpen, setCountryMenuOpen] = useState(false);
+  const countryMenuRef = useRef(null);
 
   const initialCountry =
     COUNTRY_CODES.find(
@@ -244,6 +237,26 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     ageRange: state?.aboutMe?.ageRange || "",
     gender: state?.aboutMe?.gender || "",
   });
+
+  const selectedCountry =
+    COUNTRY_CODES.find(
+      (c) =>
+        c.code === localForm.countryCode &&
+        c.name === (localForm.countryName || DEFAULT_COUNTRY.name)
+    ) ||
+    COUNTRY_CODES.find((c) => c.code === localForm.countryCode) ||
+    DEFAULT_COUNTRY;
+
+  useEffect(() => {
+    if (!countryMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (!countryMenuRef.current?.contains(event.target)) {
+        setCountryMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [countryMenuOpen]);
 
   const currentStep = STEPS[step];
   const headingInfo = STEP_TITLES[currentStep];
@@ -338,24 +351,53 @@ export default function Section1AboutMe({ onComplete, onBack }) {
 
                 {/* Mobile-friendly: stacked on small screens, side-by-side on sm+ */}
                 <div className="flex gap-2 w-full min-w-0 max-w-full">
-  <select
-    value={countryOptionValue({
-      code: localForm.countryCode,
-      name: localForm.countryName || DEFAULT_COUNTRY.name,
-    })}
-    onChange={(e) => {
-      const { code, name } = parseCountryOption(e.target.value);
-      handleChange({ countryCode: code, countryName: name });
-    }}
-    className="h-14 w-[8.5rem] sm:w-[11rem] shrink-0 px-2 border border-gray-200 rounded-2xl bg-white text-gray-900 focus:outline-none focus:border-[#064e3b] text-sm font-medium"
-    aria-label="WhatsApp country code"
-  >
-    {COUNTRY_CODES.map((c) => (
-      <option key={`${c.name}-${c.code}`} value={countryOptionValue(c)}>
-        {c.flag} {c.code} {c.name}
-      </option>
-    ))}
-  </select>
+  <div className="relative shrink-0" ref={countryMenuRef}>
+    <button
+      type="button"
+      onClick={() => setCountryMenuOpen((open) => !open)}
+      className="h-14 w-[6.75rem] px-2 border border-gray-200 rounded-2xl bg-white text-gray-900 focus:outline-none focus:border-[#064e3b] text-sm font-medium flex items-center justify-between gap-1 cursor-pointer"
+      aria-label="WhatsApp country code"
+      aria-haspopup="listbox"
+      aria-expanded={countryMenuOpen}
+    >
+      <span className="truncate">
+        {selectedCountry.flag} {selectedCountry.code}
+      </span>
+      <span className="text-gray-400 text-xs" aria-hidden="true">▾</span>
+    </button>
+
+    {countryMenuOpen && (
+      <ul
+        role="listbox"
+        className="absolute left-0 top-[calc(100%+0.35rem)] z-30 max-h-64 w-[16rem] overflow-y-auto rounded-2xl border border-gray-200 bg-white py-1 shadow-lg"
+      >
+        {COUNTRY_CODES.map((c) => {
+          const isSelected =
+            c.code === selectedCountry.code && c.name === selectedCountry.name;
+          return (
+            <li key={`${c.name}-${c.code}`}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  handleChange({ countryCode: c.code, countryName: c.name });
+                  setCountryMenuOpen(false);
+                }}
+                className={`w-full px-3 py-2.5 text-left text-sm flex items-center gap-2 hover:bg-gray-50 cursor-pointer ${
+                  isSelected ? "bg-[#064e3b]/5 text-[#064e3b] font-semibold" : "text-gray-800"
+                }`}
+              >
+                <span className="shrink-0">{c.flag}</span>
+                <span className="shrink-0 font-medium">{c.code}</span>
+                <span className="truncate text-gray-500">{c.name}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    )}
+  </div>
 
   <input
     type="tel"
