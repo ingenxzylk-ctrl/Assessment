@@ -48,7 +48,11 @@ export const getCustomBundle = (gender, stage, hasDandruff, rootCauses = []) => 
  * Routes quiz result → official Zylk bundle (PDF Bundle 1 / 2 / 5 / 7)
  * with correct product list, WooCommerce IDs, and unique display name.
  *
- * Rule: if user reports dandruff → always Bundle-2 products (no dermaroller).
+ * Sheet 1 rules:
+ * - Stage 1 / overall thinning → Bundle-5 (never Minoxidil / never Bundle-2)
+ * - Male stage 2–5 + dandruff → Bundle-2 (no dermaroller)
+ * - Male stage 2–5 no dandruff → Bundle-1
+ * - Female stage 2–3 → Bundle-7
  */
 export const getRecommendedBundle = (
   gender,
@@ -57,14 +61,13 @@ export const getRecommendedBundle = (
   rootCauses = [],
   includeHealthMix = true
 ) => {
-  // Dandruff always forces Sheet Bundle-2 (ProGro Scalp-Clear)
-  const bundleNumber = hasDandruff ? 2 : resolveBundleNumber(gender, stage, false);
+  const bundleNumber = resolveBundleNumber(gender, stage, hasDandruff);
   const config = BUNDLE_CONFIG[bundleNumber];
   const prices = getBundlePrices(bundleNumber);
   const displayName = getBundleDisplayName(bundleNumber, gender, stage);
 
-  // Always pull items from the official catalog for this bundle number.
-  // Pass hasDandruff so dermaroller is stripped if present.
+  // Pull items from the official catalog for this bundle number.
+  // Pass hasDandruff so dermaroller is stripped when present.
   let items = getBundleItems(bundleNumber, true, Boolean(hasDandruff)).map((item) => {
     if (item.id === CATALOG_MIX_ID || item.id === HAIR_HEALTH_MIX_ID) {
       return {

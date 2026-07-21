@@ -1147,20 +1147,20 @@ export default function Result() {
   };
 
   const kitSourceItems = useMemo(() => {
-    // Hard rule: dandruff → always render official Sheet Bundle-2 catalog items
-    if (hasDandruff) {
-      return getBundleItems(2, true, true).map((item) => {
-        if (item.id === "zylk-hair-health-mix" && rootCauseTags.length > 0) {
-          return {
-            ...item,
-            subtitle: `Daily capsules targeting: ${rootCauseTags.join(" + ")}`,
-          };
-        }
-        return item;
-      });
-    }
-    return recommendedBundle?.items ?? [];
-  }, [hasDandruff, recommendedBundle?.items, rootCauseTags]);
+    // Always render the catalog items for the resolved sheet bundle.
+    // (Do NOT force Bundle-2 for every dandruff case — stage 1 must stay Bundle-5.)
+    if (!recommendedBundle) return [];
+    const bundleNumber = recommendedBundle.bundleNumber;
+    return getBundleItems(bundleNumber, true, hasDandruff).map((item) => {
+      if (item.id === "zylk-hair-health-mix" && rootCauseTags.length > 0) {
+        return {
+          ...item,
+          subtitle: `Daily capsules targeting: ${rootCauseTags.join(" + ")}`,
+        };
+      }
+      return item;
+    });
+  }, [hasDandruff, recommendedBundle, rootCauseTags]);
 
   const kitProducts = kitSourceItems
     .filter((prod) => {
@@ -1200,15 +1200,13 @@ export default function Result() {
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
   // Always show Zylk sheet list price ₹1799 (never bundle delta / stale product price)
   const healthMixPrice = HAIR_HEALTH_MIX_PRICE;
-  const kitDisplayName = hasDandruff
-    ? getBundleDisplayName(2, gender, aiPredictedStageNumber)
-    : recommendedBundle
-      ? getBundleDisplayName(
-          recommendedBundle.bundleNumber,
-          gender,
-          aiPredictedStageNumber
-        )
-      : null;
+  const kitDisplayName = recommendedBundle
+    ? getBundleDisplayName(
+        recommendedBundle.bundleNumber,
+        gender,
+        aiPredictedStageNumber
+      )
+    : null;
   const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
   const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
   const testimonialPhotos = useMemo(
