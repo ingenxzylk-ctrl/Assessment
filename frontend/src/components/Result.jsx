@@ -1147,7 +1147,8 @@ export default function Result() {
 
   const kitProducts = (recommendedBundle?.items ?? [])
     .filter((prod) => {
-      // Sheet 1: Bundle-2 (ProGro Scalp-Clear) never includes a dermaroller
+      // If dandruff is present, never show a dermaroller in the recommended kit
+      if (hasDandruff && prod.id === "zylk-dermaroller") return false;
       if (recommendedBundle?.bundleNumber === 2 && prod.id === "zylk-dermaroller") {
         return false;
       }

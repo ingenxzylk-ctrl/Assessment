@@ -124,8 +124,11 @@ export function resolveBundleNumber(gender, stage, hasDandruff) {
   const stageStr = String(stage ?? "");
   const isMale = gender === "male";
   const isFemale = gender === "female";
+  // Stage 1 / overall thinning → Bundle-5 (dermaroller stripped later if dandruff)
   if (stageStr === "1" || stageStr === "overall-thinning") return 3;
+  // Female stage 2–3 → Bundle-7 (dermaroller stripped later if dandruff)
   if (isFemale && ["2", "3"].includes(stageStr)) return 4;
+  // Male stage 2–5: dandruff → Bundle-2 (no dermaroller); otherwise Bundle-1
   if (isMale && ["2", "3", "4", "5"].includes(stageStr)) return hasDandruff ? 2 : 1;
   return 3;
 }

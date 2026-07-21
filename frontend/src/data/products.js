@@ -49,7 +49,8 @@ export const getRecommendedBundle = (
 
   // Always include Health Mix in the list so the Result UI can show the toggle;
   // price still respects includeHealthMix.
-  const items = getBundleItems(bundleNumber, true).map((item) => {
+  // Sheet rule: if dandruff → never include dermaroller in recommended items.
+  const items = getBundleItems(bundleNumber, true, hasDandruff).map((item) => {
     if (item.id === CATALOG_MIX_ID || item.id === HAIR_HEALTH_MIX_ID) {
       return {
         ...item,
