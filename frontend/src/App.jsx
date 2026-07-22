@@ -20,6 +20,66 @@ import {
 } from "./utils/quizImageStore";
 import "./styles/index.css";
 
+const ABOUT_STEPS = 4;
+const HAIR_STEPS = 6;
+const HEALTH_MALE_STEPS = 8;
+const HEALTH_FEMALE_STEPS = 9;
+const SCAN_STEPS = 2;
+
+function getQuizProgressMeta(state) {
+  const step = Number(state?.step) || 0;
+  const gender = state?.aboutMe?.gender;
+  const ss = state?.sectionSteps || {};
+
+  if (step === 1) {
+    return {
+      questionNumber: Number(ss.section1AboutMe ?? 0) + 1,
+      questionTotal: ABOUT_STEPS,
+      sectionLabel: "Section 1 of 4",
+    };
+  }
+
+  if (step === 2) {
+    const key = gender === "female" ? "section2Female" : "section2Male";
+    return {
+      questionNumber: Number(ss[key] ?? 0) + 1,
+      questionTotal: HAIR_STEPS,
+      sectionLabel: "Section 2 of 4",
+    };
+  }
+
+  if (step === 3) {
+    if (gender === "female") {
+      return {
+        questionNumber: Number(ss.section3Female ?? 0) + 1,
+        questionTotal: HEALTH_FEMALE_STEPS,
+        sectionLabel: "Section 3 of 4 — Health & Lifestyle",
+      };
+    }
+    return {
+      questionNumber: Number(ss.section3Male ?? 0) + 1,
+      questionTotal: HEALTH_MALE_STEPS,
+      sectionLabel: "Section 3 of 4 — Health & Lifestyle",
+    };
+  }
+
+  if (step === 4) {
+    const scalp = ss.section4Scalp || "guide";
+    const questionNumber = scalp === "upload" || scalp === "analyzing" ? 2 : 1;
+    return {
+      questionNumber,
+      questionTotal: SCAN_STEPS,
+      sectionLabel: "Section 4 of 4 — Scalp Scan",
+    };
+  }
+
+  return {
+    questionNumber: 1,
+    questionTotal: 1,
+    sectionLabel: `Section ${Math.min(Math.max(step, 1), 4)} of 4`,
+  };
+}
+
 function QuizFlow() {
   const {
     state,
@@ -182,8 +242,8 @@ function QuizFlow() {
       </header>
 
       {step >= 1 && step <= 4 && reportBoot.status !== "loading" && reportBoot.status !== "error" && (
-        <div className="max-w-xl mx-auto mb-8">
-          <ProgressBar step={step} />
+        <div className="max-w-2xl mx-auto mb-8">
+          <ProgressBar step={step} {...getQuizProgressMeta(state)} />
         </div>
       )}
 

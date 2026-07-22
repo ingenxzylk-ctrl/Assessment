@@ -91,7 +91,7 @@ export const HEALTH_SLEEP_OPTIONS = [
   "5–6 hours",
   "7–8 hours",
   "More than 8 hours",
-  "It varies or I'm not sure",
+  // PDF annotation: "It varies or I'm not sure" struck through — omitted
 ];
 
 export const HEALTH_STRESS_OPTIONS = [
@@ -99,6 +99,7 @@ export const HEALTH_STRESS_OPTIONS = [
   "Moderate",
   "High",
   "Very high or recent major stress",
+  // PDF annotation: "Prefer not to say" struck through — omitted
 ];
 
 export const HEALTH_CONDITION_OPTIONS = [
@@ -107,8 +108,8 @@ export const HEALTH_CONDITION_OPTIONS = [
   "Iron deficiency or anemia",
   "Hormonal condition, such as PCOS",
   "Autoimmune condition",
-  "Other",
   "None of these or not sure",
+  "Other",
 ];
 
 export const HEALTH_DIGESTIVE_OPTIONS = [
