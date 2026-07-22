@@ -21,7 +21,8 @@ import {
 import "./styles/index.css";
 
 const ABOUT_STEPS = 4;
-const HAIR_STEPS = 7;
+const HAIR_STEPS_MALE = 7;
+const HAIR_STEPS_FEMALE = 6;
 const HEALTH_MALE_STEPS = 8;
 const HEALTH_FEMALE_STEPS = 9;
 const SCAN_STEPS = 2;
@@ -43,7 +44,7 @@ function getQuizProgressMeta(state) {
     const key = gender === "female" ? "section2Female" : "section2Male";
     return {
       questionNumber: Number(ss[key] ?? 0) + 1,
-      questionTotal: HAIR_STEPS,
+      questionTotal: gender === "female" ? HAIR_STEPS_FEMALE : HAIR_STEPS_MALE,
       sectionLabel: "Section 2 of 4",
     };
   }
