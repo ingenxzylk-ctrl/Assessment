@@ -1,174 +1,28 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import {
-  saveScalpImagesToIdb,
   loadScalpImagesFromIdb,
   clearScalpImagesIdb,
   mergeScalpImages,
   scalpImagesHaveData,
 } from "../utils/quizImageStore";
+import {
+  INITIAL_QUIZ_STATE,
+  CHECKOUT_RETURN_KEY,
+  loadPersistedState,
+  persistQuizStateNow,
+  clearPersistedQuizState,
+} from "../utils/quizPersistence";
 
-const QuizContext = createContext();
+// Re-export persistence helpers for callers that historically imported them from here.
+export {
+  persistQuizStateNow,
+  markCheckoutReturn,
+  clearPersistedQuizState,
+} from "../utils/quizPersistence";
 
-const STORAGE_KEY = "zylk_quiz_state_v1";
-const CHECKOUT_RETURN_KEY = "zylk_checkout_return";
+const QuizContext = createContext(null);
 
-const INITIAL_STATE = {
-  step: 0,
-  aboutMe: {
-    fullName: "",
-    whatsapp: "",
-    email: "",
-    countryCode: "+91",
-    countryName: "India",
-    age: "",
-    ageRange: "",
-    gender: "",
-    scalpConsent: false,
-  },
-  hairHealth: {
-    norwood_stage: "",
-    hair_fall_zone: "",
-    hair_loss_area: "",
-    daily_loss_amount: "",
-    dandruff_experience: "",
-    scalp_symptoms: [],
-    family_history: "",
-    loss_duration: "",
-    shedding_amount: "",
-  },
-  internalHealth: {},
-  scalpAnalysis: null,
-  scalpImages: [],
-  /** When set, Result was opened from an archived `?report=` link — skip re-PDF. */
-  archivedReportId: null,
-  archivedReportDate: null,
-  sectionSteps: {
-    section1AboutMe: 0,
-    section2Male: 0,
-    section2Female: 0,
-    section3Male: 0,
-    section3Female: 0,
-    section4Scalp: "guide",
-  },
-  navDirection: "forward",
-  isLoading: false,
-  error: null,
-};
-
-function stripHeavyImageData(images = []) {
-  return (Array.isArray(images) ? images : []).map((img) => ({
-    type: img?.type,
-    label: img?.label || img?.type,
-    // Keep compressed data URLs so Result/PDF still work after reload when possible
-    dataUrl: img?.dataUrl || img?.previewUrl || img?.url || null,
-  }));
-}
-
-/** localStorage payload keeps image metadata; full data URLs live in IndexedDB. */
-function lightImagesForLocalStorage(images = []) {
-  return (Array.isArray(images) ? images : []).map((img) => ({
-    type: img?.type,
-    label: img?.label || img?.type,
-    hasImage: Boolean(img?.dataUrl || img?.previewUrl || img?.url),
-    dataUrl: null,
-  }));
-}
-
-function serializeState(state, { keepImageData = false } = {}) {
-  const sectionSteps = { ...(state.sectionSteps || {}) };
-  if (sectionSteps.section4Scalp === "analyzing") {
-    sectionSteps.section4Scalp = "upload";
-  }
-  return {
-    ...state,
-    sectionSteps,
-    isLoading: false,
-    error: null,
-    scalpImages: keepImageData
-      ? stripHeavyImageData(state.scalpImages)
-      : lightImagesForLocalStorage(state.scalpImages),
-  };
-}
-
-function loadPersistedState() {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-
-    const sectionSteps = {
-      ...INITIAL_STATE.sectionSteps,
-      ...(parsed.sectionSteps || {}),
-    };
-    // Never restore the transient analyzing screen from cache
-    if (sectionSteps.section4Scalp === "analyzing") {
-      sectionSteps.section4Scalp = "upload";
-    }
-
-    return {
-      ...INITIAL_STATE,
-      ...parsed,
-      aboutMe: { ...INITIAL_STATE.aboutMe, ...(parsed.aboutMe || {}) },
-      hairHealth: { ...INITIAL_STATE.hairHealth, ...(parsed.hairHealth || {}) },
-      internalHealth: { ...(parsed.internalHealth || {}) },
-      sectionSteps,
-      scalpImages: Array.isArray(parsed.scalpImages) ? parsed.scalpImages : [],
-      archivedReportId: parsed.archivedReportId || null,
-      archivedReportDate: parsed.archivedReportDate || null,
-      isLoading: false,
-      error: null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export function persistQuizStateNow(state) {
-  if (typeof window === "undefined" || !state) return;
-
-  // Always try to keep photos in IndexedDB (survives WP cart round-trip)
-  saveScalpImagesToIdb(state.scalpImages).catch(() => {});
-
-  try {
-    // Prefer light localStorage write so quota is not blown by data URLs
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(serializeState(state, { keepImageData: false }))
-    );
-  } catch (err) {
-    try {
-      const light = {
-        ...serializeState(state, { keepImageData: false }),
-        scalpImages: lightImagesForLocalStorage(state.scalpImages),
-      };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(light));
-    } catch {
-      // ignore
-    }
-  }
-}
-
-export function markCheckoutReturn() {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.setItem(CHECKOUT_RETURN_KEY, "1");
-  } catch {
-    // ignore
-  }
-}
-
-export function clearPersistedQuizState() {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-    window.sessionStorage.removeItem(CHECKOUT_RETURN_KEY);
-  } catch {
-    // ignore
-  }
-  clearScalpImagesIdb().catch(() => {});
-}
+const INITIAL_STATE = INITIAL_QUIZ_STATE;
 
 export function QuizProvider({ children }) {
   const [state, setState] = useState(() => loadPersistedState() || INITIAL_STATE);
