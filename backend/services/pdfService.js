@@ -31,7 +31,9 @@ function labelize(value) {
     redness: "Redness or irritation",
     oily: "Oily scalp",
     tenderness: "Tenderness or burning",
-    none: "None of these",
+    frequent: "Heavy dandruff",
+    moderate: "Mild dandruff",
+    no: "No dandruff",
     front: "Front hairline or temples",
     crown: "Crown or top of head",
     parting: "Both front and crown",
@@ -287,12 +289,7 @@ function collectQaPairs(payload) {
     pairs.push(["Self-reported pattern stage", hairHealth.hair_fall_zone]);
     pairs.push(["Where have you noticed hair loss?", hairHealth.hair_loss_area || hairHealth.hair_fall_zone]);
     pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount || hairHealth.shedding_amount]);
-    pairs.push([
-      "Scalp symptoms",
-      Array.isArray(hairHealth.scalp_symptoms)
-        ? hairHealth.scalp_symptoms.join(", ")
-        : hairHealth.dandruff_experience,
-    ]);
+    pairs.push(["Do you experience dandruff?", hairHealth.dandruff_experience]);
     pairs.push(["Family history of hair loss?", hairHealth.family_history]);
     pairs.push(["When did you first notice the change?", hairHealth.loss_duration]);
     pairs.push(["Iron level", internalHealth.iron_level]);
@@ -308,12 +305,7 @@ function collectQaPairs(payload) {
     pairs.push(["Self-reported Norwood stage", hairHealth.norwood_stage ? `Stage ${hairHealth.norwood_stage}` : null]);
     pairs.push(["Where have you noticed hair loss?", hairHealth.hair_fall_zone]);
     pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount]);
-    pairs.push([
-      "Scalp symptoms",
-      Array.isArray(hairHealth.scalp_symptoms)
-        ? hairHealth.scalp_symptoms.join(", ")
-        : hairHealth.dandruff_experience,
-    ]);
+    pairs.push(["Do you experience dandruff?", hairHealth.dandruff_experience]);
     pairs.push(["Family history of hair loss?", hairHealth.family_history]);
     pairs.push(["When did you first notice the change?", hairHealth.loss_duration]);
     pairs.push(["Sleep", internalHealth.sleep_cycle]);

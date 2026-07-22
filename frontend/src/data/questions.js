@@ -32,7 +32,14 @@ export const SHEDDING_OPTIONS = [
   { id: "unsure", label: "I'm not sure" },
 ];
 
-/** Scalp symptoms — PDF Question 4 (multi-select) */
+/** Dandruff — drives product recommendation (frequent | moderate | no) */
+export const DANDRUFF_QUESTION_OPTIONS = [
+  { id: "frequent", label: "Heavy dandruff" },
+  { id: "moderate", label: "Mild dandruff" },
+  { id: "no", label: "No dandruff" },
+];
+
+/** Scalp symptoms — optional multi-select (kept for legacy reports) */
 export const SCALP_SYMPTOM_OPTIONS = [
   { id: "flaking", label: "Flaking or dandruff" },
   { id: "itching", label: "Itching" },
@@ -41,6 +48,14 @@ export const SCALP_SYMPTOM_OPTIONS = [
   { id: "tenderness", label: "Tenderness or burning" },
   { id: "none", label: "None of these" },
 ];
+
+/** Derive legacy dandruff_experience from scalp symptom multi-select */
+export function deriveDandruffExperience(scalpSymptoms = []) {
+  const list = Array.isArray(scalpSymptoms) ? scalpSymptoms : [];
+  if (!list.length || list.includes("none")) return "no";
+  if (list.includes("flaking")) return "frequent";
+  return "moderate";
+}
 
 /** Family history — PDF Question 5 */
 export const FAMILY_HISTORY = [
@@ -60,14 +75,6 @@ export const LOSS_DURATION_OPTIONS = [
   { id: "over_3y", label: "More than 3 years ago" },
   { id: "unsure", label: "I'm not sure" },
 ];
-
-/** Derive legacy dandruff_experience from scalp symptom multi-select */
-export function deriveDandruffExperience(scalpSymptoms = []) {
-  const list = Array.isArray(scalpSymptoms) ? scalpSymptoms : [];
-  if (!list.length || list.includes("none")) return "no";
-  if (list.includes("flaking")) return "frequent";
-  return "moderate";
-}
 
 // Scalp Health Choices (legacy)
 export const DANDRUFF_OPTIONS = [

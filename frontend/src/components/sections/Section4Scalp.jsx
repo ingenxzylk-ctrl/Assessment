@@ -62,6 +62,47 @@ function buildImagesFromSaved(savedImages = []) {
   return map;
 }
 
+function PhoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-7 h-7 text-[#064e3b]" fill="none" stroke="currentColor" strokeWidth="1.7">
+      <rect x="7" y="2.5" width="10" height="19" rx="2.2" />
+      <path d="M11 18.5h2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PhotoSlot({ title, hint, preview, onAdd, onRemove }) {
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 flex flex-col text-center h-full">
+      <p className="text-[11px] sm:text-xs font-bold tracking-[0.08em] text-gray-800 uppercase mb-3">
+        {title}
+      </p>
+      {preview ? (
+        <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gray-50 border border-gray-100 mb-3">
+          <img src={preview} alt={title} className="w-full h-full object-cover" />
+          <button
+            type="button"
+            onClick={onAdd}
+            className="absolute top-2 right-2 bg-white/95 text-gray-700 text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-sm border border-gray-200 hover:bg-white cursor-pointer"
+          >
+            Replace
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onAdd}
+          className="w-full aspect-[4/5] rounded-xl border-2 border-dashed border-gray-300 bg-[#f7f8f6] flex flex-col items-center justify-center gap-2 mb-3 cursor-pointer hover:border-[#064e3b]/40 hover:bg-[#f0f4ef] transition-colors"
+        >
+          <PhoneIcon />
+          <span className="text-sm font-semibold text-gray-600">Add photo</span>
+        </button>
+      )}
+      <p className="text-[11px] sm:text-xs text-gray-500 leading-snug px-1 mt-auto">{hint}</p>
+    </div>
+  );
+}
+
 export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const { state, setScalpImages, setScalpAnalysis, setLoading } = useQuiz();
 
@@ -400,14 +441,18 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
   return (
     <div className={`mx-auto mt-6 px-4 ${isFemale ? "max-w-3xl" : "max-w-xl"}`}>
-      <div className="bg-white rounded-[32px] p-8 md:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100">
+      <div className="bg-white rounded-[32px] p-6 sm:p-8 md:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100">
         <div className="mb-6 text-center">
           <span className="text-xs font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-3 py-1 rounded-full">
             SCALP SCAN (2/2)
           </span>
-          <h2 className="text-[28px] font-bold text-gray-900 mt-4 leading-tight">Add your scalp photos</h2>
-          <p className="text-gray-500 mt-2 text-base">
-            Use clear photos so we can assess visible hair-loss patterns. Blurry, dark, filtered, or covered photos are rejected for AI processing.
+          <h2 className="text-[26px] sm:text-[28px] font-bold text-gray-900 mt-4 leading-tight">
+            Add your scalp photos
+          </h2>
+          <p className="text-gray-500 mt-2 text-sm sm:text-base max-w-md mx-auto">
+            {isFemale
+              ? "Use three clear photos so we can assess visible hair-loss patterns."
+              : "Use two clear photos so we can assess visible hair-loss patterns."}
           </p>
         </div>
 
@@ -417,193 +462,137 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           </div>
         )}
 
-        <div className="mb-5 flex flex-wrap justify-center gap-2">
-          {PHOTO_QUALITY_TIPS.map((tip) => (
-            <span
-              key={tip.label}
-              className="inline-flex items-center gap-1 rounded-full bg-[#e8eede] px-2.5 py-1 text-[11px] font-semibold text-[#064e3b]"
-            >
-              <span aria-hidden>✓</span> {tip.label}
-            </span>
-          ))}
-        </div>
-
-        {isFemale && (
-          <p className="text-[11px] text-gray-500 text-center leading-relaxed px-2 mb-4">
-            Side = ponytail profile. Back = ponytail swept to one side showing crown/part-line.
-          </p>
-        )}
-
         {useCamera ? (
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-[3/4] max-w-sm mx-auto shadow-md mb-6">
             <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-56 h-72 border-2 border-dashed border-white/70 rounded-[50%] shadow-[0_0_0_400px_rgba(0,0,0,0.4)]" />
             </div>
+            <p className="absolute top-4 inset-x-0 text-center text-white text-xs font-medium">
+              {activeCaptureType
+                ? `Capturing ${activeCaptureType} view`
+                : "Point camera at your scalp"}
+            </p>
             <button
               type="button"
               onClick={captureFromCamera}
               className="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-16 bg-white rounded-full border-4 border-[#064e3b] shadow-xl hover:scale-105 transition-transform cursor-pointer"
+              aria-label="Capture photo"
             />
+            <button
+              type="button"
+              onClick={() => setUseCamera(false)}
+              className="absolute top-3 right-3 bg-black/50 text-white text-xs px-3 py-1.5 rounded-full cursor-pointer"
+            >
+              Cancel
+            </button>
           </div>
         ) : (
-          <div>
-            <div className={`grid gap-4 mb-6 ${isFemale ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
-              <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between">
-                <span className="text-xs font-bold text-gray-700 uppercase">Front View</span>
-                {images.front ? (
-                  <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
-                    <img src={images.front} alt="Front preview" className="w-full h-full object-contain" />
-                    <button
-                      type="button"
-                      onClick={() => removeImage("front")}
-                      className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveCaptureType("front");
-                      fileInputRef.current?.click();
-                    }}
-                    className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50"
-                  >
-                    <span className="text-lg opacity-40">📸</span>
-                    <span className="text-[10px] text-gray-400 font-semibold px-1">Add Front</span>
-                  </button>
-                )}
-              </div>
+          <>
+            <div
+              className={`grid gap-3 sm:gap-4 mb-6 ${
+                isFemale ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"
+              }`}
+            >
+              <PhotoSlot
+                title="Front Hairline"
+                hint="Show your full hairline in good lighting."
+                preview={images.front}
+                onAdd={() => {
+                  setActiveCaptureType("front");
+                  fileInputRef.current?.click();
+                }}
+                onRemove={() => removeImage("front")}
+              />
 
               {isFemale ? (
                 <>
-                  <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between">
-                    <span className="text-xs font-bold text-gray-700 uppercase">Side (Ponytail)</span>
-                    {images.side ? (
-                      <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
-                        <img src={images.side} alt="Side preview" className="w-full h-full object-contain" />
-                        <button
-                          type="button"
-                          onClick={() => removeImage("side")}
-                          className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveCaptureType("side");
-                          fileInputRef.current?.click();
-                        }}
-                        className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50"
-                      >
-                        <span className="text-lg opacity-40">📸</span>
-                        <span className="text-[10px] text-gray-400 font-semibold px-1">Add Side</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between col-span-2 sm:col-span-1 max-w-xs mx-auto sm:max-w-none w-full">
-                    <span className="text-xs font-bold text-gray-700 uppercase">Back (Ponytail Aside)</span>
-                    {images.back ? (
-                      <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
-                        <img src={images.back} alt="Back preview" className="w-full h-full object-contain" />
-                        <button
-                          type="button"
-                          onClick={() => removeImage("back")}
-                          className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveCaptureType("back");
-                          fileInputRef.current?.click();
-                        }}
-                        className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50"
-                      >
-                        <span className="text-lg opacity-40">📸</span>
-                        <span className="text-[10px] text-gray-400 font-semibold px-1">Add Back</span>
-                      </button>
-                    )}
-                  </div>
+                  <PhotoSlot
+                    title="Side (Ponytail)"
+                    hint="Ponytail profile — ear, temple, and side scalp visible."
+                    preview={images.side}
+                    onAdd={() => {
+                      setActiveCaptureType("side");
+                      fileInputRef.current?.click();
+                    }}
+                    onRemove={() => removeImage("side")}
+                  />
+                  <PhotoSlot
+                    title="Back / Crown"
+                    hint="Sweep ponytail aside so crown and part-line show."
+                    preview={images.back}
+                    onAdd={() => {
+                      setActiveCaptureType("back");
+                      fileInputRef.current?.click();
+                    }}
+                    onRemove={() => removeImage("back")}
+                  />
                 </>
               ) : (
-                <div className="rounded-2xl border border-gray-200 p-2.5 text-center flex flex-col items-center shadow-sm bg-white h-52 justify-between">
-                  <span className="text-xs font-bold text-gray-700 uppercase">Top View</span>
-                  {images.top ? (
-                    <div className="w-full h-36 rounded-xl overflow-hidden border border-gray-100 relative bg-gray-50 flex items-center justify-center">
-                      <img src={images.top} alt="Top preview" className="w-full h-full object-contain" />
-                      <button
-                        type="button"
-                        onClick={() => removeImage("top")}
-                        className="absolute top-1 right-1 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md hover:bg-red-600 cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveCaptureType("top");
-                        fileInputRef.current?.click();
-                      }}
-                      className="w-full h-36 border border-dashed border-gray-300 rounded-xl bg-gray-50 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-gray-100/50"
-                    >
-                      <span className="text-lg opacity-40">📸</span>
-                      <span className="text-[10px] text-gray-400 font-semibold px-1">Add Top</span>
-                    </button>
-                  )}
-                </div>
+                <PhotoSlot
+                  title="Crown / Top"
+                  hint="Tilt your head forward so the full crown is visible."
+                  preview={images.top}
+                  onAdd={() => {
+                    setActiveCaptureType("top");
+                    fileInputRef.current?.click();
+                  }}
+                  onRemove={() => removeImage("top")}
+                />
               )}
             </div>
 
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
 
-            {((isFemale && (!images.front || !images.side || !images.back)) ||
-              (!isFemale && (!images.front || !images.top))) && (
-              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Fill the next empty slot (front → side/top → back)
-                    let nextType = "front";
-                    if (!images.front) nextType = "front";
-                    else if (isFemale && !images.side) nextType = "side";
-                    else if (isFemale && !images.back) nextType = "back";
-                    else if (!isFemale && !images.top) nextType = "top";
-                    setActiveCaptureType(nextType);
-                    setUseCamera(false);
-                    fileInputRef.current?.click();
-                  }}
-                  className="h-12 w-full sm:w-auto px-6 bg-[#064e3b] text-white font-semibold rounded-full hover:bg-[#043427] transition-all text-sm shadow-sm cursor-pointer"
-                >
-                  Upload Image
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveCaptureType("");
-                    setUseCamera(true);
-                  }}
-                  className="h-12 w-full sm:w-auto px-6 bg-gray-800 text-white font-semibold rounded-full hover:bg-gray-900 transition-all text-sm shadow-sm cursor-pointer"
-                >
-                  Use Live Camera Feed
-                </button>
-              </div>
-            )}
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+              <button
+                type="button"
+                onClick={() => {
+                  let nextType = "front";
+                  if (!images.front) nextType = "front";
+                  else if (isFemale && !images.side) nextType = "side";
+                  else if (isFemale && !images.back) nextType = "back";
+                  else if (!isFemale && !images.top) nextType = "top";
+                  else nextType = "front";
+                  setActiveCaptureType(nextType);
+                  setUseCamera(false);
+                  fileInputRef.current?.click();
+                }}
+                className="h-12 w-full px-5 bg-[#064e3b] text-white font-semibold rounded-full hover:bg-[#043427] transition-all text-sm shadow-sm cursor-pointer"
+              >
+                Upload from device
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  let nextType = "front";
+                  if (!images.front) nextType = "front";
+                  else if (isFemale && !images.side) nextType = "side";
+                  else if (isFemale && !images.back) nextType = "back";
+                  else if (!isFemale && !images.top) nextType = "top";
+                  setActiveCaptureType(nextType);
+                  setUseCamera(true);
+                }}
+                className="h-12 w-full px-5 bg-[#111827] text-white font-semibold rounded-full hover:bg-black transition-all text-sm shadow-sm cursor-pointer"
+              >
+                Use camera
+              </button>
+            </div>
+
+            <p className="text-center text-[11px] text-[#064e3b] bg-[#e8eede]/70 rounded-full py-2 px-3 mb-2">
+              Encrypted · Used only for your assessment · Delete anytime
+            </p>
+          </>
         )}
 
-        <div className="pt-4 border-t border-gray-100 flex items-center gap-4 w-full">
+        <div className="pt-4 border-t border-gray-100 flex items-center gap-3 sm:gap-4 w-full mt-4">
           <button
             type="button"
             onClick={handleBackNavigation}
@@ -613,11 +602,21 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           </button>
           <button
             type="button"
-            disabled={isFemale ? !images.front || !images.side || !images.back : !images.front || !images.top}
+            disabled={
+              isFemale
+                ? !images.front || !images.side || !images.back
+                : !images.front || !images.top
+            }
             onClick={handleTriggerAnalysis}
-            className="flex-[2] h-14 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-base disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            className="flex-[2] h-14 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-sm sm:text-base disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer px-3"
           >
-            Proceed to AI Analysis
+            {isFemale
+              ? images.front && images.side && images.back
+                ? "Create My Assessment"
+                : "Continue after adding all photos"
+              : images.front && images.top
+                ? "Create My Assessment"
+                : "Continue after adding both photos"}
           </button>
         </div>
       </div>
