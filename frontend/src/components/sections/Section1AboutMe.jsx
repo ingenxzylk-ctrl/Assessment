@@ -298,6 +298,23 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     return Object.keys(e).length === 0;
   };
 
+  const isCurrentAnswered = () => {
+    if (step === 0) return Boolean(localForm.fullName.trim());
+    if (step === 1) {
+      return (
+        Boolean(localForm.whatsapp.trim()) &&
+        Boolean(localForm.email.trim()) &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(localForm.email)
+      );
+    }
+    if (step === 2) {
+      const ageNum = Number(localForm.age);
+      return Number.isFinite(ageNum) && ageNum >= 13 && ageNum <= 100;
+    }
+    if (step === 3) return Boolean(localForm.gender);
+    return false;
+  };
+
   const handleContinue = () => {
     if (!validate()) return;
 
@@ -516,8 +533,9 @@ export default function Section1AboutMe({ onComplete, onBack }) {
           
           <button
             type="button"
+            disabled={!isCurrentAnswered()}
             onClick={handleContinue}
-            className="flex-[2] h-14 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-base shadow-sm cursor-pointer text-center"
+            className="flex-[2] h-14 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-base shadow-sm cursor-pointer text-center disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {step === STEPS.length - 1 ? "Finish Section" : "Continue"}
           </button>

@@ -75,13 +75,27 @@ export default function Section3Female({ onComplete, onBack }) {
 
   const handleToggleMulti = (field, value) => {
     setLocalForm((prev) => {
-      const current = prev[field];
-      const updated = current.includes(value)
-        ? current.filter((item) => item !== value)
-        : [...current, value];
+      const current = Array.isArray(prev[field]) ? prev[field] : [];
+      if (value === "None of these") {
+        return {
+          ...prev,
+          [field]: current.includes("None of these") ? [] : ["None of these"],
+        };
+      }
+      const withoutNone = current.filter((item) => item !== "None of these");
+      const updated = withoutNone.includes(value)
+        ? withoutNone.filter((item) => item !== value)
+        : [...withoutNone, value];
       return { ...prev, [field]: updated };
     });
     setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const isCurrentAnswered = () => {
+    if (currentStep === "symptoms") {
+      return Array.isArray(localForm.symptoms) && localForm.symptoms.length > 0;
+    }
+    return Boolean(localForm[currentStep]);
   };
 
   const validate = () => {
@@ -105,6 +119,7 @@ export default function Section3Female({ onComplete, onBack }) {
     if (!validate()) return;
 
     if (step < STEPS.length - 1) {
+      if (updateInternalHealth) updateInternalHealth(localForm);
       setStep((prev) => prev + 1);
     } else {
       if (updateInternalHealth) updateInternalHealth(localForm);
@@ -219,8 +234,13 @@ export default function Section3Female({ onComplete, onBack }) {
           <button type="button" onClick={handleBack} className="flex-1 h-14 flex items-center justify-center border border-gray-200 text-gray-600 rounded-full font-semibold hover:bg-gray-50 transition-colors text-base cursor-pointer">
             Back
           </button>
-          <button type="button" onClick={handleContinue} className="h-14 flex items-center justify-center bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all shadow-sm text-base flex-[2] cursor-pointer">
-            Continue →
+          <button
+            type="button"
+            disabled={!isCurrentAnswered()}
+            onClick={handleContinue}
+            className="h-14 flex items-center justify-center bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all shadow-sm text-base flex-[2] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {step === STEPS.length - 1 ? "Continue to Scan →" : "Next Question →"}
           </button>
         </div>
       </div>
