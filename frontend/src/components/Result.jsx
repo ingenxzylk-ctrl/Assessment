@@ -336,6 +336,15 @@ function buildRootCauses(state, hasDandruff, isFemale) {
   if (listIncludesIgnoreCase(symptoms, "extra hair on face")) hormonalSignals.push("androgen signs");
   if (listIncludesIgnoreCase(symptoms, "pimples")) hormonalSignals.push("hormonal acne");
   if (listIncludesIgnoreCase(conditions, "diabetes")) hormonalSignals.push("blood sugar");
+  if (listIncludesIgnoreCase(conditions, "hormonal") || listIncludesIgnoreCase(conditions, "pcos")) {
+    hormonalSignals.push("hormonal condition");
+  }
+  if (listIncludesIgnoreCase(conditions, "iron") || listIncludesIgnoreCase(conditions, "anemia")) {
+    // handled via nutrition
+  }
+  if (listIncludesIgnoreCase(conditions, "thyroid")) {
+    if (!hormonalSignals.includes("thyroid")) hormonalSignals.push("thyroid");
+  }
   if (
     lifeStage &&
     !/^none$/i.test(lifeStage.trim()) &&
@@ -357,7 +366,9 @@ function buildRootCauses(state, hasDandruff, isFemale) {
 
   // Nutrition ← iron / energy / gut / food / supplements
   const nutritionBits = [];
-  if (includesIgnoreCase(iron, "low iron")) nutritionBits.push("low iron");
+  if (includesIgnoreCase(iron, "low iron") || listIncludesIgnoreCase(conditions, "iron") || listIncludesIgnoreCase(conditions, "anemia")) {
+    nutritionBits.push("low iron");
+  }
   if (includesIgnoreCase(iron, "never checked")) nutritionBits.push("unchecked iron status");
   if (includesIgnoreCase(energy, "very low") || includesIgnoreCase(energy, "low most") || includesIgnoreCase(energy, "afternoon dip") || includesIgnoreCase(energy, "low in afternoon")) {
     nutritionBits.push("low daytime energy");
