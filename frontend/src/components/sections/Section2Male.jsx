@@ -68,6 +68,17 @@ export default function Section2Male({ onComplete, onBack }) {
     setErrors(null);
   };
 
+  const isCurrentAnswered = () => {
+    if (subStep === 0) return Boolean(localForm.norwood_stage);
+    if (subStep === 1) return Boolean(localForm.hair_fall_zone);
+    if (subStep === 2) return Boolean(localForm.daily_loss_amount);
+    if (subStep === 3) return Boolean(localForm.dandruff_experience);
+    if (subStep === 4) return Array.isArray(localForm.scalp_symptoms) && localForm.scalp_symptoms.length > 0;
+    if (subStep === 5) return Boolean(localForm.family_history);
+    if (subStep === 6) return Boolean(localForm.loss_duration);
+    return false;
+  };
+
   const handleContinue = () => {
     if (subStep === 0 && !localForm.norwood_stage) {
       setErrors("Please select the pattern that looks closest to your hair today.");
@@ -103,6 +114,8 @@ export default function Section2Male({ onComplete, onBack }) {
       return;
     }
 
+    // Persist as user advances so answers cannot be lost / skipped on resume
+    if (updateHairHealth) updateHairHealth(localForm);
     setSubStep((prev) => prev + 1);
   };
 
@@ -387,8 +400,9 @@ export default function Section2Male({ onComplete, onBack }) {
           </button>
           <button
             type="button"
+            disabled={!isCurrentAnswered()}
             onClick={handleContinue}
-            className="flex-[2] h-11 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-sm shadow-xs text-center cursor-pointer"
+            className="flex-[2] h-11 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-sm shadow-xs text-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {subStep === HAIR_TOTAL - 1 ? "Complete Hair Section →" : "Next Question →"}
           </button>

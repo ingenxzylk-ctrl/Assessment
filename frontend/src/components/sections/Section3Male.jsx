@@ -116,11 +116,22 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
     setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
+  const isCurrentAnswered = () => {
+    if (currentStep === "health_conditions") {
+      if (!localForm.health_conditions?.length) return false;
+      if (localForm.health_conditions.includes("Other") && !otherCondition.trim()) return false;
+      return true;
+    }
+    return Boolean(localForm[currentStep]);
+  };
+
   const validate = () => {
     const e = {};
     if (currentStep === "health_conditions") {
       if (!localForm.health_conditions || localForm.health_conditions.length === 0) {
         e.health_conditions = "Please select at least one option";
+      } else if (localForm.health_conditions.includes("Other") && !otherCondition.trim()) {
+        e.health_conditions = "Please specify the other condition";
       }
     } else if (!localForm[currentStep]) {
       e[currentStep] = "Please select an option to continue";
@@ -132,22 +143,22 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
   const handleContinue = () => {
     if (!validate()) return;
 
-    if (step < STEPS.length - 1) {
-      setStep((prev) => prev + 1);
-      return;
-    }
-
-    const finalForm = {
+    const partialForm = {
       ...localForm,
-      // Keep legacy key for older report readers
       blood_pressure: localForm.prescription_medicines,
       gas_acidity: localForm.diet_weight_change,
     };
     if (localForm.health_conditions.includes("Other") && otherCondition.trim()) {
-      finalForm.otherConditionDetails = otherCondition.trim();
+      partialForm.otherConditionDetails = otherCondition.trim();
     }
 
-    if (updateInternalHealth) updateInternalHealth(finalForm);
+    if (step < STEPS.length - 1) {
+      if (updateInternalHealth) updateInternalHealth(partialForm);
+      setStep((prev) => prev + 1);
+      return;
+    }
+
+    if (updateInternalHealth) updateInternalHealth(partialForm);
     if (onComplete) onComplete();
   };
 
@@ -254,8 +265,9 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
           </button>
           <button
             type="button"
+            disabled={!isCurrentAnswered()}
             onClick={handleContinue}
-            className="h-14 flex items-center justify-center bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all shadow-sm text-base flex-[2]"
+            className="h-14 flex items-center justify-center bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all shadow-sm text-base flex-[2] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {step === STEPS.length - 1 ? "Continue to Scan →" : "Next Question →"}
           </button>

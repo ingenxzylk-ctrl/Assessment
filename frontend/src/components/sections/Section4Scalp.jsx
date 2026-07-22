@@ -114,10 +114,14 @@ function PhotoSlot({ title, hint, preview, onAdd, onRemove }) {
           <img src={preview} alt={title} className="w-full h-full object-cover" />
           <button
             type="button"
-            onClick={onAdd}
-            className="absolute top-2 right-2 bg-white/95 text-gray-700 text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-sm border border-gray-200 hover:bg-white cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (onRemove) onRemove();
+            }}
+            className="absolute top-2 right-2 bg-white/95 text-red-600 text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-sm border border-red-200 hover:bg-red-50 cursor-pointer"
           >
-            Replace
+            Remove
           </button>
         </div>
       ) : (
@@ -283,8 +287,22 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const removeImage = (type) => {
     setError(null);
     setFailedQualityKeys([]);
-    setImages((prev) => ({ ...prev, [type]: null }));
+    setImages((prev) => {
+      const next = { ...prev, [type]: null };
+      // Keep quiz state in sync so assessment cannot proceed with a removed photo
+      if (setScalpImages) {
+        const payloads = Object.entries(next)
+          .filter(([, dataUrl]) => Boolean(dataUrl))
+          .map(([t, dataUrl]) => ({ type: t, label: t, dataUrl }));
+        setScalpImages(payloads);
+      }
+      return next;
+    });
   };
+
+  const photosComplete = isFemale
+    ? Boolean(images.front && images.side && images.back)
+    : Boolean(images.front && images.top);
 
   const handleTriggerAnalysis = async () => {
     if (isFemale && (!images.front || !images.side || !images.back)) {
@@ -659,20 +677,14 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           </button>
           <button
             type="button"
-            disabled={
-              isFemale
-                ? !images.front || !images.side || !images.back
-                : !images.front || !images.top
-            }
+            disabled={!photosComplete}
             onClick={handleTriggerAnalysis}
             className="flex-[2] h-14 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-sm sm:text-base disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer px-3"
           >
-            {isFemale
-              ? images.front && images.side && images.back
-                ? "Create My Assessment"
-                : "Continue after adding all photos"
-              : images.front && images.top
-                ? "Create My Assessment"
+            {photosComplete
+              ? "Create My Assessment"
+              : isFemale
+                ? "Continue after adding all photos"
                 : "Continue after adding both photos"}
           </button>
         </div>
