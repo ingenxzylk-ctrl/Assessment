@@ -1,4 +1,10 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import {
+  saveScalpImagesToIdb,
+  loadScalpImagesFromIdb,
+  clearScalpImagesIdb,
+  mergeScalpImages,
+} from "../utils/quizImageStore";
 
 const QuizContext = createContext();
 
@@ -55,7 +61,17 @@ function stripHeavyImageData(images = []) {
   }));
 }
 
-function serializeState(state) {
+/** localStorage payload keeps image metadata; full data URLs live in IndexedDB. */
+function lightImagesForLocalStorage(images = []) {
+  return (Array.isArray(images) ? images : []).map((img) => ({
+    type: img?.type,
+    label: img?.label || img?.type,
+    hasImage: Boolean(img?.dataUrl || img?.previewUrl || img?.url),
+    dataUrl: null,
+  }));
+}
+
+function serializeState(state, { keepImageData = false } = {}) {
   const sectionSteps = { ...(state.sectionSteps || {}) };
   if (sectionSteps.section4Scalp === "analyzing") {
     sectionSteps.section4Scalp = "upload";
@@ -65,7 +81,9 @@ function serializeState(state) {
     sectionSteps,
     isLoading: false,
     error: null,
-    scalpImages: stripHeavyImageData(state.scalpImages),
+    scalpImages: keepImageData
+      ? stripHeavyImageData(state.scalpImages)
+      : lightImagesForLocalStorage(state.scalpImages),
   };
 }
 
@@ -106,18 +124,21 @@ function loadPersistedState() {
 
 export function persistQuizStateNow(state) {
   if (typeof window === "undefined" || !state) return;
+
+  // Always try to keep photos in IndexedDB (survives WP cart round-trip)
+  saveScalpImagesToIdb(state.scalpImages).catch(() => {});
+
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeState(state)));
+    // Prefer light localStorage write so quota is not blown by data URLs
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify(serializeState(state, { keepImageData: false }))
+    );
   } catch (err) {
-    // Quota exceeded — retry without image payloads
     try {
       const light = {
-        ...serializeState(state),
-        scalpImages: (state.scalpImages || []).map((img) => ({
-          type: img?.type,
-          label: img?.label || img?.type,
-          dataUrl: null,
-        })),
+        ...serializeState(state, { keepImageData: false }),
+        scalpImages: lightImagesForLocalStorage(state.scalpImages),
       };
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(light));
     } catch {
@@ -143,6 +164,7 @@ export function clearPersistedQuizState() {
   } catch {
     // ignore
   }
+  clearScalpImagesIdb().catch(() => {});
 }
 
 export function QuizProvider({ children }) {
@@ -150,20 +172,70 @@ export function QuizProvider({ children }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Rehydrate scalp photos from IndexedDB after mount / checkout return
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const idbImages = await loadScalpImagesFromIdb();
+      if (cancelled || !idbImages.length) return;
+      setState((prev) => {
+        const merged = mergeScalpImages(idbImages, prev.scalpImages);
+        const mergedHasUrl = merged.some((i) => i?.dataUrl);
+        if (!mergedHasUrl) return prev;
+        return { ...prev, scalpImages: merged };
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Persist on every meaningful state change so reload / WP-cart return can resume
   useEffect(() => {
     persistQuizStateNow(state);
   }, [state]);
 
-  // Browser back from WordPress may restore via bfcache — rehydrate from storage
+  // Browser back from WordPress may restore via bfcache — rehydrate from storage + IDB
   useEffect(() => {
-    const onPageShow = (event) => {
-      if (!event.persisted) return;
+    const rehydrate = async () => {
       const restored = loadPersistedState();
-      if (restored) setState(restored);
+      const idbImages = await loadScalpImagesFromIdb();
+      setState((prev) => {
+        const base = restored || prev;
+        const mergedImages = mergeScalpImages(
+          idbImages,
+          mergeScalpImages(base.scalpImages, prev.scalpImages)
+        );
+        return {
+          ...base,
+          scalpImages: mergedImages,
+          isLoading: false,
+          error: null,
+        };
+      });
     };
+
+    const onPageShow = () => {
+      rehydrate();
+    };
+    const onFocus = () => {
+      // Returning from WP cart in some browsers fires focus without bfcache pageshow
+      try {
+        if (window.sessionStorage.getItem(CHECKOUT_RETURN_KEY) === "1") {
+          window.sessionStorage.removeItem(CHECKOUT_RETURN_KEY);
+          rehydrate();
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     window.addEventListener("pageshow", onPageShow);
-    return () => window.removeEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   const nextStep = () => {
@@ -176,16 +248,16 @@ export function QuizProvider({ children }) {
 
   const prevStep = () => {
     setState((prev) => {
-      const nextStep = Math.max(0, prev.step - 1);
+      const nextStepNum = Math.max(0, prev.step - 1);
       const next = {
         ...prev,
-        step: nextStep,
+        step: nextStepNum,
         navDirection: "backward",
         isLoading: false,
       };
 
       // Result → scalp scan: always land on photo upload, never the analyzing screen
-      if (prev.step === 5 && nextStep === 4) {
+      if (prev.step === 5 && nextStepNum === 4) {
         next.sectionSteps = {
           ...prev.sectionSteps,
           section4Scalp: "upload",
@@ -205,10 +277,42 @@ export function QuizProvider({ children }) {
   };
 
   const updateAboutMe = (data) => {
-    setState((prev) => ({
-      ...prev,
-      aboutMe: { ...prev.aboutMe, ...data },
-    }));
+    setState((prev) => {
+      const nextAbout = { ...prev.aboutMe, ...data };
+      const genderChanged =
+        Boolean(data?.gender) &&
+        Boolean(prev.aboutMe?.gender) &&
+        data.gender !== prev.aboutMe.gender;
+
+      if (!genderChanged) {
+        return { ...prev, aboutMe: nextAbout };
+      }
+
+      // Changing male ↔ female invalidates the rest of the quiz + prior AI result
+      clearScalpImagesIdb().catch(() => {});
+      try {
+        window.dispatchEvent(new CustomEvent("zylk:gender-changed"));
+      } catch {
+        // ignore
+      }
+
+      return {
+        ...prev,
+        aboutMe: nextAbout,
+        hairHealth: { ...INITIAL_STATE.hairHealth },
+        internalHealth: {},
+        scalpAnalysis: null,
+        scalpImages: [],
+        archivedReportId: null,
+        archivedReportDate: null,
+        sectionSteps: {
+          ...INITIAL_STATE.sectionSteps,
+          section1AboutMe: prev.sectionSteps?.section1AboutMe ?? 0,
+        },
+        error: null,
+        isLoading: false,
+      };
+    });
   };
 
   const updateHairHealth = (data) => {

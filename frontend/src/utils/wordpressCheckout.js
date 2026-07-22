@@ -1,4 +1,5 @@
 import { markCheckoutReturn, persistQuizStateNow } from "../context/QuizContext";
+import { saveScalpImagesToIdb } from "./quizImageStore";
 
 const WP_SITE_URL = import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com";
 
@@ -6,7 +7,7 @@ const WP_SITE_URL = import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com"
  * Redirect to WordPress cart while preserving quiz progress locally,
  * so browser back / return lands on the same quiz step (usually Result).
  */
-export function redirectToWordPressCheckout(cartItems, quizState) {
+export async function redirectToWordPressCheckout(cartItems, quizState) {
   if (!cartItems?.length) return;
 
   const item = cartItems[0];
@@ -18,6 +19,12 @@ export function redirectToWordPressCheckout(cartItems, quizState) {
 
   if (quizState) {
     persistQuizStateNow(quizState);
+    // Ensure photos are flushed to IndexedDB before leaving the page
+    try {
+      await saveScalpImagesToIdb(quizState.scalpImages);
+    } catch {
+      // continue — quiz answers still in localStorage
+    }
   }
   markCheckoutReturn();
 

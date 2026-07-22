@@ -66,6 +66,24 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  // Keep local upload previews in sync when quiz state restores photos (e.g. cart return)
+  useEffect(() => {
+    const restored = buildImagesFromSaved(state?.scalpImages);
+    const hasRestored = Object.values(restored).some(Boolean);
+    if (!hasRestored) return;
+    setImages((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const key of Object.keys(restored)) {
+        if (restored[key] && !prev[key]) {
+          next[key] = restored[key];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [state?.scalpImages]);
+
   // Legacy cache may still have section4Scalp === "analyzing" — never restore that screen
   useEffect(() => {
     if (step === "analyzing") {
