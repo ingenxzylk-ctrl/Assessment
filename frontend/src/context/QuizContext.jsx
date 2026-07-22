@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import {
-  saveScalpImagesToIdb,
   loadScalpImagesFromIdb,
   clearScalpImagesIdb,
   mergeScalpImages,
