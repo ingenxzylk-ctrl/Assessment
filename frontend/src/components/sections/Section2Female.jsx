@@ -4,10 +4,9 @@ import { useSectionStep } from "../../hooks/useSectionStep";
 import {
   HAIR_FALL_LOCATION,
   SHEDDING_OPTIONS,
-  SCALP_SYMPTOM_OPTIONS,
+  DANDRUFF_QUESTION_OPTIONS,
   FAMILY_HISTORY,
   LOSS_DURATION_OPTIONS,
-  deriveDandruffExperience,
 } from "../../data/questions";
 
 const FEMALE_STAGE_OPTIONS = [
@@ -25,14 +24,6 @@ const FEMALE_STAGE_OPTIONS = [
 const LOCATION_CARDS = HAIR_FALL_LOCATION.filter((o) => o.layout === "card");
 const LOCATION_ROWS = HAIR_FALL_LOCATION.filter((o) => o.layout === "row");
 
-function normalizeScalpSymptoms(saved) {
-  if (Array.isArray(saved) && saved.length) return saved;
-  const legacy = String(saved || "").toLowerCase();
-  if (legacy === "frequent" || legacy === "moderate") return ["flaking"];
-  if (legacy === "no") return ["none"];
-  return [];
-}
-
 /** Map shedding option → legacy shedding_amount used by eligibility */
 function deriveSheddingAmount(dailyLossId) {
   if (dailyLossId === "clumps" || dailyLossId === "much_more") return "heavy";
@@ -49,29 +40,13 @@ export default function Section2Female({ onComplete, onBack }) {
     hair_fall_zone: state?.hairHealth?.hair_fall_zone || "",
     hair_loss_area: state?.hairHealth?.hair_loss_area || "",
     daily_loss_amount: state?.hairHealth?.daily_loss_amount || "",
-    scalp_symptoms: normalizeScalpSymptoms(
-      state?.hairHealth?.scalp_symptoms ?? state?.hairHealth?.dandruff_experience
-    ),
+    dandruff_experience: state?.hairHealth?.dandruff_experience || "",
     family_history: state?.hairHealth?.family_history || "",
     loss_duration: state?.hairHealth?.loss_duration || "",
   });
 
   const handleSelect = (field, id) => {
     setLocalForm((prev) => ({ ...prev, [field]: id }));
-    setErrors(null);
-  };
-
-  const handleToggleSymptom = (id) => {
-    setLocalForm((prev) => {
-      let next = [...(prev.scalp_symptoms || [])];
-      if (id === "none") {
-        next = next.includes("none") ? [] : ["none"];
-      } else {
-        next = next.filter((s) => s !== "none");
-        next = next.includes(id) ? next.filter((s) => s !== id) : [...next, id];
-      }
-      return { ...prev, scalp_symptoms: next };
-    });
     setErrors(null);
   };
 
@@ -88,8 +63,8 @@ export default function Section2Female({ onComplete, onBack }) {
       setErrors("Please select how your shedding compares to usual.");
       return;
     }
-    if (subStep === 3 && (!localForm.scalp_symptoms || localForm.scalp_symptoms.length === 0)) {
-      setErrors("Please select all scalp symptoms that apply (or None of these).");
+    if (subStep === 3 && !localForm.dandruff_experience) {
+      setErrors("Please select your dandruff experience.");
       return;
     }
     if (subStep === 4 && !localForm.family_history) {
@@ -104,7 +79,6 @@ export default function Section2Female({ onComplete, onBack }) {
       const payload = {
         ...localForm,
         shedding_amount: deriveSheddingAmount(localForm.daily_loss_amount),
-        dandruff_experience: deriveDandruffExperience(localForm.scalp_symptoms),
       };
       if (updateHairHealth) updateHairHealth(payload);
       if (onComplete) onComplete();
@@ -306,37 +280,14 @@ export default function Section2Female({ onComplete, onBack }) {
                 HAIR (4/6)
               </span>
               <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
-                Do you experience flaking, itching, or scalp irritation?
+                Do you experience dandruff?
               </h2>
               <p className="text-gray-400 mt-1 text-xs">
-                Select all that apply. These symptoms help us tailor your scalp-care recommendations.
+                This helps us choose the right scalp-care products in your recommended kit.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-3">
-              {SCALP_SYMPTOM_OPTIONS.map((opt) => {
-                const isSelected = (localForm.scalp_symptoms || []).includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => handleToggleSymptom(opt.id)}
-                    className={`w-full min-h-[56px] px-5 flex items-center justify-between border rounded-2xl transition-all font-medium text-sm bg-white cursor-pointer text-left ${
-                      isSelected
-                        ? "border-[#064e3b] bg-[#064e3b]/5 text-[#064e3b] ring-1 ring-[#064e3b]"
-                        : "border-gray-200 text-gray-700 hover:border-gray-300"
-                    }`}
-                  >
-                    <span className="pr-3 leading-snug">{opt.label}</span>
-                    <div
-                      className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
-                        isSelected ? "border-[#064e3b] bg-[#064e3b]" : "border-gray-300"
-                      }`}
-                    >
-                      {isSelected && <span className="text-white text-xs">✓</span>}
-                    </div>
-                  </button>
-                );
-              })}
+              {DANDRUFF_QUESTION_OPTIONS.map((opt) => radioRow(opt, "dandruff_experience"))}
             </div>
           </div>
         )}

@@ -1,9 +1,10 @@
 import { useState } from "react";
+import LegalDocumentPage from "./LegalDocumentPage";
 
 const LEGAL_LINKS = [
-  { label: "Privacy Policy", href: "/legal/privacy-policy.pdf" },
-  { label: "Terms of Service", href: "/legal/terms-of-service.pdf" },
-  { label: "Care Plan Informed Consent", href: "/legal/care-plan-informed-consent.pdf" },
+  { id: "privacy", label: "Privacy Policy" },
+  { id: "terms", label: "Terms of Service" },
+  { id: "consent", label: "Care Plan Informed Consent" },
 ];
 
 const PRIVACY_POINTS = [
@@ -48,24 +49,31 @@ const PRIVACY_POINTS = [
   },
 ];
 
-function LegalLink({ href, children }) {
+function LegalLinkButton({ docId, children, onOpen }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-[#064e3b] font-semibold underline underline-offset-2 hover:text-[#043427]"
-      onClick={(e) => e.stopPropagation()}
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpen(docId);
+      }}
+      className="text-[#064e3b] font-semibold underline underline-offset-2 hover:text-[#043427] cursor-pointer bg-transparent border-0 p-0 inline"
     >
       {children}
-    </a>
+    </button>
   );
 }
 
 export default function Section0Consent({ onComplete, onBack }) {
   const [agreedPolicy, setAgreedPolicy] = useState(false);
   const [agreedUpdates, setAgreedUpdates] = useState(false);
+  const [openDocId, setOpenDocId] = useState(null);
   const canContinue = agreedPolicy && agreedUpdates;
+
+  if (openDocId) {
+    return <LegalDocumentPage docId={openDocId} onBack={() => setOpenDocId(null)} />;
+  }
 
   return (
     <div className="max-w-xl mx-auto mt-6 px-4 animate-[fadeIn_0.3s_ease-out]">
@@ -114,10 +122,19 @@ export default function Section0Consent({ onComplete, onBack }) {
               className="mt-0.5 w-5 h-5 rounded accent-[#064e3b] text-[#064e3b] focus:ring-[#064e3b] shrink-0"
             />
             <span className="text-sm text-gray-700 leading-relaxed">
-              I agree to the <LegalLink href={LEGAL_LINKS[0].href}>Privacy Policy</LegalLink>,{" "}
-              <LegalLink href={LEGAL_LINKS[1].href}>Terms of Service</LegalLink>, and{" "}
-              <LegalLink href={LEGAL_LINKS[2].href}>Care Plan Informed Consent</LegalLink>, and
-              consent to the processing of my information to provide my assessment.
+              I agree to the{" "}
+              <LegalLinkButton docId="privacy" onOpen={setOpenDocId}>
+                Privacy Policy
+              </LegalLinkButton>
+              ,{" "}
+              <LegalLinkButton docId="terms" onOpen={setOpenDocId}>
+                Terms of Service
+              </LegalLinkButton>
+              , and{" "}
+              <LegalLinkButton docId="consent" onOpen={setOpenDocId}>
+                Care Plan Informed Consent
+              </LegalLinkButton>
+              , and consent to the processing of my information to provide my assessment.
             </span>
           </label>
 
@@ -137,11 +154,17 @@ export default function Section0Consent({ onComplete, onBack }) {
 
         <p className="text-center text-xs text-gray-500 mb-6">
           Read our{" "}
-          <LegalLink href={LEGAL_LINKS[0].href}>Privacy Policy</LegalLink>
+          <LegalLinkButton docId="privacy" onOpen={setOpenDocId}>
+            Privacy Policy
+          </LegalLinkButton>
           {", "}
-          <LegalLink href={LEGAL_LINKS[1].href}>Terms of Service</LegalLink>
+          <LegalLinkButton docId="terms" onOpen={setOpenDocId}>
+            Terms of Service
+          </LegalLinkButton>
           {", and "}
-          <LegalLink href={LEGAL_LINKS[2].href}>Care Plan Informed Consent</LegalLink>
+          <LegalLinkButton docId="consent" onOpen={setOpenDocId}>
+            Care Plan Informed Consent
+          </LegalLinkButton>
         </p>
 
         <div className="flex gap-4 pt-4 border-t border-gray-100 w-full">

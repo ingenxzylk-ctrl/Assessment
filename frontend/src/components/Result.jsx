@@ -246,12 +246,6 @@ function getOrCreateDailyReportMeta(fingerprint) {
 }
 
 function getDandruffLevel(state) {
-  const symptoms = state?.hairHealth?.scalp_symptoms;
-  if (Array.isArray(symptoms) && symptoms.length) {
-    if (symptoms.includes("none")) return "no";
-    if (symptoms.includes("flaking")) return "frequent";
-    return "moderate";
-  }
   return String(state?.hairHealth?.dandruff_experience || "").toLowerCase().trim();
 }
 
