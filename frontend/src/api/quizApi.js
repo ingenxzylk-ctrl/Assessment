@@ -41,6 +41,9 @@ export async function analyzeScalp({ gender, selfReportedStage, images }) {
   if (res.status === 422 && data.imageRejected) {
     const err = new Error(data.error || "Invalid scalp image.");
     err.imageRejected = true;
+    err.rejectionReasons = Array.isArray(data.rejectionReasons) ? data.rejectionReasons : [];
+    err.qualityChecks = data.qualityChecks || null;
+    err.photoQualityAssessment = data.photoQualityAssessment || null;
     throw err;
   }
 

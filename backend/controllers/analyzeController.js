@@ -372,7 +372,20 @@ CONFIDENCE CALIBRATION (aiConfidence 0.0–1.0):
 - 0.55–0.74: one view missing/poor; features borderline between two stages
 - below 0.55: heavy occlusion, extreme angle, or insufficient scalp visibility
 
-PHOTO VALIDATION: reject animals/cartoons/objects only. Accept real human scalp/hair photos.
+PHOTO VALIDATION (mandatory for AI processing):
+- HARD REJECT (imageRejected=true, valid=false) only for animals, cartoons, objects, charts, or photos that are clearly not a real human scalp/hair.
+- Soft quality assessment (do NOT hard-reject solely for these — still classify if possible):
+  * unclear / blurry / out of focus → qualityChecks.unclear=true
+  * insufficient light / too dark / heavy backlighting → qualityChecks.insufficientLight=true
+  * hat, hoodie, scarf, or covering blocking scalp → qualityChecks.hatOrCovering=true
+  * heavy beauty filters / face apps distorting hair → qualityChecks.filtersApplied=true
+  * wet hair hiding density/part lines → qualityChecks.wetHair=true
+- Put every failed quality criterion label into rejectionReasons.
+- If any qualityChecks flag is true, set imageQuality to "poor" (or "fair" if mild) and lower aiConfidence.
+- These quality failures mean the photo was rejected against AI processing criteria and must be reported in the assessment.
+
+QUALITY CHECK FLAGS (true = FAILED / rejected for that criterion):
+- unclear, insufficientLight, hatOrCovering, filtersApplied, wetHair
 
 CRITICAL: Output ONE raw JSON object only. No markdown. No code fences.
 
@@ -380,6 +393,14 @@ CRITICAL: Output ONE raw JSON object only. No markdown. No code fences.
   "valid": true,
   "imageRejected": false,
   "error": "",
+  "rejectionReasons": [],
+  "qualityChecks": {
+    "unclear": false,
+    "insufficientLight": false,
+    "hatOrCovering": false,
+    "filtersApplied": false,
+    "wetHair": false
+  },
   "observations": {
     "frontView": { "partLineWidth": "normal|widened|very_wide", "frontalDensity": "full|reduced|sparse" },
     "sideView": { "templeDensity": "full|reduced|sparse", "notes": "string" },
@@ -451,7 +472,20 @@ CONFIDENCE CALIBRATION (aiConfidence 0.0–1.0):
 
 STAGE 7: horseshoe only / top fully bald → "7"
 
-PHOTO VALIDATION: reject animals/cartoons/objects only. Accept real human scalp/hair photos.
+PHOTO VALIDATION (mandatory for AI processing):
+- HARD REJECT (imageRejected=true, valid=false) only for animals, cartoons, objects, charts, or photos that are clearly not a real human scalp/hair.
+- Soft quality assessment (do NOT hard-reject solely for these — still classify if possible):
+  * unclear / blurry / out of focus → qualityChecks.unclear=true
+  * insufficient light / too dark / heavy backlighting → qualityChecks.insufficientLight=true
+  * hat, hoodie, scarf, or covering blocking scalp → qualityChecks.hatOrCovering=true
+  * heavy beauty filters / face apps distorting hair → qualityChecks.filtersApplied=true
+  * wet hair hiding density/part lines → qualityChecks.wetHair=true
+- Put every failed quality criterion label into rejectionReasons.
+- If any qualityChecks flag is true, set imageQuality to "poor" (or "fair" if mild) and lower aiConfidence.
+- These quality failures mean the photo was rejected against AI processing criteria and must be reported in the assessment.
+
+QUALITY CHECK FLAGS (true = FAILED / rejected for that criterion):
+- unclear, insufficientLight, hatOrCovering, filtersApplied, wetHair
 
 CRITICAL: Output ONE raw JSON object only. No markdown. No code fences.
 
@@ -459,6 +493,14 @@ CRITICAL: Output ONE raw JSON object only. No markdown. No code fences.
   "valid": true,
   "imageRejected": false,
   "error": "",
+  "rejectionReasons": [],
+  "qualityChecks": {
+    "unclear": false,
+    "insufficientLight": false,
+    "hatOrCovering": false,
+    "filtersApplied": false,
+    "wetHair": false
+  },
   "observations": {
     "frontView": {
       "templeRecessionLeft": "none|mild|moderate|severe",
@@ -480,6 +522,76 @@ CRITICAL: Output ONE raw JSON object only. No markdown. No code fences.
   "requiresDoctorConsultation": false
 }`;
 };
+
+/** Human-readable labels for AI photo rejection criteria (PDF + API). */
+const PHOTO_QUALITY_CRITERIA = {
+  unclear: "Image unclear / blurry",
+  insufficientLight: "Insufficient lighting / too dark",
+  hatOrCovering: "Hat or head covering blocking scalp",
+  filtersApplied: "Filters or beauty effects applied",
+  wetHair: "Wet hair hiding density",
+};
+
+function normalizeQualityChecks(raw = {}) {
+  const checks = {};
+  for (const key of Object.keys(PHOTO_QUALITY_CRITERIA)) {
+    checks[key] = Boolean(raw?.[key]);
+  }
+  return checks;
+}
+
+function collectRejectionReasons(parsed = {}) {
+  const fromArray = Array.isArray(parsed.rejectionReasons)
+    ? parsed.rejectionReasons.map((r) => String(r || "").trim()).filter(Boolean)
+    : [];
+  const checks = normalizeQualityChecks(parsed.qualityChecks);
+  const fromFlags = Object.entries(checks)
+    .filter(([, failed]) => failed)
+    .map(([key]) => PHOTO_QUALITY_CRITERIA[key]);
+
+  const merged = [...fromArray];
+  for (const label of fromFlags) {
+    if (!merged.some((r) => String(r).toLowerCase() === label.toLowerCase())) {
+      merged.push(label);
+    }
+  }
+  return { rejectionReasons: merged, qualityChecks: checks };
+}
+
+function buildPhotoQualityAssessment(parsed = {}) {
+  const { rejectionReasons, qualityChecks } = collectRejectionReasons(parsed);
+  const failedKeys = Object.entries(qualityChecks)
+    .filter(([, failed]) => failed)
+    .map(([key]) => key);
+  const imageQuality = String(parsed.imageQuality || "").toLowerCase() || null;
+  const rejected =
+    parsed.imageRejected === true ||
+    parsed.valid === false ||
+    failedKeys.length > 0 ||
+    imageQuality === "poor";
+
+  return {
+    rejected,
+    imageQuality,
+    qualityChecks,
+    failedCriteria: failedKeys.map((key) => ({
+      key,
+      label: PHOTO_QUALITY_CRITERIA[key],
+      status: "rejected",
+    })),
+    passedCriteria: Object.keys(PHOTO_QUALITY_CRITERIA)
+      .filter((key) => !failedKeys.includes(key))
+      .map((key) => ({
+        key,
+        label: PHOTO_QUALITY_CRITERIA[key],
+        status: "passed",
+      })),
+    rejectionReasons,
+    note: rejected
+      ? "One or more scalp photos were rejected for AI processing because they did not meet image-quality criteria. Clear, well-lit photos without hats or filters are required for reliable AI analysis."
+      : "Uploaded scalp photos met AI processing quality criteria.",
+  };
+}
 
 const level = (value) => SEVERITY[String(value || "none").toLowerCase()] ?? 0;
 
@@ -987,9 +1099,18 @@ export const analyzeScalp = async (req, res) => {
     }
 
     if (parsed.valid === false || parsed.imageRejected === true) {
+      const photoQuality = buildPhotoQualityAssessment(parsed);
       return res.status(422).json({
-        error: parsed.error || parsed.reason || "Please upload photos of your own scalp/hair.",
+        error:
+          parsed.error ||
+          parsed.reason ||
+          (photoQuality.rejectionReasons.length
+            ? `Photo rejected for AI processing: ${photoQuality.rejectionReasons.join("; ")}`
+            : "Please upload photos of your own scalp/hair."),
         imageRejected: true,
+        rejectionReasons: photoQuality.rejectionReasons,
+        qualityChecks: photoQuality.qualityChecks,
+        photoQualityAssessment: photoQuality,
       });
     }
 
@@ -1032,6 +1153,8 @@ export const analyzeScalp = async (req, res) => {
       (userGender === "male" && !Number.isNaN(stageNum) && stageNum >= 6) ||
       (userGender === "female" && aiPredictedStage === "patchy-bald");
 
+    const photoQualityAssessment = buildPhotoQualityAssessment(parsed);
+
     const result = {
       finalStage: parsed.finalStage || `Norwood Stage ${aiPredictedStage}`,
       stageDescription: parsed.stageDescription || "",
@@ -1052,6 +1175,10 @@ export const analyzeScalp = async (req, res) => {
       analysisComplete: true,
       model,
       provider: "gemini",
+      qualityChecks: photoQualityAssessment.qualityChecks,
+      rejectionReasons: photoQualityAssessment.rejectionReasons,
+      photoQualityAssessment,
+      photoQualityRejected: photoQualityAssessment.rejected,
     };
 
     console.log("Stage result:", {

@@ -390,6 +390,154 @@ function embedScalpPhotos(doc, scalpImages) {
   doc.font("Helvetica").fillColor(INK).fontSize(9);
 }
 
+const PHOTO_QUALITY_LABELS = {
+  unclear: "Image unclear / blurry",
+  insufficientLight: "Insufficient lighting / too dark",
+  hatOrCovering: "Hat or head covering blocking scalp",
+  filtersApplied: "Filters or beauty effects applied",
+  wetHair: "Wet hair hiding density",
+};
+
+function resolvePhotoQualityAssessment(scalpAnalysis = {}) {
+  const existing = scalpAnalysis.photoQualityAssessment;
+  if (existing && typeof existing === "object") {
+    return existing;
+  }
+
+  const checks = scalpAnalysis.qualityChecks || {};
+  const failedKeys = Object.keys(PHOTO_QUALITY_LABELS).filter((key) => Boolean(checks[key]));
+  const reasons = Array.isArray(scalpAnalysis.rejectionReasons)
+    ? scalpAnalysis.rejectionReasons.filter(Boolean)
+    : failedKeys.map((key) => PHOTO_QUALITY_LABELS[key]);
+  const imageQuality = String(scalpAnalysis.imageQuality || "").toLowerCase() || null;
+  const rejected =
+    Boolean(scalpAnalysis.photoQualityRejected) ||
+    failedKeys.length > 0 ||
+    imageQuality === "poor" ||
+    reasons.length > 0;
+
+  return {
+    rejected,
+    imageQuality,
+    qualityChecks: Object.fromEntries(
+      Object.keys(PHOTO_QUALITY_LABELS).map((key) => [key, Boolean(checks[key])])
+    ),
+    failedCriteria: failedKeys.map((key) => ({
+      key,
+      label: PHOTO_QUALITY_LABELS[key],
+      status: "rejected",
+    })),
+    passedCriteria: Object.keys(PHOTO_QUALITY_LABELS)
+      .filter((key) => !failedKeys.includes(key))
+      .map((key) => ({
+        key,
+        label: PHOTO_QUALITY_LABELS[key],
+        status: "passed",
+      })),
+    rejectionReasons: reasons,
+    note: rejected
+      ? "One or more scalp photos were rejected for AI processing because they did not meet image-quality criteria."
+      : "Uploaded scalp photos met AI processing quality criteria.",
+  };
+}
+
+function drawPhotoQualityAssessment(doc, scalpAnalysis = {}) {
+  const assessment = resolvePhotoQualityAssessment(scalpAnalysis);
+  const left = doc.page.margins.left;
+  const width = contentWidth(doc);
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .fillColor(BRAND)
+    .text("AI PHOTO QUALITY (FOR PROCESSING)", left, doc.y, { width });
+  doc.moveDown(0.25);
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor(MUTED)
+    .text(
+      "Clear scalp photos are required for reliable AI analysis. Photos that fail these criteria are marked rejected below.",
+      { width }
+    );
+  doc.moveDown(0.35);
+
+  if (assessment.rejected) {
+    const reasons =
+      (assessment.rejectionReasons && assessment.rejectionReasons.length
+        ? assessment.rejectionReasons
+        : (assessment.failedCriteria || []).map((c) => c.label)) || [];
+    const bannerText = reasons.length
+      ? `REJECTED FOR AI PROCESSING — ${reasons.join(" · ")}`
+      : "REJECTED FOR AI PROCESSING — photo did not meet quality criteria";
+    const bannerH = 28;
+    const y = doc.y;
+    doc.roundedRect(left, y, width, bannerH, 4).fill("#fef2f2");
+    doc
+      .fillColor("#b91c1c")
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text(bannerText, left + 10, y + 9, { width: width - 20, lineBreak: false });
+    doc.y = y + bannerH + 8;
+    doc.x = left;
+  } else {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .fillColor(BRAND)
+      .text("PASSED — photos met AI processing quality criteria", { width });
+    doc.moveDown(0.3);
+  }
+
+  const rows = [
+    ...(assessment.failedCriteria || []).map((c) => ({ ...c, status: "rejected" })),
+    ...(assessment.passedCriteria || []).map((c) => ({ ...c, status: "passed" })),
+  ];
+
+  // Stable order matching guide criteria
+  const order = Object.keys(PHOTO_QUALITY_LABELS);
+  rows.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+
+  if (!rows.length) {
+    for (const [key, label] of Object.entries(PHOTO_QUALITY_LABELS)) {
+      rows.push({
+        key,
+        label,
+        status: assessment.rejected && assessment.imageQuality === "poor" ? "rejected" : "passed",
+      });
+    }
+  }
+
+  for (const row of rows) {
+    const rejected = row.status === "rejected";
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(rejected ? "#b91c1c" : INK)
+      .text(
+        `${rejected ? "[REJECTED]" : "[PASSED] "}  ${row.label}`,
+        left,
+        doc.y,
+        { width }
+      );
+    doc.moveDown(0.15);
+  }
+
+  if (assessment.imageQuality) {
+    doc.moveDown(0.15);
+    doc
+      .font("Helvetica")
+      .fontSize(8)
+      .fillColor(MUTED)
+      .text(`Overall image quality rating: ${String(assessment.imageQuality).toUpperCase()}`, {
+        width,
+      });
+  }
+
+  doc.moveDown(0.45);
+  doc.font("Helvetica").fillColor(INK).fontSize(9);
+}
+
 function drawStageCards(doc, predicted, selfReported, { isFemale = false } = {}) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
@@ -578,6 +726,7 @@ export function buildAssessmentPdf(payload) {
     doc.x = left;
 
     embedScalpPhotos(doc, scalpImages);
+    drawPhotoQualityAssessment(doc, scalpAnalysis);
 
     sectionBanner(doc, "2", "QUIZ QUESTIONS & RESPONSES");
     doc

@@ -1,96 +1,150 @@
 import { useState } from "react";
 
-const TERMS_AND_CONDITIONS = [
+const LEGAL_LINKS = [
+  { label: "Privacy Policy", href: "/legal/privacy-policy.pdf" },
+  { label: "Terms of Service", href: "/legal/terms-of-service.pdf" },
+  { label: "Care Plan Informed Consent", href: "/legal/care-plan-informed-consent.pdf" },
+];
+
+const PRIVACY_POINTS = [
   {
-    title: "1. WhatsApp & Contact Notification Consent",
-    body: "I authorize Zylk Health to use my provided WhatsApp number and email address to send my final clinical report, assessment results, treatment recommendations, automated updates, appointment reminders, and promotional offers related to hair and scalp health.",
+    title: "Secure & Encrypted",
+    body: "Your data and photos are encrypted and stored securely.",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      </svg>
+    ),
   },
   {
-    title: "2. WhatsApp Communication",
-    body: "By providing my WhatsApp number, I agree to receive messages from Zylk Health via WhatsApp, including one-time passwords (OTP), quiz completion links, report delivery, and follow-up care instructions. Standard messaging rates may apply as per your mobile carrier.",
+    title: "Used for Your Assessment",
+    body: "We use your information to analyze your results and personalize your plan.",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M4 19V5M10 19V9M16 19v-6M22 19V7" />
+      </svg>
+    ),
   },
   {
-    title: "3. Personal Data Processing",
-    body: "I confirm that all health metrics, age boundaries, lifestyle patterns, scalp images, and personal information provided during this quiz are given voluntarily with my explicit consent.",
+    title: "You're in Control",
+    body: "You can unsubscribe or delete your data anytime.",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 20a7 7 0 0 1 14 0" />
+      </svg>
+    ),
   },
   {
-    title: "4. AI Scalp Analysis Authorization",
-    body: "I authorize Zylk Health to process my scalp image captures using AI algorithms solely to calculate follicular density variations and crown area trends for assessment purposes.",
-  },
-  {
-    title: "5. Data Security",
-    body: "All submitted data, including your WhatsApp number, email, and health information, is encrypted in transit and handled within secure systems under applicable medical compliance practices. We do not sell your personal data to third parties.",
-  },
-  {
-    title: "6. Medical Disclaimer",
-    body: "This assessment is for informational purposes only and does not replace professional medical advice, diagnosis, or treatment. Please consult a qualified dermatologist or trichologist for clinical decisions.",
+    title: "We'll Keep You Updated",
+    body: "Get your results, hair-care tips, product recommendations and exclusive offers.",
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="m3 7 9 6 9-6" />
+      </svg>
+    ),
   },
 ];
 
+function LegalLink({ href, children }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[#064e3b] font-semibold underline underline-offset-2 hover:text-[#043427]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {children}
+    </a>
+  );
+}
+
 export default function Section0Consent({ onComplete, onBack }) {
-  const [agreed, setAgreed] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
+  const [agreedPolicy, setAgreedPolicy] = useState(false);
+  const [agreedUpdates, setAgreedUpdates] = useState(false);
+  const canContinue = agreedPolicy && agreedUpdates;
 
   return (
     <div className="max-w-xl mx-auto mt-6 px-4 animate-[fadeIn_0.3s_ease-out]">
       <div className="bg-white rounded-[32px] p-8 md:p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100">
-        {/* Header */}
-        <div className="mb-6 text-center">
+        <div className="mb-7 text-center">
           <span className="text-xs font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-3 py-1 rounded-full">
-            Privacy & Trust
-          </span>
-          <h2 className="text-[26px] font-bold text-gray-900 mt-4 leading-tight">
             Privacy & Consent
-          </h2>
-          <p className="text-gray-500 mt-2 text-sm">
-            Please review how we handle your information before starting the diagnosis.
-          </p>
-        </div>
+          </span>
 
-        {/* Summary */}
-        <div className="text-xs text-gray-600 leading-relaxed space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6">
-          <p>
-            At <strong>Zylk Health</strong>, we prioritize the clinical security of your personal
-            profiles. The diagnostic quiz uses advanced AI systems to analyze your hair loss metrics
-            and deliver localized treatment routines.
-          </p>
-          <p>
-            We will use your <strong>WhatsApp number</strong> and email to send your assessment
-            report, treatment recommendations, and important updates. All data is encrypted in
-            transit and handled within secure systems.
-          </p>
-        </div>
-
-        {/* Single checkbox */}
-        <label className="flex items-start gap-4 p-4 rounded-2xl border border-gray-200/60 cursor-pointer hover:border-[#064e3b]/20 transition-all select-none bg-white">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-0.5 w-5 h-5 rounded accent-[#064e3b] text-[#064e3b] focus:ring-[#064e3b] shrink-0"
-          />
-          <div className="text-sm text-gray-700 font-medium leading-relaxed">
-            I have read and agree to the Terms of Service and Privacy Policy. I understand that
-            Zylk Health will process my information to provide my personalized assessment and,
-            with this consent, send my assessment results, hair-care recommendations, promotional
-            offers, and updates via WhatsApp and email.
+          <div className="mt-5 mx-auto w-14 h-14 rounded-full bg-[#e8eede] flex items-center justify-center text-[#064e3b]">
+            <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M12 3 5 6v5c0 5 3.2 8.4 7 9.5 3.8-1.1 7-4.5 7-9.5V6l-7-3z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
           </div>
-        </label>
 
-        {/* Legal document link below checkbox */}
-        <p className="text-center mt-4 text-xs text-gray-500">
-          Read full details in our{" "}
-          <button
-            type="button"
-            onClick={() => setShowTerms(true)}
-            className="text-[#064e3b] font-semibold underline underline-offset-2 hover:text-[#043427] cursor-pointer"
-          >
-            Terms of Service & Privacy Policy
-          </button>
+          <h2 className="text-[26px] md:text-[28px] font-bold text-[#064e3b] mt-4 leading-tight">
+            Your Privacy Matters
+          </h2>
+          <p className="text-gray-500 mt-2 text-sm leading-relaxed max-w-md mx-auto">
+            We protect your information and use it only to create your personalized hair assessment
+            and recommendations.
+          </p>
+        </div>
+
+        <div className="space-y-4 mb-7">
+          {PRIVACY_POINTS.map((point) => (
+            <div key={point.title} className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-[#e8eede] text-[#064e3b] flex items-center justify-center shrink-0">
+                {point.icon}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900">{point.title}</p>
+                <p className="text-xs text-gray-500 leading-relaxed mt-0.5">{point.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-3 mb-4">
+          <label className="flex items-start gap-3 p-3.5 rounded-2xl border border-gray-200/70 cursor-pointer hover:border-[#064e3b]/25 transition-all select-none bg-white">
+            <input
+              type="checkbox"
+              checked={agreedPolicy}
+              onChange={(e) => setAgreedPolicy(e.target.checked)}
+              className="mt-0.5 w-5 h-5 rounded accent-[#064e3b] text-[#064e3b] focus:ring-[#064e3b] shrink-0"
+            />
+            <span className="text-sm text-gray-700 leading-relaxed">
+              I agree to the <LegalLink href={LEGAL_LINKS[0].href}>Privacy Policy</LegalLink>,{" "}
+              <LegalLink href={LEGAL_LINKS[1].href}>Terms of Service</LegalLink>, and{" "}
+              <LegalLink href={LEGAL_LINKS[2].href}>Care Plan Informed Consent</LegalLink>, and
+              consent to the processing of my information to provide my assessment.
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 p-3.5 rounded-2xl border border-gray-200/70 cursor-pointer hover:border-[#064e3b]/25 transition-all select-none bg-white">
+            <input
+              type="checkbox"
+              checked={agreedUpdates}
+              onChange={(e) => setAgreedUpdates(e.target.checked)}
+              className="mt-0.5 w-5 h-5 rounded accent-[#064e3b] text-[#064e3b] focus:ring-[#064e3b] shrink-0"
+            />
+            <span className="text-sm text-gray-700 leading-relaxed">
+              I agree to receive my assessment results, hair-care tips, product recommendations and
+              offers via WhatsApp and email. I can unsubscribe anytime.
+            </span>
+          </label>
+        </div>
+
+        <p className="text-center text-xs text-gray-500 mb-6">
+          Read our{" "}
+          <LegalLink href={LEGAL_LINKS[0].href}>Privacy Policy</LegalLink>
+          {", "}
+          <LegalLink href={LEGAL_LINKS[1].href}>Terms of Service</LegalLink>
+          {", and "}
+          <LegalLink href={LEGAL_LINKS[2].href}>Care Plan Informed Consent</LegalLink>
         </p>
 
-        {/* Navigation */}
-        <div className="flex gap-4 mt-8 pt-4 border-t border-gray-100 w-full">
+        <div className="flex gap-4 pt-4 border-t border-gray-100 w-full">
           <button
             type="button"
             onClick={onBack}
@@ -100,66 +154,25 @@ export default function Section0Consent({ onComplete, onBack }) {
           </button>
           <button
             type="button"
-            disabled={!agreed}
+            disabled={!canContinue}
             onClick={onComplete}
-            className="flex-[2] h-14 bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm text-base cursor-pointer"
+            className="flex-[2] h-14 bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm text-base cursor-pointer inline-flex items-center justify-center gap-2"
           >
-            Find My Hair Loss Cause
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+            </svg>
+            Start My Free Assessment
           </button>
         </div>
+
+        <p className="mt-4 text-center text-[11px] text-gray-400 inline-flex items-center justify-center gap-1.5 w-full">
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-[#064e3b]" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 3 5 6v5c0 5 3.2 8.4 7 9.5 3.8-1.1 7-4.5 7-9.5V6l-7-3z" />
+          </svg>
+          100% Private · Unsubscribe anytime
+        </p>
       </div>
-
-      {/* Legal document modal */}
-      {showTerms && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-          onClick={() => setShowTerms(false)}
-        >
-          <div
-            className="bg-white rounded-[24px] w-full max-w-lg max-h-[85vh] overflow-hidden shadow-2xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">Terms of Service & Privacy Policy</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Zylk Health — Hair & Scalp Assessment</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowTerms(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 text-lg font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal body */}
-            <div className="p-6 overflow-y-auto space-y-5 flex-1">
-              {TERMS_AND_CONDITIONS.map((term, index) => (
-                <div key={index} className="space-y-1.5">
-                  <h4 className="text-sm font-bold text-gray-900">{term.title}</h4>
-                  <p className="text-xs text-gray-600 leading-relaxed">{term.body}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Modal footer */}
-            <div className="p-6 border-t border-gray-100 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setAgreed(true);
-                  setShowTerms(false);
-                }}
-                className="w-full h-12 bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all text-sm cursor-pointer"
-              >
-                I Agree to All Terms
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
