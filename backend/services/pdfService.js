@@ -19,6 +19,37 @@ function labelize(value) {
   const raw = String(value);
   // Keep emails / URLs / already human-formatted values intact
   if (raw.includes("@") || /^https?:\/\//i.test(raw)) return raw;
+
+  const OPTION_LABELS = {
+    same: "About the same as usual",
+    slightly_more: "Slightly more than usual",
+    much_more: "Much more than usual",
+    clumps: "Hair is coming out in noticeable clumps",
+    unsure: "I'm not sure",
+    flaking: "Flaking or dandruff",
+    itching: "Itching",
+    redness: "Redness or irritation",
+    oily: "Oily scalp",
+    tenderness: "Tenderness or burning",
+    none: "None of these",
+    front: "Front hairline or temples",
+    crown: "Crown or top of head",
+    parting: "Both front and crown",
+    all_over: "General thinning all over",
+    patchy: "Round or patchy areas",
+    under_3m: "Within the past 3 months",
+    "3m_6m": "3–6 months ago",
+    "6m_1y": "6–12 months ago",
+    "1y_3y": "1–3 years ago",
+    over_3y: "More than 3 years ago",
+    mother: "Mother's side",
+    father: "Father's side",
+    both: "Both sides",
+    overall_thinning: "Overall thinning",
+    "overall-thinning": "Overall thinning",
+  };
+  if (OPTION_LABELS[raw]) return OPTION_LABELS[raw];
+
   return raw
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
