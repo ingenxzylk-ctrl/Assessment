@@ -1,4 +1,4 @@
-import { markCheckoutReturn, persistQuizStateNow } from "../context/QuizContext";
+import { markCheckoutReturn, persistQuizStateNow } from "./quizPersistence";
 import { saveScalpImagesToIdb } from "./quizImageStore";
 import { SEPARATE_HEALTH_MIX_WOO_ID } from "../config/bundles";
 
