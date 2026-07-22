@@ -1077,7 +1077,7 @@ function RoadmapTimeline({ roadmap, resultMonths }) {
 }
 
 export default function Result() {
-  const { state, resetQuiz, prevStep, setLoading, setError } = useQuiz();
+  const { state, resetQuiz, prevStep, setLoading, setError, restorePhotosFromIdb } = useQuiz();
   const { addToCart, cartCount, setIsCartOpen } = useCart();
 
   const [includeHealthMix, setIncludeHealthMix] = useState(true);
@@ -1109,6 +1109,19 @@ export default function Result() {
     extractImageUrl(findScalpImage("side")) ||
     extractImageUrl(findScalpImage("back")) ||
     extractImageUrl(state?.scalpImages?.[0]);
+
+  // After WP cart return / ?report= reload, restore photos from IndexedDB if missing
+  useEffect(() => {
+    if (displayUserPhoto) return undefined;
+    let cancelled = false;
+    (async () => {
+      await restorePhotosFromIdb?.();
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [displayUserPhoto, restorePhotosFromIdb]);
 
   const requiresDoctorConsultation =
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
