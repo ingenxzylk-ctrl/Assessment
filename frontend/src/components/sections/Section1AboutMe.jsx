@@ -222,7 +222,6 @@ const DEFAULT_COUNTRY = COUNTRY_CODES.find((c) => c.name === "India") || COUNTRY
 
 export default function Section1AboutMe({ onComplete, onBack }) {
   const { state, updateAboutMe } = useQuiz(); 
-  const [step, setStep] = useSectionStep("section1AboutMe", STEPS.length - 1, 0);
   const [errors, setErrors] = useState({});
   const [countryMenuOpen, setCountryMenuOpen] = useState(false);
   const countryMenuRef = useRef(null);
@@ -244,6 +243,30 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     ageRange: state?.aboutMe?.ageRange || "",
     gender: state?.aboutMe?.gender || "",
   });
+
+  const isStepAnswered = (stepIndex) => {
+    if (stepIndex === 0) return Boolean(localForm.fullName.trim());
+    if (stepIndex === 1) {
+      return (
+        Boolean(localForm.whatsapp.trim()) &&
+        Boolean(localForm.email.trim()) &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(localForm.email)
+      );
+    }
+    if (stepIndex === 2) {
+      const ageNum = Number(localForm.age);
+      return Number.isFinite(ageNum) && ageNum >= 13 && ageNum <= 100;
+    }
+    if (stepIndex === 3) return Boolean(localForm.gender);
+    return false;
+  };
+
+  const [step, setStep] = useSectionStep(
+    "section1AboutMe",
+    STEPS.length - 1,
+    0,
+    isStepAnswered
+  );
 
   const selectedCountry =
     COUNTRY_CODES.find(
@@ -298,25 +321,10 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     return Object.keys(e).length === 0;
   };
 
-  const isCurrentAnswered = () => {
-    if (step === 0) return Boolean(localForm.fullName.trim());
-    if (step === 1) {
-      return (
-        Boolean(localForm.whatsapp.trim()) &&
-        Boolean(localForm.email.trim()) &&
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(localForm.email)
-      );
-    }
-    if (step === 2) {
-      const ageNum = Number(localForm.age);
-      return Number.isFinite(ageNum) && ageNum >= 13 && ageNum <= 100;
-    }
-    if (step === 3) return Boolean(localForm.gender);
-    return false;
-  };
+  const isCurrentAnswered = () => isStepAnswered(step);
 
   const handleContinue = () => {
-    if (!validate()) return;
+    if (!validate() || !isStepAnswered(step)) return;
 
     // Persist answers as the user advances so reload mid-section can resume
     if (updateAboutMe) {
@@ -326,9 +334,17 @@ export default function Section1AboutMe({ onComplete, onBack }) {
 
     if (step < STEPS.length - 1) {
       setStep((prev) => prev + 1);
-    } else {
-      if (onComplete) onComplete();
+      return;
     }
+
+    for (let i = 0; i < STEPS.length; i += 1) {
+      if (!isStepAnswered(i)) {
+        setStep(i);
+        return;
+      }
+    }
+
+    if (onComplete) onComplete();
   };
 
   // Handles moving back through inner steps or returning out to the consent terms page

@@ -72,7 +72,6 @@ const OPTIONS = {
 
 export default function Section3InternalHealthMale({ onComplete, onBack }) {
   const { state, updateInternalHealth } = useQuiz();
-  const [step, setStep] = useSectionStep("section3Male", STEPS.length - 1, 0);
   const [otherCondition, setOtherCondition] = useState(
     state?.internalHealth?.otherConditionDetails || ""
   );
@@ -91,6 +90,24 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
       state?.internalHealth?.blood_pressure ||
       "",
   });
+
+  const isStepAnswered = (stepIndex) => {
+    const field = STEPS[stepIndex];
+    if (!field) return false;
+    if (field === "health_conditions") {
+      if (!localForm.health_conditions?.length) return false;
+      if (localForm.health_conditions.includes("Other") && !otherCondition.trim()) return false;
+      return true;
+    }
+    return Boolean(localForm[field]);
+  };
+
+  const [step, setStep] = useSectionStep(
+    "section3Male",
+    STEPS.length - 1,
+    0,
+    isStepAnswered
+  );
 
   const currentStep = STEPS[step];
   const headingInfo = STEP_TITLES[currentStep];
@@ -116,14 +133,7 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
     setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const isCurrentAnswered = () => {
-    if (currentStep === "health_conditions") {
-      if (!localForm.health_conditions?.length) return false;
-      if (localForm.health_conditions.includes("Other") && !otherCondition.trim()) return false;
-      return true;
-    }
-    return Boolean(localForm[currentStep]);
-  };
+  const isCurrentAnswered = () => isStepAnswered(step);
 
   const validate = () => {
     const e = {};
@@ -156,6 +166,14 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
       if (updateInternalHealth) updateInternalHealth(partialForm);
       setStep((prev) => prev + 1);
       return;
+    }
+
+    for (let i = 0; i < STEPS.length; i += 1) {
+      if (!isStepAnswered(i)) {
+        setErrors({ [STEPS[i]]: "Please answer every question before continuing." });
+        setStep(i);
+        return;
+      }
     }
 
     if (updateInternalHealth) updateInternalHealth(partialForm);

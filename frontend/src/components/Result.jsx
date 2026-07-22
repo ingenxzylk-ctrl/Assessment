@@ -2,7 +2,13 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuiz } from "../context/QuizContext";
 import { useCart } from "../context/CartContext";
 import { getRecommendedBundle } from "../data/products";
-import { getBundleDisplayName, getWooProductId } from "../config/bundles";
+import {
+  getBundleDisplayName,
+  getWooProductId,
+  getSeparateHealthMixWooId,
+  usesSeparateHealthMixProduct,
+  resolveBundleNumber,
+} from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
 import { getBundleItems } from "../data/zylkProductCatalog";
@@ -1098,7 +1104,6 @@ export default function Result() {
   const { state, resetQuiz, prevStep, setLoading, setError, restorePhotosFromIdb } = useQuiz();
   const { addToCart, cartCount, setIsCartOpen } = useCart();
 
-  const [includeHealthMix, setIncludeHealthMix] = useState(true);
   const [coachCallOptIn, setCoachCallOptIn] = useState(false);
   const [faqOpen, setFaqOpen] = useState(false);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
@@ -1113,6 +1118,22 @@ export default function Result() {
   const reportedStage = isFemale
     ? state?.hairHealth?.hair_fall_zone
     : state?.hairHealth?.norwood_stage;
+  const hasDandruff = resolveHasDandruff(state);
+
+  // Kits 8393 / 8368 ship without Health Mix — default checkbox OFF (user opts in → 8303).
+  // Other bundles keep Health Mix ON by default (combined Woo SKU).
+  const [includeHealthMix, setIncludeHealthMix] = useState(true);
+  const mixDefaultKeyRef = useRef("");
+
+  useEffect(() => {
+    if (!aiPredictedStageNumber) return;
+    const bundleNumber = resolveBundleNumber(gender, aiPredictedStageNumber, hasDandruff);
+    const separate = usesSeparateHealthMixProduct(bundleNumber, hasDandruff);
+    const key = `${bundleNumber}:${hasDandruff ? 1 : 0}:${separate ? 1 : 0}`;
+    if (mixDefaultKeyRef.current === key) return;
+    mixDefaultKeyRef.current = key;
+    setIncludeHealthMix(!separate);
+  }, [aiPredictedStageNumber, gender, hasDandruff]);
 
   const extractImageUrl = (img) => {
     if (!img) return null;
@@ -1144,8 +1165,6 @@ export default function Result() {
   const requiresDoctorConsultation =
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
-
-  const hasDandruff = resolveHasDandruff(state);
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
   const rootCauseTags = buildRootCauseTags(state, hasDandruff);
@@ -1268,6 +1287,9 @@ export default function Result() {
     }
     if (!recommendedBundle) return;
     const { bundleNumber } = recommendedBundle;
+    const separateMix = usesSeparateHealthMixProduct(bundleNumber, hasDandruff);
+    const kitWooId = getWooProductId(bundleNumber, includeHealthMix, hasDandruff);
+    const mixWooId = getSeparateHealthMixWooId(bundleNumber, includeHealthMix, hasDandruff);
     // Replace any previous assessment kit (e.g. male → female redo)
     addToCart({
       id: recommendedBundle.bundleId,
@@ -1282,9 +1304,10 @@ export default function Result() {
       gender,
       stage: aiPredictedStageNumber,
       hasDandruff,
-      usesSeparateHealthMix: recommendedBundle.usesSeparateHealthMix,
-      wooProductId: getWooProductId(bundleNumber, includeHealthMix, hasDandruff),
-      wooHealthMixProductId: recommendedBundle.wooHealthMixProductId || null,
+      usesSeparateHealthMix: separateMix,
+      wooProductId: kitWooId,
+      // Only 8393 / 8368 may carry Health Mix product 8303
+      wooHealthMixProductId: separateMix && includeHealthMix ? mixWooId : null,
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
       subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,

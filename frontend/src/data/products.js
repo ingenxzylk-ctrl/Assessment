@@ -66,7 +66,7 @@ export const getRecommendedBundle = (
 ) => {
   const bundleNumber = resolveBundleNumber(gender, stage, hasDandruff);
   const config = BUNDLE_CONFIG[bundleNumber];
-  const prices = getBundlePrices(bundleNumber);
+  const prices = getBundlePrices(bundleNumber, Boolean(hasDandruff));
   const displayName = getBundleDisplayName(bundleNumber, gender, stage);
 
   // Pull items from the official catalog for this bundle number.

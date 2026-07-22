@@ -242,11 +242,30 @@ export function QuizProvider({ children }) {
   }, []);
 
   const nextStep = () => {
-    setState((prev) => ({
-      ...prev,
-      step: prev.step + 1,
-      navDirection: "forward",
-    }));
+    setState((prev) => {
+      const nextStepNum = prev.step + 1;
+      // When entering a section forward, do not keep a stale high question index
+      // that would skip unanswered questions. useSectionStep also clamps, but
+      // resetting here makes forward entry always start from Q1 when incomplete.
+      const sectionSteps = { ...prev.sectionSteps };
+      if (nextStepNum === 1) sectionSteps.section1AboutMe = 0;
+      if (nextStepNum === 2) {
+        sectionSteps.section2Male = 0;
+        sectionSteps.section2Female = 0;
+      }
+      if (nextStepNum === 3) {
+        sectionSteps.section3Male = 0;
+        sectionSteps.section3Female = 0;
+      }
+      if (nextStepNum === 4) sectionSteps.section4Scalp = "guide";
+
+      return {
+        ...prev,
+        step: nextStepNum,
+        navDirection: "forward",
+        sectionSteps,
+      };
+    });
   };
 
   const prevStep = () => {
