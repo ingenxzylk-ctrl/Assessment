@@ -274,6 +274,19 @@ function addKeyValueRow(doc, key, value) {
   doc.moveDown(0.15);
 }
 
+function formatScalpSymptoms(value) {
+  if (!Array.isArray(value) || !value.length) return null;
+  const map = {
+    flaking: "Flaking or dandruff",
+    itching: "Itching",
+    redness: "Redness or irritation",
+    oily: "Oily scalp",
+    tenderness: "Tenderness or burning",
+    none: "None of these",
+  };
+  return value.map((id) => map[id] || labelize(id)).join(", ");
+}
+
 function collectQaPairs(payload) {
   const { aboutMe = {}, hairHealth = {}, internalHealth = {}, gender } = payload;
   const isFemale = (gender || aboutMe.gender) === "female";
@@ -290,6 +303,10 @@ function collectQaPairs(payload) {
     pairs.push(["Where have you noticed hair loss?", hairHealth.hair_loss_area || hairHealth.hair_fall_zone]);
     pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount || hairHealth.shedding_amount]);
     pairs.push(["Do you experience dandruff?", hairHealth.dandruff_experience]);
+    pairs.push([
+      "Do you experience flaking, itching, or scalp irritation?",
+      formatScalpSymptoms(hairHealth.scalp_symptoms),
+    ]);
     pairs.push(["Family history of hair loss?", hairHealth.family_history]);
     pairs.push(["When did you first notice the change?", hairHealth.loss_duration]);
     pairs.push(["Iron level", internalHealth.iron_level]);
@@ -306,6 +323,10 @@ function collectQaPairs(payload) {
     pairs.push(["Where have you noticed hair loss?", hairHealth.hair_fall_zone]);
     pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount]);
     pairs.push(["Do you experience dandruff?", hairHealth.dandruff_experience]);
+    pairs.push([
+      "Do you experience flaking, itching, or scalp irritation?",
+      formatScalpSymptoms(hairHealth.scalp_symptoms),
+    ]);
     pairs.push(["Family history of hair loss?", hairHealth.family_history]);
     pairs.push(["When did you first notice the change?", hairHealth.loss_duration]);
     pairs.push(["Sleep", internalHealth.sleep_cycle]);

@@ -1,12 +1,6 @@
 import { useState } from "react";
 import LegalDocumentPage from "./LegalDocumentPage";
 
-const LEGAL_LINKS = [
-  { id: "privacy", label: "Privacy Policy" },
-  { id: "terms", label: "Terms of Service" },
-  { id: "consent", label: "Care Plan Informed Consent" },
-];
-
 const PRIVACY_POINTS = [
   {
     title: "Secure & Encrypted",
@@ -66,10 +60,9 @@ function LegalLinkButton({ docId, children, onOpen }) {
 }
 
 export default function Section0Consent({ onComplete, onBack }) {
-  const [agreedPolicy, setAgreedPolicy] = useState(false);
-  const [agreedUpdates, setAgreedUpdates] = useState(false);
+  const [agreedConsent, setAgreedConsent] = useState(false);
   const [openDocId, setOpenDocId] = useState(null);
-  const canContinue = agreedPolicy && agreedUpdates;
+  const canContinue = agreedConsent;
 
   if (openDocId) {
     return <LegalDocumentPage docId={openDocId} onBack={() => setOpenDocId(null)} />;
@@ -117,37 +110,23 @@ export default function Section0Consent({ onComplete, onBack }) {
           <label className="flex items-start gap-3 p-3.5 rounded-2xl border border-gray-200/70 cursor-pointer hover:border-[#064e3b]/25 transition-all select-none bg-white">
             <input
               type="checkbox"
-              checked={agreedPolicy}
-              onChange={(e) => setAgreedPolicy(e.target.checked)}
+              checked={agreedConsent}
+              onChange={(e) => setAgreedConsent(e.target.checked)}
               className="mt-0.5 w-5 h-5 rounded accent-[#064e3b] text-[#064e3b] focus:ring-[#064e3b] shrink-0"
             />
             <span className="text-sm text-gray-700 leading-relaxed">
-              I agree to the{" "}
+              I have read and agree to the{" "}
+              <LegalLinkButton docId="terms" onOpen={setOpenDocId}>
+                Terms of Service
+              </LegalLinkButton>{" "}
+              and{" "}
               <LegalLinkButton docId="privacy" onOpen={setOpenDocId}>
                 Privacy Policy
               </LegalLinkButton>
-              ,{" "}
-              <LegalLinkButton docId="terms" onOpen={setOpenDocId}>
-                Terms of Service
-              </LegalLinkButton>
-              , and{" "}
-              <LegalLinkButton docId="consent" onOpen={setOpenDocId}>
-                Care Plan Informed Consent
-              </LegalLinkButton>
-              , and consent to the processing of my information to provide my assessment.
-            </span>
-          </label>
-
-          <label className="flex items-start gap-3 p-3.5 rounded-2xl border border-gray-200/70 cursor-pointer hover:border-[#064e3b]/25 transition-all select-none bg-white">
-            <input
-              type="checkbox"
-              checked={agreedUpdates}
-              onChange={(e) => setAgreedUpdates(e.target.checked)}
-              className="mt-0.5 w-5 h-5 rounded accent-[#064e3b] text-[#064e3b] focus:ring-[#064e3b] shrink-0"
-            />
-            <span className="text-sm text-gray-700 leading-relaxed">
-              I agree to receive my assessment results, hair-care tips, product recommendations and
-              offers via WhatsApp and email. I can unsubscribe anytime.
+              . I understand that Zylk Health will process my information to provide my personalized
+              assessment and, with this consent, send my assessment results, hair-care
+              recommendations, promotional offers, and updates via WhatsApp and email. I understand I
+              can opt out of marketing communications at any time.
             </span>
           </label>
         </div>
