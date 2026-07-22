@@ -28,8 +28,10 @@ const INITIAL_STATE = {
   hairHealth: {
     norwood_stage: "",
     hair_fall_zone: "",
+    hair_loss_area: "",
     daily_loss_amount: "",
     dandruff_experience: "",
+    scalp_symptoms: [],
     family_history: "",
     loss_duration: "",
     shedding_amount: "",

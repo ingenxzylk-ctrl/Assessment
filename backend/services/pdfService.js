@@ -253,36 +253,49 @@ function collectQaPairs(payload) {
   pairs.push(["Gender", aboutMe.gender]);
 
   if (isFemale) {
-    pairs.push(["Shedding amount", hairHealth.shedding_amount]);
-    pairs.push(["Where does hair fall the most?", hairHealth.hair_fall_zone]);
-    pairs.push(["Daily hair loss amount", hairHealth.daily_loss_amount]);
-    pairs.push(["Do you have dandruff?", hairHealth.dandruff_experience]);
+    pairs.push(["Self-reported pattern stage", hairHealth.hair_fall_zone]);
+    pairs.push(["Where have you noticed hair loss?", hairHealth.hair_loss_area || hairHealth.hair_fall_zone]);
+    pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount || hairHealth.shedding_amount]);
+    pairs.push([
+      "Scalp symptoms",
+      Array.isArray(hairHealth.scalp_symptoms)
+        ? hairHealth.scalp_symptoms.join(", ")
+        : hairHealth.dandruff_experience,
+    ]);
     pairs.push(["Family history of hair loss?", hairHealth.family_history]);
-    pairs.push(["How long has hair loss lasted?", hairHealth.loss_duration]);
+    pairs.push(["When did you first notice the change?", hairHealth.loss_duration]);
     pairs.push(["Iron level", internalHealth.iron_level]);
     pairs.push(["Symptoms", internalHealth.symptoms]);
     pairs.push(["Life stage", internalHealth.life_stage]);
-    pairs.push(["Digestion", internalHealth.digestion]);
-    pairs.push(["Sleep cycle", internalHealth.sleep_cycle]);
+    pairs.push(["Digestive symptoms", internalHealth.digestion]);
+    pairs.push(["Sleep", internalHealth.sleep_cycle]);
     pairs.push(["Stress level", internalHealth.stress_level]);
     pairs.push(["Energy level", internalHealth.energy_level]);
     pairs.push(["Currently on supplements?", internalHealth.supplements]);
     pairs.push(["Food habits", internalHealth.food_habits]);
   } else {
     pairs.push(["Self-reported Norwood stage", hairHealth.norwood_stage ? `Stage ${hairHealth.norwood_stage}` : null]);
-    pairs.push(["Where does hair fall the most?", hairHealth.hair_fall_zone]);
-    pairs.push(["Daily hair loss amount", hairHealth.daily_loss_amount]);
-    pairs.push(["Do you have dandruff?", hairHealth.dandruff_experience]);
+    pairs.push(["Where have you noticed hair loss?", hairHealth.hair_fall_zone]);
+    pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount]);
+    pairs.push([
+      "Scalp symptoms",
+      Array.isArray(hairHealth.scalp_symptoms)
+        ? hairHealth.scalp_symptoms.join(", ")
+        : hairHealth.dandruff_experience,
+    ]);
     pairs.push(["Family history of hair loss?", hairHealth.family_history]);
-    pairs.push(["How long has hair loss lasted?", hairHealth.loss_duration]);
-    pairs.push(["Sleep cycle", internalHealth.sleep_cycle]);
+    pairs.push(["When did you first notice the change?", hairHealth.loss_duration]);
+    pairs.push(["Sleep", internalHealth.sleep_cycle]);
     pairs.push(["Stress level", internalHealth.stress_level]);
     pairs.push(["Existing health conditions", internalHealth.health_conditions]);
-    pairs.push(["Bowel movement", internalHealth.bowel]);
-    pairs.push(["Gas / acidity", internalHealth.gas_acidity]);
+    pairs.push(["Digestive symptoms", internalHealth.bowel]);
+    pairs.push(["Diet / weight change", internalHealth.diet_weight_change || internalHealth.gas_acidity]);
     pairs.push(["Energy level", internalHealth.energy_level]);
     pairs.push(["Currently on supplements?", internalHealth.supplements]);
-    pairs.push(["Blood pressure", internalHealth.blood_pressure]);
+    pairs.push([
+      "Prescription medicines",
+      internalHealth.prescription_medicines || internalHealth.blood_pressure,
+    ]);
   }
 
   return pairs.filter(([, v]) => v != null && v !== "");

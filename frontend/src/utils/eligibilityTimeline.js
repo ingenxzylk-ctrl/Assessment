@@ -37,8 +37,12 @@ export const hasHeavyDandruff = (hairHealth = {}) =>
   hairHealth.dandruff_experience === "frequent";
 
 export const hasHeavyHairFall = (hairHealth = {}) => {
-  const heavyDaily = ["100_150", "over_150"].includes(hairHealth.daily_loss_amount);
-  const heavyShedding = hairHealth.shedding_amount === "heavy";
+  const heavyDaily = ["100_150", "over_150", "much_more", "clumps"].includes(
+    hairHealth.daily_loss_amount
+  );
+  const heavyShedding = ["heavy", "clumps", "much_more"].includes(
+    String(hairHealth.shedding_amount || "").toLowerCase()
+  );
   return heavyDaily || heavyShedding;
 };
 

@@ -6,8 +6,12 @@ import { ageToRange } from "../../utils/eligibilityTimeline";
 const STEPS = ["name", "contact", "age", "gender"];
 
 const STEP_TITLES = {
-  name: { title: "What's your name?", subtitle: "We'll personalize your report." },
-  contact: { title: "How can we reach you?", subtitle: "Your final report will be sent to your WhatsApp number or Email." },
+  name: { title: "What should we call you?", subtitle: "We'll use your first name to personalize your report." },
+  contact: {
+    title: "Where should we send your report?",
+    subtitle:
+      "Enter your WhatsApp number to receive your personalized hair assessment and recommendations. Add your email as a backup.",
+  },
   age: { title: "What's your age?", subtitle: "Enter your age in years so we can tailor your plan." },
   gender: { title: "How do you identify?", subtitle: "This helps us tailor the assessment to you." },
 };
@@ -340,12 +344,12 @@ export default function Section1AboutMe({ onComplete, onBack }) {
           {/* STEP 0: FULL NAME INPUT */}
           {step === 0 && (
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-gray-700">Full Name</label>
+              <label className="text-sm font-semibold text-gray-700">First name</label>
               <input
                 type="text"
                 value={localForm.fullName}
                 onChange={(e) => handleChange({ fullName: e.target.value })}
-                placeholder="Enter your full name"
+                placeholder="Enter your first name"
                 className={`w-full h-14 px-4 bg-white border rounded-2xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#064e3b]/20 focus:border-[#064e3b] transition-all text-base ${
                   errors.fullName ? "border-red-500 bg-red-50/10" : "border-gray-200"
                 }`}
@@ -434,7 +438,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
 
               <div className="flex flex-col gap-2 w-full min-w-0">
                 <label className="text-sm font-semibold text-gray-700">
-                  Email Address
+                  Email Address (optional)
                 </label>
                 <input
                   type="email"
