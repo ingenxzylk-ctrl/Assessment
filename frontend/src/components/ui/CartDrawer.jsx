@@ -1,6 +1,7 @@
 import { useCart } from "../../context/CartContext";
 import { useQuiz } from "../../context/QuizContext";
 import { redirectToWordPressCheckout } from "../../utils/wordpressCheckout";
+import { HAIR_HEALTH_MIX_PRICE } from "../../data/zylkProductCatalog";
 
 export default function CartDrawer() {
   const { state, flushPersistence } = useQuiz();
@@ -17,9 +18,9 @@ export default function CartDrawer() {
 
   if (!isCartOpen) return null;
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (flushPersistence) flushPersistence();
-    redirectToWordPressCheckout(cartItems, state);
+    await redirectToWordPressCheckout(cartItems, state);
   };
 
   return (
@@ -39,40 +40,42 @@ export default function CartDrawer() {
               <p className="text-sm font-medium">Your cart is empty.</p>
             </div>
           ) : (
-            cartItems.map((item) => (
-              <div key={item.id} className="p-3 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-3">
-                <div className="flex gap-4 justify-between items-center">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-gray-800">{item.name}</p>
-                    <p className="text-xs text-[#064e3b] font-semibold mt-1">₹{item.price}</p>
-                    {item.isTestBundle && (
-                      <span className="inline-block mt-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                        Test Bundle
-                      </span>
-                    )}
+            cartItems.map((item) => {
+              const mixPrice = item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE;
+              return (
+                <div key={item.id} className="p-3 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-3">
+                  <div className="flex gap-4 justify-between items-center">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-800">{item.name}</p>
+                      <p className="text-xs text-[#064e3b] font-semibold mt-1">₹{item.price}</p>
+                      {item.isTestBundle && (
+                        <span className="inline-block mt-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                          Test Bundle
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2.5 bg-white border border-gray-200 px-2 py-1 rounded-xl">
+                      <button onClick={() => updateQuantity(item.id, -1)} className="text-gray-500 font-bold px-1 text-sm cursor-pointer">-</button>
+                      <span className="text-xs font-bold text-gray-700 w-4 text-center">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, 1)} className="text-gray-500 font-bold px-1 text-sm cursor-pointer">+</button>
+                    </div>
+                    <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600 text-sm font-bold pl-2 cursor-pointer">🗑️</button>
                   </div>
-                  <div className="flex items-center gap-2.5 bg-white border border-gray-200 px-2 py-1 rounded-xl">
-                    <button onClick={() => updateQuantity(item.id, -1)} className="text-gray-500 font-bold px-1 text-sm cursor-pointer">-</button>
-                    <span className="text-xs font-bold text-gray-700 w-4 text-center">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, 1)} className="text-gray-500 font-bold px-1 text-sm cursor-pointer">+</button>
-                  </div>
-                  <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600 text-sm font-bold pl-2 cursor-pointer">🗑️</button>
-                </div>
 
-                {/* Hide Health Mix toggle for ₹1 test bundle */}
-                {item.bundleNumber && !item.isTestBundle && (
-                  <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={item.includeHealthMix !== false}
-                      onChange={(e) => toggleHealthMix(item.id, e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    Include Hair Health Mix (+₹{(item.priceWithMix ?? 0) - (item.priceWithoutMix ?? 0)})
-                  </label>
-                )}
-              </div>
-            ))
+                  {item.bundleNumber && !item.isTestBundle && (
+                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={item.includeHealthMix !== false}
+                        onChange={() => toggleHealthMix(item.id)}
+                        className="rounded border-gray-300"
+                      />
+                      Include Hair Health Mix (+₹{mixPrice})
+                    </label>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
 

@@ -1,12 +1,17 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { getWooProductId } from "../config/bundles";
+import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState(() => {
-    const saved = localStorage.getItem("follicle_cart");
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem("follicle_cart");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -14,15 +19,45 @@ export function CartProvider({ children }) {
     localStorage.setItem("follicle_cart", JSON.stringify(cartItems));
   }, [cartItems]);
 
+  // When quiz gender changes mid-session, drop stale male/female kits
+  useEffect(() => {
+    const onGenderChanged = () => {
+      setCartItems((prev) => prev.filter((item) => item.isTestBundle));
+      setIsCartOpen(false);
+    };
+    window.addEventListener("zylk:gender-changed", onGenderChanged);
+    return () => window.removeEventListener("zylk:gender-changed", onGenderChanged);
+  }, []);
+
   const addToCart = (product) => {
     setCartItems((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
+      // Assessment kits replace each other so a male kit cannot linger after a female result
+      const isAssessmentKit = Boolean(product.bundleNumber) && !product.isTestBundle;
+      const base = isAssessmentKit
+        ? prev.filter((item) => item.isTestBundle || !item.bundleNumber)
+        : prev;
+
+      const existing = base.find((item) => item.id === product.id);
       if (existing) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        return base.map((item) =>
+          item.id === product.id
+            ? {
+                ...item,
+                ...product,
+                quantity: item.quantity + 1,
+                healthMixPrice: product.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
+              }
+            : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [
+        ...base,
+        {
+          ...product,
+          quantity: 1,
+          healthMixPrice: product.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
+        },
+      ];
     });
     setIsCartOpen(true);
   };
@@ -58,6 +93,7 @@ export function CartProvider({ children }) {
           includeHealthMix,
           price: newPrice,
           wooProductId: newWooId,
+          healthMixPrice: item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
           subtitle: includeHealthMix
             ? `Bundle ${item.bundleNumber} • With Health Mix`
             : `Bundle ${item.bundleNumber} • Without Health Mix`,

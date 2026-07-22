@@ -1237,6 +1237,7 @@ export default function Result() {
     }
     if (!recommendedBundle) return;
     const { bundleNumber } = recommendedBundle;
+    // Replace any previous assessment kit (e.g. male → female redo)
     addToCart({
       id: recommendedBundle.bundleId,
       name: getBundleDisplayName(bundleNumber, gender, aiPredictedStageNumber),
@@ -1247,6 +1248,8 @@ export default function Result() {
       includeHealthMix,
       coachCallOptIn,
       healthMixPrice: HAIR_HEALTH_MIX_PRICE,
+      gender,
+      stage: aiPredictedStageNumber,
       wooProductId: getWooProductId(bundleNumber, includeHealthMix),
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
