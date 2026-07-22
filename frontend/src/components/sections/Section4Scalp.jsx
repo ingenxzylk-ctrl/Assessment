@@ -39,6 +39,21 @@ const FEMALE_GUIDES = [
   },
 ];
 
+const PHOTO_QUALITY_TIPS = [
+  { label: "Dry hair", detail: "Avoid wet or freshly washed hair" },
+  { label: "Good lighting", detail: "Face a window or bright light" },
+  { label: "No hat", detail: "Remove hats, hoods, or coverings" },
+  { label: "No filters", detail: "Turn off beauty filters / apps" },
+];
+
+function formatRejectionMessage(err) {
+  const reasons = Array.isArray(err?.rejectionReasons) ? err.rejectionReasons.filter(Boolean) : [];
+  if (reasons.length) {
+    return `Photo rejected for AI processing — ${reasons.join("; ")}. Please retake clear, well-lit scalp photos without hats or filters.`;
+  }
+  return `${err?.message || "Invalid image."} Please upload clear photos of your own hair/scalp.`;
+}
+
 function buildImagesFromSaved(savedImages = []) {
   const map = { front: null, top: null, side: null, back: null };
   savedImages.forEach((img) => {
@@ -249,9 +264,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
       console.error("AI diagnostics pipeline failed:", err);
 
       if (err.imageRejected) {
-        setError(
-          `⚠️ ${err.message || "Invalid image."} Please upload photos of your own hair/scalp. Ponytail side photos are accepted.`
-        );
+        setError(formatRejectionMessage(err));
       } else {
         setError("AI analysis failed: " + (err.message || "Server unreachable. Please try again."));
       }
@@ -302,11 +315,13 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             <span className="text-xs font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-3 py-1 rounded-full">
               SCALP SCAN (1/2)
             </span>
-            <h2 className="text-[28px] font-bold text-gray-900 mt-4 leading-tight">Photo Guidelines</h2>
+            <h2 className="text-[28px] font-bold text-gray-900 mt-4 leading-tight">
+              {isFemale ? "Take clear scalp photos" : "Take two clear scalp photos"}
+            </h2>
             <p className="text-gray-500 mt-2 text-base">
               {isFemale
-                ? "Upload 3 photos: front, ponytail side profile, and ponytail swept aside."
-                : "Upload 2 photos: front hairline and top/crown view."}
+                ? "Upload 3 photos: front, ponytail side profile, and ponytail swept aside. Clear photos are required for AI processing."
+                : "Your photos help us assess visible thinning patterns. They are encrypted and used only for your assessment."}
             </p>
           </div>
 
@@ -316,7 +331,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             </div>
           )}
 
-          <div className={`grid gap-4 mb-8 ${isFemale ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+          <div className={`grid gap-4 mb-6 ${isFemale ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
             {guideOptions.map((opt, index) => (
               <div
                 key={index}
@@ -343,6 +358,24 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
               </div>
             ))}
           </div>
+
+          <div className="mb-8 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {PHOTO_QUALITY_TIPS.map((tip) => (
+              <div
+                key={tip.label}
+                className="rounded-xl bg-[#f4f6f0] border border-[#064e3b]/10 px-3 py-2.5 text-center"
+              >
+                <p className="text-xs font-bold text-[#064e3b] flex items-center justify-center gap-1">
+                  <span aria-hidden>✓</span> {tip.label}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{tip.detail}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-center text-[11px] text-gray-400 mb-6">
+            Encrypted · Used only for your assessment · Delete anytime
+          </p>
 
           <div className="flex gap-4 max-w-md mx-auto">
             <button
@@ -372,15 +405,28 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           <span className="text-xs font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-3 py-1 rounded-full">
             SCALP SCAN (2/2)
           </span>
-          <h2 className="text-[28px] font-bold text-gray-900 mt-4 leading-tight">Final Scalp Photo Selection</h2>
-          <p className="text-gray-500 mt-2 text-base">Ensure clear snapshots are provided for all slots.</p>
+          <h2 className="text-[28px] font-bold text-gray-900 mt-4 leading-tight">Add your scalp photos</h2>
+          <p className="text-gray-500 mt-2 text-base">
+            Use clear photos so we can assess visible hair-loss patterns. Blurry, dark, filtered, or covered photos are rejected for AI processing.
+          </p>
         </div>
 
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 text-red-800 text-sm font-medium rounded-2xl mb-5 flex gap-2">
-            <span>⚠️</span> {error}
+          <div className="p-4 bg-red-50 border border-red-200 text-red-800 text-sm font-medium rounded-2xl mb-5">
+            {error}
           </div>
         )}
+
+        <div className="mb-5 flex flex-wrap justify-center gap-2">
+          {PHOTO_QUALITY_TIPS.map((tip) => (
+            <span
+              key={tip.label}
+              className="inline-flex items-center gap-1 rounded-full bg-[#e8eede] px-2.5 py-1 text-[11px] font-semibold text-[#064e3b]"
+            >
+              <span aria-hidden>✓</span> {tip.label}
+            </span>
+          ))}
+        </div>
 
         {isFemale && (
           <p className="text-[11px] text-gray-500 text-center leading-relaxed px-2 mb-4">
