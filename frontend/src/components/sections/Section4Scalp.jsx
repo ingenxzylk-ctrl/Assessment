@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, useEffect } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
 import { compressImage } from "../../utils/compressImage";
+import { precheckPhotoQuality } from "../../utils/photoQualityPrecheck";
 
 const MALE_GUIDES = [
   {
@@ -40,18 +41,49 @@ const FEMALE_GUIDES = [
 ];
 
 const PHOTO_QUALITY_TIPS = [
-  { label: "Dry hair", detail: "Avoid wet or freshly washed hair" },
-  { label: "Good lighting", detail: "Face a window or bright light" },
-  { label: "No hat", detail: "Remove hats, hoods, or coverings" },
-  { label: "No filters", detail: "Turn off beauty filters / apps" },
+  { label: "Dry hair", detail: "Avoid wet or freshly washed hair", key: "wetHair" },
+  { label: "Good lighting", detail: "Face a window or bright light", key: "insufficientLight" },
+  { label: "No hat", detail: "Remove hats, hoods, or coverings", key: "hatOrCovering" },
+  { label: "No filters", detail: "Turn off beauty filters / apps", key: "filtersApplied" },
 ];
 
 function formatRejectionMessage(err) {
   const reasons = Array.isArray(err?.rejectionReasons) ? err.rejectionReasons.filter(Boolean) : [];
   if (reasons.length) {
-    return `Photo rejected for AI processing — ${reasons.join("; ")}. Please retake clear, well-lit scalp photos without hats or filters.`;
+    return `Please upload a proper image. ${reasons.join("; ")}. Photos must be clear with dry hair, good lighting, no hat, and no filters.`;
   }
-  return `${err?.message || "Invalid image."} Please upload clear photos of your own hair/scalp.`;
+  return "Please upload a proper image: clear, well-lit scalp photos with dry hair, no hat, and no filters.";
+}
+
+function PhotoQualityTips({ failedKeys = [] }) {
+  return (
+    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {PHOTO_QUALITY_TIPS.map((tip) => {
+        const failed = failedKeys.includes(tip.key);
+        return (
+          <div
+            key={tip.label}
+            className={`rounded-xl border px-3 py-2.5 text-center ${
+              failed
+                ? "bg-red-50 border-red-200"
+                : "bg-[#f4f6f0] border-[#064e3b]/10"
+            }`}
+          >
+            <p
+              className={`text-xs font-bold flex items-center justify-center gap-1 ${
+                failed ? "text-red-700" : "text-[#064e3b]"
+              }`}
+            >
+              <span aria-hidden>{failed ? "✕" : "✓"}</span> {tip.label}
+            </p>
+            <p className={`text-[10px] mt-0.5 leading-snug ${failed ? "text-red-600" : "text-gray-500"}`}>
+              {tip.detail}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function buildImagesFromSaved(savedImages = []) {
@@ -112,6 +144,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const [step, setStep] = useSectionStep("section4Scalp", "upload", "guide");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState(null);
+  const [failedQualityKeys, setFailedQualityKeys] = useState([]);
   const [useCamera, setUseCamera] = useState(false);
   const [activeCaptureType, setActiveCaptureType] = useState("");
   const [analysisStatus, setAnalysisStatus] = useState("Preparing images...");
@@ -171,6 +204,29 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     };
   }, [useCamera]);
 
+  const acceptPhoto = useCallback(async (dataUrl, targetType) => {
+    if (!targetType || !dataUrl) return;
+    setError(null);
+    setFailedQualityKeys([]);
+
+    const check = await precheckPhotoQuality(dataUrl);
+    if (!check.ok) {
+      const keys = [];
+      if (check.reasons.some((r) => /light|dark/i.test(r))) keys.push("insufficientLight");
+      if (check.reasons.some((r) => /unclear|blur/i.test(r))) keys.push("insufficientLight");
+      // Always remind the full checklist when a photo fails
+      setFailedQualityKeys(
+        keys.length
+          ? ["wetHair", "insufficientLight", "hatOrCovering", "filtersApplied"]
+          : ["wetHair", "insufficientLight", "hatOrCovering", "filtersApplied"]
+      );
+      setError(check.message || "Please upload a proper image.");
+      return;
+    }
+
+    setImages((prev) => ({ ...prev, [targetType]: dataUrl }));
+  }, []);
+
   const handleFileUpload = useCallback(
     async (e) => {
       const file = e.target.files?.[0];
@@ -189,14 +245,12 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           else if (!isFemale && !images.top) targetType = "top";
         }
 
-        if (targetType) {
-          setImages((prev) => ({ ...prev, [targetType]: dataUrl }));
-        }
+        await acceptPhoto(dataUrl, targetType);
       };
       reader.readAsDataURL(file);
       e.target.value = "";
     },
-    [images, activeCaptureType, isFemale]
+    [images, activeCaptureType, isFemale, acceptPhoto]
   );
 
   const captureFromCamera = useCallback(async () => {
@@ -222,14 +276,13 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
       else if (!isFemale && !images.top) target = "top";
     }
 
-    if (target) {
-      setImages((prev) => ({ ...prev, [target]: screenshot }));
-    }
     setUseCamera(false);
-  }, [images, activeCaptureType, isFemale]);
+    await acceptPhoto(screenshot, target);
+  }, [images, activeCaptureType, isFemale, acceptPhoto]);
 
   const removeImage = (type) => {
     setError(null);
+    setFailedQualityKeys([]);
     setImages((prev) => ({ ...prev, [type]: null }));
   };
 
@@ -305,8 +358,20 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
       console.error("AI diagnostics pipeline failed:", err);
 
       if (err.imageRejected) {
+        const checks = err.qualityChecks || err.photoQualityAssessment?.qualityChecks || {};
+        const keys = Object.entries(checks)
+          .filter(([, failed]) => Boolean(failed))
+          .map(([key]) => key);
+        // Map unclear → lighting tip highlight when no explicit keys
+        const highlight =
+          keys.length > 0
+            ? keys
+            : ["wetHair", "insufficientLight", "hatOrCovering", "filtersApplied"];
+        setFailedQualityKeys(highlight);
         setError(formatRejectionMessage(err));
+        // Keep photos so user can replace the bad ones, but block progress with the message
       } else {
+        setFailedQualityKeys([]);
         setError("AI analysis failed: " + (err.message || "Server unreachable. Please try again."));
       }
       setStep("upload");
@@ -400,18 +465,8 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             ))}
           </div>
 
-          <div className="mb-8 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {PHOTO_QUALITY_TIPS.map((tip) => (
-              <div
-                key={tip.label}
-                className="rounded-xl bg-[#f4f6f0] border border-[#064e3b]/10 px-3 py-2.5 text-center"
-              >
-                <p className="text-xs font-bold text-[#064e3b] flex items-center justify-center gap-1">
-                  <span aria-hidden>✓</span> {tip.label}
-                </p>
-                <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{tip.detail}</p>
-              </div>
-            ))}
+          <div className="mb-8">
+            <PhotoQualityTips />
           </div>
 
           <p className="text-center text-[11px] text-gray-400 mb-6">
@@ -461,6 +516,8 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             {error}
           </div>
         )}
+
+        <PhotoQualityTips failedKeys={failedQualityKeys} />
 
         {useCamera ? (
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-[3/4] max-w-sm mx-auto shadow-md mb-6">

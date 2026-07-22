@@ -373,16 +373,15 @@ CONFIDENCE CALIBRATION (aiConfidence 0.0–1.0):
 - below 0.55: heavy occlusion, extreme angle, or insufficient scalp visibility
 
 PHOTO VALIDATION (mandatory for AI processing):
-- HARD REJECT (imageRejected=true, valid=false) only for animals, cartoons, objects, charts, or photos that are clearly not a real human scalp/hair.
-- Soft quality assessment (do NOT hard-reject solely for these — still classify if possible):
-  * unclear / blurry / out of focus → qualityChecks.unclear=true
-  * insufficient light / too dark / heavy backlighting → qualityChecks.insufficientLight=true
-  * hat, hoodie, scarf, or covering blocking scalp → qualityChecks.hatOrCovering=true
-  * heavy beauty filters / face apps distorting hair → qualityChecks.filtersApplied=true
-  * wet hair hiding density/part lines → qualityChecks.wetHair=true
-- Put every failed quality criterion label into rejectionReasons.
-- If any qualityChecks flag is true, set imageQuality to "poor" (or "fair" if mild) and lower aiConfidence.
-- These quality failures mean the photo was rejected against AI processing criteria and must be reported in the assessment.
+- HARD REJECT (imageRejected=true, valid=false) for:
+  * animals, cartoons, objects, charts, or photos that are clearly not a real human scalp/hair
+  * unclear / blurry / out of focus photos (qualityChecks.unclear=true)
+  * insufficient light / too dark / heavy backlighting (qualityChecks.insufficientLight=true)
+  * hat, hoodie, scarf, or covering blocking scalp (qualityChecks.hatOrCovering=true)
+  * heavy beauty filters / face apps distorting hair (qualityChecks.filtersApplied=true)
+  * wet hair hiding density/part lines (qualityChecks.wetHair=true)
+- When hard-rejecting for quality, set imageQuality="poor", list every failed criterion in rejectionReasons, set matching qualityChecks flags to true, and put a short user-facing message in "error" such as "Please upload a proper image: clear, well-lit scalp photos with dry hair, no hat, and no filters."
+- Only set valid=true / imageRejected=false when photos are clear enough for reliable AI processing.
 
 QUALITY CHECK FLAGS (true = FAILED / rejected for that criterion):
 - unclear, insufficientLight, hatOrCovering, filtersApplied, wetHair
@@ -473,16 +472,15 @@ CONFIDENCE CALIBRATION (aiConfidence 0.0–1.0):
 STAGE 7: horseshoe only / top fully bald → "7"
 
 PHOTO VALIDATION (mandatory for AI processing):
-- HARD REJECT (imageRejected=true, valid=false) only for animals, cartoons, objects, charts, or photos that are clearly not a real human scalp/hair.
-- Soft quality assessment (do NOT hard-reject solely for these — still classify if possible):
-  * unclear / blurry / out of focus → qualityChecks.unclear=true
-  * insufficient light / too dark / heavy backlighting → qualityChecks.insufficientLight=true
-  * hat, hoodie, scarf, or covering blocking scalp → qualityChecks.hatOrCovering=true
-  * heavy beauty filters / face apps distorting hair → qualityChecks.filtersApplied=true
-  * wet hair hiding density/part lines → qualityChecks.wetHair=true
-- Put every failed quality criterion label into rejectionReasons.
-- If any qualityChecks flag is true, set imageQuality to "poor" (or "fair" if mild) and lower aiConfidence.
-- These quality failures mean the photo was rejected against AI processing criteria and must be reported in the assessment.
+- HARD REJECT (imageRejected=true, valid=false) for:
+  * animals, cartoons, objects, charts, or photos that are clearly not a real human scalp/hair
+  * unclear / blurry / out of focus photos (qualityChecks.unclear=true)
+  * insufficient light / too dark / heavy backlighting (qualityChecks.insufficientLight=true)
+  * hat, hoodie, scarf, or covering blocking scalp (qualityChecks.hatOrCovering=true)
+  * heavy beauty filters / face apps distorting hair (qualityChecks.filtersApplied=true)
+  * wet hair hiding density/part lines (qualityChecks.wetHair=true)
+- When hard-rejecting for quality, set imageQuality="poor", list every failed criterion in rejectionReasons, set matching qualityChecks flags to true, and put a short user-facing message in "error" such as "Please upload a proper image: clear, well-lit scalp photos with dry hair, no hat, and no filters."
+- Only set valid=true / imageRejected=false when photos are clear enough for reliable AI processing.
 
 QUALITY CHECK FLAGS (true = FAILED / rejected for that criterion):
 - unclear, insufficientLight, hatOrCovering, filtersApplied, wetHair
@@ -1098,19 +1096,32 @@ export const analyzeScalp = async (req, res) => {
       throw new Error("Gemini returned invalid JSON. Please try again.");
     }
 
-    if (parsed.valid === false || parsed.imageRejected === true) {
-      const photoQuality = buildPhotoQualityAssessment(parsed);
+    const photoQuality = buildPhotoQualityAssessment(parsed);
+    const checks = photoQuality.qualityChecks || {};
+    const criticalQualityFail =
+      Boolean(checks.unclear) ||
+      Boolean(checks.insufficientLight) ||
+      Boolean(checks.hatOrCovering) ||
+      Boolean(checks.filtersApplied) ||
+      Boolean(checks.wetHair) ||
+      String(parsed.imageQuality || "").toLowerCase() === "poor";
+
+    if (parsed.valid === false || parsed.imageRejected === true || criticalQualityFail) {
+      let reasons = [...(photoQuality.rejectionReasons || [])];
+      if (!reasons.length && String(parsed.imageQuality || "").toLowerCase() === "poor") {
+        reasons = ["Image unclear / blurry", "Insufficient lighting / too dark"];
+      }
       return res.status(422).json({
         error:
           parsed.error ||
           parsed.reason ||
-          (photoQuality.rejectionReasons.length
-            ? `Photo rejected for AI processing: ${photoQuality.rejectionReasons.join("; ")}`
-            : "Please upload photos of your own scalp/hair."),
+          (reasons.length
+            ? `Please upload a proper image. Rejected: ${reasons.join("; ")}`
+            : "Please upload a proper image: clear, well-lit scalp photos with dry hair, no hat, and no filters."),
         imageRejected: true,
-        rejectionReasons: photoQuality.rejectionReasons,
-        qualityChecks: photoQuality.qualityChecks,
-        photoQualityAssessment: photoQuality,
+        rejectionReasons: reasons,
+        qualityChecks: checks,
+        photoQualityAssessment: { ...photoQuality, rejected: true, rejectionReasons: reasons },
       });
     }
 
