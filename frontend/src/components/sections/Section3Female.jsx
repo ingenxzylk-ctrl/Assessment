@@ -50,7 +50,6 @@ const STEP_TITLES = {
 
 export default function Section3Female({ onComplete, onBack }) {
   const { state, updateInternalHealth } = useQuiz();
-  const [step, setStep] = useSectionStep("section3Female", STEPS.length - 1, 0);
   const [errors, setErrors] = useState({});
 
   const [localForm, setLocalForm] = useState({
@@ -64,6 +63,22 @@ export default function Section3Female({ onComplete, onBack }) {
     supplements: state?.internalHealth?.supplements || "",
     food_habits: state?.internalHealth?.food_habits || ""
   });
+
+  const isStepAnswered = (stepIndex) => {
+    const field = STEPS[stepIndex];
+    if (!field) return false;
+    if (field === "symptoms") {
+      return Array.isArray(localForm.symptoms) && localForm.symptoms.length > 0;
+    }
+    return Boolean(localForm[field]);
+  };
+
+  const [step, setStep] = useSectionStep(
+    "section3Female",
+    STEPS.length - 1,
+    0,
+    isStepAnswered
+  );
 
   const currentStep = STEPS[step];
   const headingInfo = STEP_TITLES[currentStep];
@@ -91,12 +106,7 @@ export default function Section3Female({ onComplete, onBack }) {
     setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
-  const isCurrentAnswered = () => {
-    if (currentStep === "symptoms") {
-      return Array.isArray(localForm.symptoms) && localForm.symptoms.length > 0;
-    }
-    return Boolean(localForm[currentStep]);
-  };
+  const isCurrentAnswered = () => isStepAnswered(step);
 
   const validate = () => {
     const e = {};
@@ -121,10 +131,19 @@ export default function Section3Female({ onComplete, onBack }) {
     if (step < STEPS.length - 1) {
       if (updateInternalHealth) updateInternalHealth(localForm);
       setStep((prev) => prev + 1);
-    } else {
-      if (updateInternalHealth) updateInternalHealth(localForm);
-      if (onComplete) onComplete();
+      return;
     }
+
+    for (let i = 0; i < STEPS.length; i += 1) {
+      if (!isStepAnswered(i)) {
+        setErrors({ [STEPS[i]]: "Please answer every question before continuing." });
+        setStep(i);
+        return;
+      }
+    }
+
+    if (updateInternalHealth) updateInternalHealth(localForm);
+    if (onComplete) onComplete();
   };
 
   const handleBack = () => {

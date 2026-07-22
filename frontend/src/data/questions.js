@@ -19,8 +19,6 @@ export const HAIR_FALL_LOCATION = [
   { id: "crown", label: "Crown or top of head", img: "/zones/crown_vertex.png", layout: "card" },
   { id: "parting", label: "Both front and crown", img: "/zones/both.png", layout: "card" },
   { id: "all_over", label: "General thinning all over", img: "/zones/general_thinning.png", layout: "card" },
-  { id: "patchy", label: "Round or patchy areas", img: null, layout: "row" },
-  { id: "unsure", label: "I'm not sure", img: null, layout: "row" },
 ];
 
 /** Shedding — PDF Question 3 (replaces strand-count options) */

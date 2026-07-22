@@ -25,7 +25,11 @@ const FEMALE_STAGE_OPTIONS = [
 ];
 
 const LOCATION_CARDS = HAIR_FALL_LOCATION.filter((o) => o.layout === "card");
-const LOCATION_ROWS = HAIR_FALL_LOCATION.filter((o) => o.layout === "row");
+const VALID_LOCATION_IDS = new Set(HAIR_FALL_LOCATION.map((o) => o.id));
+
+function sanitizeLocationId(id) {
+  return VALID_LOCATION_IDS.has(id) ? id : "";
+}
 
 /** Map shedding option → legacy shedding_amount used by eligibility */
 function deriveSheddingAmount(dailyLossId) {
@@ -37,11 +41,10 @@ function deriveSheddingAmount(dailyLossId) {
 
 export default function Section2Female({ onComplete, onBack }) {
   const { state, updateHairHealth } = useQuiz();
-  const [subStep, setSubStep] = useSectionStep("section2Female", HAIR_TOTAL - 1, 0);
   const [errors, setErrors] = useState(null);
   const [localForm, setLocalForm] = useState({
     hair_fall_zone: state?.hairHealth?.hair_fall_zone || "",
-    hair_loss_area: state?.hairHealth?.hair_loss_area || "",
+    hair_loss_area: sanitizeLocationId(state?.hairHealth?.hair_loss_area),
     daily_loss_amount: state?.hairHealth?.daily_loss_amount || "",
     dandruff_experience: state?.hairHealth?.dandruff_experience || "",
     scalp_symptoms: Array.isArray(state?.hairHealth?.scalp_symptoms)
@@ -50,6 +53,26 @@ export default function Section2Female({ onComplete, onBack }) {
     family_history: state?.hairHealth?.family_history || "",
     loss_duration: state?.hairHealth?.loss_duration || "",
   });
+
+  const isStepAnswered = (stepIndex) => {
+    if (stepIndex === 0) return Boolean(localForm.hair_fall_zone);
+    if (stepIndex === 1) return Boolean(localForm.hair_loss_area);
+    if (stepIndex === 2) return Boolean(localForm.daily_loss_amount);
+    if (stepIndex === 3) return Boolean(localForm.dandruff_experience);
+    if (stepIndex === 4) {
+      return Array.isArray(localForm.scalp_symptoms) && localForm.scalp_symptoms.length > 0;
+    }
+    if (stepIndex === 5) return Boolean(localForm.family_history);
+    if (stepIndex === 6) return Boolean(localForm.loss_duration);
+    return false;
+  };
+
+  const [subStep, setSubStep] = useSectionStep(
+    "section2Female",
+    HAIR_TOTAL - 1,
+    0,
+    isStepAnswered
+  );
 
   const handleSelect = (field, id) => {
     setLocalForm((prev) => ({ ...prev, [field]: id }));
@@ -71,16 +94,7 @@ export default function Section2Female({ onComplete, onBack }) {
     setErrors(null);
   };
 
-  const isCurrentAnswered = () => {
-    if (subStep === 0) return Boolean(localForm.hair_fall_zone);
-    if (subStep === 1) return Boolean(localForm.hair_loss_area);
-    if (subStep === 2) return Boolean(localForm.daily_loss_amount);
-    if (subStep === 3) return Boolean(localForm.dandruff_experience);
-    if (subStep === 4) return Array.isArray(localForm.scalp_symptoms) && localForm.scalp_symptoms.length > 0;
-    if (subStep === 5) return Boolean(localForm.family_history);
-    if (subStep === 6) return Boolean(localForm.loss_duration);
-    return false;
-  };
+  const isCurrentAnswered = () => isStepAnswered(subStep);
 
   const buildPayload = () => ({
     ...localForm,
@@ -88,34 +102,18 @@ export default function Section2Female({ onComplete, onBack }) {
   });
 
   const handleContinue = () => {
-    if (subStep === 0 && !localForm.hair_fall_zone) {
-      setErrors("Please select the pattern that looks closest to your hair today.");
+    if (!isStepAnswered(subStep)) {
+      setErrors("Please answer this question before continuing.");
       return;
     }
-    if (subStep === 1 && !localForm.hair_loss_area) {
-      setErrors("Please select where you have noticed hair loss or thinning.");
-      return;
-    }
-    if (subStep === 2 && !localForm.daily_loss_amount) {
-      setErrors("Please select how your shedding compares to usual.");
-      return;
-    }
-    if (subStep === 3 && !localForm.dandruff_experience) {
-      setErrors("Please select your dandruff experience.");
-      return;
-    }
-    if (subStep === 4 && (!localForm.scalp_symptoms || localForm.scalp_symptoms.length === 0)) {
-      setErrors("Please select all scalp symptoms that apply, or None of these.");
-      return;
-    }
-    if (subStep === 5 && !localForm.family_history) {
-      setErrors("Please select a family history option.");
-      return;
-    }
-    if (subStep === 6) {
-      if (!localForm.loss_duration) {
-        setErrors("Please select when you first noticed the change.");
-        return;
+
+    if (subStep === HAIR_TOTAL - 1) {
+      for (let i = 0; i < HAIR_TOTAL; i += 1) {
+        if (!isStepAnswered(i)) {
+          setErrors("Please answer every question before continuing.");
+          setSubStep(i);
+          return;
+        }
       }
       if (updateHairHealth) updateHairHealth(buildPayload());
       if (onComplete) onComplete();
@@ -309,9 +307,6 @@ export default function Section2Female({ onComplete, onBack }) {
                   </button>
                 );
               })}
-            </div>
-            <div className="grid grid-cols-1 gap-3 mt-4">
-              {LOCATION_ROWS.map((opt) => radioRow(opt, "hair_loss_area"))}
             </div>
           </div>
         )}
