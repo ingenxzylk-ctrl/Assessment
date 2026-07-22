@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
+import {
+  HEALTH_SLEEP_OPTIONS,
+  HEALTH_STRESS_OPTIONS,
+  HEALTH_ENERGY_OPTIONS,
+  HEALTH_SUPPLEMENT_OPTIONS,
+} from "../../data/questions";
 
 const STEPS = [
   "iron_level",
@@ -11,19 +17,35 @@ const STEPS = [
   "stress_level",
   "energy_level",
   "supplements",
-  "food_habits" // 🟢 REMOVED 'balanced_diet' from the step tracking flow sequence array
+  "food_habits",
 ];
 
 const STEP_TITLES = {
   iron_level: { title: "What is your iron level status?", subtitle: "Iron levels heavily affect hair growth cycles." },
   symptoms: { title: "Do you experience any of these?", subtitle: "Select all options that apply to you." },
   life_stage: { title: "Which applies to your current life stage?", subtitle: "Hormonal shifts directly affect scalp health." },
-  digestion: { title: "Any digestion issues?", subtitle: "Gut health impacts nutrient absorption." },
-  sleep_cycle: { title: "How many hours do you sleep on average?", subtitle: "Cellular regeneration happens during deep sleep." },
-  stress_level: { title: "What is your current stress level?", subtitle: "Cortisol spikes push hair into a shedding phase." },
-  energy_level: { title: "How is your daytime energy level?", subtitle: "Energy metrics help identify metabolic balance." },
-  supplements: { title: "Do you take supplements or vitamins?", subtitle: "Current nutrient tracking prevents over-supplementation." },
-  food_habits: { title: "What are your food habits?", subtitle: "Dietary building blocks build hair proteins." }
+  digestion: {
+    title: "Do you have ongoing digestive symptoms?",
+    subtitle: "Persistent digestive issues can affect comfort and, in some cases, nutrition.",
+  },
+  sleep_cycle: {
+    title: "How many hours do you usually sleep each night?",
+    subtitle:
+      "Sleep and changes in routine can influence overall wellbeing and may be relevant when assessing hair shedding.",
+  },
+  stress_level: {
+    title: "What has your stress level been like over the past 3 months?",
+    subtitle: "Major or ongoing stress can sometimes be linked with increased hair shedding.",
+  },
+  energy_level: {
+    title: "How would you describe your energy on most days?",
+    subtitle: "Low energy can be useful context alongside sleep, stress, and nutrition.",
+  },
+  supplements: {
+    title: "Are you currently taking vitamins or supplements?",
+    subtitle: "This helps us avoid duplicate recommendations and tailor your report.",
+  },
+  food_habits: { title: "What are your food habits?", subtitle: "Dietary building blocks build hair proteins." },
 };
 
 export default function Section3Female({ onComplete, onBack }) {
@@ -154,18 +176,24 @@ export default function Section3Female({ onComplete, onBack }) {
             <div className="grid grid-cols-1 gap-3">
               {(
                 currentStep === "life_stage" ? [
-                  "None", 
-                  "Planning to get Pregnant sometime soon", 
-                  "Currently Pregnant", 
-                  "My baby is less than 1 year old or I am breastfeeding", 
+                  "None",
+                  "Planning to get Pregnant sometime soon",
+                  "Currently Pregnant",
+                  "My baby is less than 1 year old or I am breastfeeding",
                   "I don't get my periods anymore"
                 ] :
-                currentStep === "digestion" ? ["Perfect / No Issues", "Frequent Bloating / Gas", "Chronic Constipation"] :
-                currentStep === "sleep_cycle" ? ["Less than 5 hours", "6 to 8 hours", "9+ hours"] :
-                currentStep === "stress_level" ? ["Low / Manageable", "Moderate / Daily Tension", "High / Severe Stress"] :
-                currentStep === "energy_level" ? ["Normal", "Low in afternoon ", "Very Low"] :
-                currentStep === "supplements" ? ["Yes", "No"] :
-                [" Vegetarian", "Non-Vegetarian"]
+                currentStep === "digestion" ? [
+                  "No ongoing symptoms",
+                  "Occasional bloating, reflux, diarrhea, or constipation",
+                  "Frequent symptoms",
+                  "Diagnosed digestive condition",
+                  "Prefer not to say",
+                ] :
+                currentStep === "sleep_cycle" ? HEALTH_SLEEP_OPTIONS :
+                currentStep === "stress_level" ? HEALTH_STRESS_OPTIONS :
+                currentStep === "energy_level" ? HEALTH_ENERGY_OPTIONS :
+                currentStep === "supplements" ? HEALTH_SUPPLEMENT_OPTIONS :
+                ["Vegetarian", "Non-Vegetarian"]
               ).map((opt) => (
                 <button
                   key={opt}

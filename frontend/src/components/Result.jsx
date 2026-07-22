@@ -246,6 +246,12 @@ function getOrCreateDailyReportMeta(fingerprint) {
 }
 
 function getDandruffLevel(state) {
+  const symptoms = state?.hairHealth?.scalp_symptoms;
+  if (Array.isArray(symptoms) && symptoms.length) {
+    if (symptoms.includes("none")) return "no";
+    if (symptoms.includes("flaking")) return "frequent";
+    return "moderate";
+  }
   return String(state?.hairHealth?.dandruff_experience || "").toLowerCase().trim();
 }
 
@@ -301,7 +307,7 @@ function buildRootCauses(state, hasDandruff, isFemale) {
   }
 
   // Genetics ← family_history
-  if (family && family !== "none") {
+  if (family && family !== "none" && family !== "unsure") {
     const sideLabel =
       family === "both"
         ? "both sides of your family"
@@ -330,6 +336,15 @@ function buildRootCauses(state, hasDandruff, isFemale) {
   if (listIncludesIgnoreCase(symptoms, "extra hair on face")) hormonalSignals.push("androgen signs");
   if (listIncludesIgnoreCase(symptoms, "pimples")) hormonalSignals.push("hormonal acne");
   if (listIncludesIgnoreCase(conditions, "diabetes")) hormonalSignals.push("blood sugar");
+  if (listIncludesIgnoreCase(conditions, "hormonal") || listIncludesIgnoreCase(conditions, "pcos")) {
+    hormonalSignals.push("hormonal condition");
+  }
+  if (listIncludesIgnoreCase(conditions, "iron") || listIncludesIgnoreCase(conditions, "anemia")) {
+    // handled via nutrition
+  }
+  if (listIncludesIgnoreCase(conditions, "thyroid")) {
+    if (!hormonalSignals.includes("thyroid")) hormonalSignals.push("thyroid");
+  }
   if (
     lifeStage &&
     !/^none$/i.test(lifeStage.trim()) &&
@@ -351,16 +366,18 @@ function buildRootCauses(state, hasDandruff, isFemale) {
 
   // Nutrition ← iron / energy / gut / food / supplements
   const nutritionBits = [];
-  if (includesIgnoreCase(iron, "low iron")) nutritionBits.push("low iron");
+  if (includesIgnoreCase(iron, "low iron") || listIncludesIgnoreCase(conditions, "iron") || listIncludesIgnoreCase(conditions, "anemia")) {
+    nutritionBits.push("low iron");
+  }
   if (includesIgnoreCase(iron, "never checked")) nutritionBits.push("unchecked iron status");
-  if (includesIgnoreCase(energy, "very low") || includesIgnoreCase(energy, "low in afternoon")) {
+  if (includesIgnoreCase(energy, "very low") || includesIgnoreCase(energy, "low most") || includesIgnoreCase(energy, "afternoon dip") || includesIgnoreCase(energy, "low in afternoon")) {
     nutritionBits.push("low daytime energy");
   }
-  if (includesIgnoreCase(bowel, "irregular") || includesIgnoreCase(bowel, "constipation")) {
+  if (includesIgnoreCase(bowel, "irregular") || includesIgnoreCase(bowel, "constipation") || includesIgnoreCase(bowel, "frequent") || includesIgnoreCase(bowel, "bloating")) {
     nutritionBits.push("irregular digestion");
   }
-  if (includesIgnoreCase(gas, "frequently") || includesIgnoreCase(gas, "chronic")) {
-    nutritionBits.push("chronic bloating");
+  if (includesIgnoreCase(gas, "frequently") || includesIgnoreCase(gas, "chronic") || includesIgnoreCase(gas, "restrictive") || includesIgnoreCase(gas, "lost weight")) {
+    nutritionBits.push("diet or weight change");
   }
   if (includesIgnoreCase(digestion, "bloating") || includesIgnoreCase(digestion, "constipation")) {
     nutritionBits.push("gut absorption stress");
@@ -380,12 +397,12 @@ function buildRootCauses(state, hasDandruff, isFemale) {
 
   // Lifestyle ← stress_level / sleep_cycle
   const lifestyleBits = [];
-  if (includesIgnoreCase(stress, "high") || includesIgnoreCase(stress, "severe")) {
+  if (includesIgnoreCase(stress, "high") || includesIgnoreCase(stress, "severe") || includesIgnoreCase(stress, "very high")) {
     lifestyleBits.push("high stress");
   } else if (includesIgnoreCase(stress, "moderate")) {
     lifestyleBits.push("daily stress");
   }
-  if (includesIgnoreCase(sleep, "less than 5")) lifestyleBits.push("short sleep");
+  if (includesIgnoreCase(sleep, "under 5") || includesIgnoreCase(sleep, "less than 5")) lifestyleBits.push("short sleep");
   if (lifestyleBits.length) {
     causes.push({
       id: "lifestyle",
@@ -396,7 +413,10 @@ function buildRootCauses(state, hasDandruff, isFemale) {
   }
 
   // Heavy shedding ← daily_loss_amount / shedding_amount
-  if (["100_150", "over_150"].includes(dailyLoss) || shedding === "heavy") {
+  if (
+    ["100_150", "over_150", "much_more", "clumps"].includes(dailyLoss) ||
+    ["heavy", "clumps", "much_more"].includes(shedding)
+  ) {
     causes.push({
       id: "shedding",
       label: "Heavy Shedding",
@@ -437,11 +457,15 @@ function buildRootCauseTags(state, hasDandruff) {
   if (
     includesIgnoreCase(internal.iron_level, "low") ||
     includesIgnoreCase(internal.energy_level, "low") ||
+    includesIgnoreCase(internal.energy_level, "afternoon") ||
     includesIgnoreCase(internal.food_habits, "vegetarian") ||
     includesIgnoreCase(internal.bowel, "irregular") ||
     includesIgnoreCase(internal.bowel, "constipation") ||
+    includesIgnoreCase(internal.bowel, "bloating") ||
+    includesIgnoreCase(internal.bowel, "frequent") ||
     includesIgnoreCase(internal.digestion, "bloating") ||
-    includesIgnoreCase(internal.digestion, "constipation")
+    includesIgnoreCase(internal.digestion, "constipation") ||
+    includesIgnoreCase(internal.digestion, "frequent")
   ) {
     tags.push("Nutrient Sync");
   }
