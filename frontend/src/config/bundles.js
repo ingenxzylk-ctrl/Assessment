@@ -26,8 +26,12 @@ export const BUNDLE_CONFIG = {
     pdfBundle: "Bundle-5",
     wooProductId: 8315,
     wooProductIdNoMix: 8325,
-    // Stage 1 / overall thinning WITH dandruff — kit has no Health Mix baked in
+    // Stage 1 / overall thinning WITH dandruff — kit 8393 has no Health Mix
     wooProductIdWithDandruff: 8393,
+    // Woo 8393 sale / regular (Health Mix is separate product 8303)
+    priceWithDandruffNoMix: 1026,
+    priceWithDandruffWithMix: 2825, // 1026 + 1799 Health Mix
+    originalPriceWithDandruff: 1476,
     priceWithMix: 2999,
     priceWithoutMix: 1399,
     originalPrice: 3273,
@@ -41,16 +45,17 @@ export const BUNDLE_CONFIG = {
     priceWithoutMix: 1699,
     originalPrice: 3523,
   },
-  // Female stage 2–3 WITH dandruff (kit has no Health Mix — add-on ID 8303 via checkbox)
+  // Female stage 2–3 WITH dandruff — kit 8368 has no Health Mix (add-on 8303)
   5: {
     label: "Female Stage 2–3 (Dandruff)",
     pdfBundle: "Bundle-7-Dandruff",
     wooProductId: 8368,
     wooProductIdNoMix: 8368,
     usesSeparateHealthMix: true,
-    priceWithMix: 2999,
-    priceWithoutMix: 1699,
-    originalPrice: 3523,
+    // Woo 8368 sale / regular; Health Mix is separate product 8303
+    priceWithMix: 4798, // 2999 + 1799 Health Mix
+    priceWithoutMix: 2999,
+    originalPrice: 3524,
   },
   99: {
     label: "₹1 Test Bundle",
@@ -161,9 +166,19 @@ export function getSeparateHealthMixWooId(bundleNumber, includeHealthMix = true,
   if (!usesSeparateHealthMixProduct(bundleNumber, hasDandruff)) return null;
   return SEPARATE_HEALTH_MIX_WOO_ID;
 }
-export function getBundlePrices(bundleNumber) {
+export function getBundlePrices(bundleNumber, hasDandruff = false) {
   const config = BUNDLE_CONFIG[bundleNumber];
   if (!config) return { priceWithMix: 0, priceWithoutMix: 0, originalPrice: 0 };
+
+  // Stage 1 / overall thinning + dandruff → Woo 8393 (+ optional 8303)
+  if (bundleNumber === 3 && hasDandruff) {
+    return {
+      priceWithMix: config.priceWithDandruffWithMix ?? 2825,
+      priceWithoutMix: config.priceWithDandruffNoMix ?? 1026,
+      originalPrice: config.originalPriceWithDandruff ?? 1476,
+    };
+  }
+
   return {
     priceWithMix: config.priceWithMix,
     priceWithoutMix: config.priceWithoutMix,

@@ -98,15 +98,17 @@ export function CartProvider({ children }) {
           includeHealthMix,
           hasDandruff
         );
+        // Hard gate: Health Mix product 8303 only for kits 8393 / 8368
+        const allowSeparateMix =
+          separateMix && (Number(newWooId) === 8393 || Number(newWooId) === 8368);
 
         return {
           ...item,
           includeHealthMix,
           price: newPrice,
           wooProductId: newWooId,
-          // Only set for special no-mix kits (8393 / 8368); other bundles keep null
-          wooHealthMixProductId: separateMix ? mixWooId : null,
-          usesSeparateHealthMix: separateMix,
+          wooHealthMixProductId: allowSeparateMix ? mixWooId : null,
+          usesSeparateHealthMix: allowSeparateMix,
           healthMixPrice: item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
           subtitle: includeHealthMix
             ? `Bundle ${item.bundleNumber} • With Health Mix`
