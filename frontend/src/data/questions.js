@@ -39,7 +39,7 @@ export const DANDRUFF_QUESTION_OPTIONS = [
   { id: "no", label: "No dandruff" },
 ];
 
-/** Scalp symptoms — optional multi-select (kept for legacy reports) */
+/** Scalp symptoms — multi-select (Hair section; required before Next) */
 export const SCALP_SYMPTOM_OPTIONS = [
   { id: "flaking", label: "Flaking or dandruff" },
   { id: "itching", label: "Itching" },

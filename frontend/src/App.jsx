@@ -21,7 +21,7 @@ import {
 import "./styles/index.css";
 
 const ABOUT_STEPS = 4;
-const HAIR_STEPS = 6;
+const HAIR_STEPS = 7;
 const HEALTH_MALE_STEPS = 8;
 const HEALTH_FEMALE_STEPS = 9;
 const SCAN_STEPS = 2;

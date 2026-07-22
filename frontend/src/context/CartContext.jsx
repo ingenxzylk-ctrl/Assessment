@@ -1,5 +1,9 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { getWooProductId } from "../config/bundles";
+import {
+  getWooProductId,
+  getSeparateHealthMixWooId,
+  usesSeparateHealthMixProduct,
+} from "../config/bundles";
 import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 
 const CartContext = createContext();
@@ -78,7 +82,7 @@ export function CartProvider({ children }) {
     );
   };
 
-  /** Toggle Health Mix → changes price AND WordPress product ID */
+  /** Toggle Health Mix → changes price AND WordPress product ID(s) */
   const toggleHealthMix = (productId) => {
     setCartItems((prev) =>
       prev.map((item) => {
@@ -86,13 +90,23 @@ export function CartProvider({ children }) {
 
         const includeHealthMix = !item.includeHealthMix;
         const newPrice = includeHealthMix ? item.priceWithMix : item.priceWithoutMix;
-        const newWooId = getWooProductId(item.bundleNumber, includeHealthMix);
+        const hasDandruff = Boolean(item.hasDandruff);
+        const separateMix = usesSeparateHealthMixProduct(item.bundleNumber, hasDandruff);
+        const newWooId = getWooProductId(item.bundleNumber, includeHealthMix, hasDandruff);
+        const mixWooId = getSeparateHealthMixWooId(
+          item.bundleNumber,
+          includeHealthMix,
+          hasDandruff
+        );
 
         return {
           ...item,
           includeHealthMix,
           price: newPrice,
           wooProductId: newWooId,
+          // Only set for special no-mix kits (8393 / 8368); other bundles keep null
+          wooHealthMixProductId: separateMix ? mixWooId : null,
+          usesSeparateHealthMix: separateMix,
           healthMixPrice: item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
           subtitle: includeHealthMix
             ? `Bundle ${item.bundleNumber} • With Health Mix`

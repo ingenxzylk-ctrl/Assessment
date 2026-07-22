@@ -26,6 +26,8 @@ export const BUNDLE_CONFIG = {
     pdfBundle: "Bundle-5",
     wooProductId: 8315,
     wooProductIdNoMix: 8325,
+    // Stage 1 / overall thinning WITH dandruff — kit has no Health Mix baked in
+    wooProductIdWithDandruff: 8393,
     priceWithMix: 2999,
     priceWithoutMix: 1399,
     originalPrice: 3273,
@@ -39,13 +41,13 @@ export const BUNDLE_CONFIG = {
     priceWithoutMix: 1699,
     originalPrice: 3523,
   },
-  // Female stage 2–3 WITH dandruff (ProGro Scalp-Clear variant, Minoxidil 2%)
+  // Female stage 2–3 WITH dandruff (kit has no Health Mix — add-on ID 8303 via checkbox)
   5: {
     label: "Female Stage 2–3 (Dandruff)",
     pdfBundle: "Bundle-7-Dandruff",
-    // Reuse Bundle-7 Woo IDs until a dedicated female-dandruff SKU is configured
-    wooProductId: 8317,
-    wooProductIdNoMix: 8327,
+    wooProductId: 8368,
+    wooProductIdNoMix: 8368,
+    usesSeparateHealthMix: true,
     priceWithMix: 2999,
     priceWithoutMix: 1699,
     originalPrice: 3523,
@@ -63,6 +65,21 @@ export const BUNDLE_CONFIG = {
 
 export const TEST_BUNDLE_NUMBER = 99;
 export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
+
+/** Standalone Health Mix WooCommerce product — only for special no-mix kits (8393 / 8368) */
+export const SEPARATE_HEALTH_MIX_WOO_ID = 8303;
+
+/**
+ * These two kits ship without Health Mix in the WooCommerce product:
+ * - Bundle 3 + dandruff → 8393 (stage 1 / overall thinning)
+ * - Bundle 5 → 8368 (female stage 2–3 + dandruff)
+ * Health Mix is added/removed separately via product 8303.
+ */
+export function usesSeparateHealthMixProduct(bundleNumber, hasDandruff = false) {
+  if (bundleNumber === 5) return true;
+  if (bundleNumber === 3 && hasDandruff) return true;
+  return false;
+}
 
 /**
  * Unique personalized name for each recommended kit (Zylk product sheet).
@@ -119,10 +136,30 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
 
   return gender === "female" ? "Zylk Early Care Kit — Women" : "Zylk Early Care Kit — Men";
 }
-export function getWooProductId(bundleNumber, includeHealthMix = true) {
+/**
+ * Resolve kit WooCommerce product ID.
+ * For special dandruff kits (8393 / 8368), the kit ID never changes with Health Mix —
+ * Health Mix is a separate product (see getSeparateHealthMixWooId).
+ */
+export function getWooProductId(bundleNumber, includeHealthMix = true, hasDandruff = false) {
   const config = BUNDLE_CONFIG[bundleNumber];
   if (!config) return null;
+
+  if (usesSeparateHealthMixProduct(bundleNumber, hasDandruff)) {
+    if (bundleNumber === 3 && hasDandruff) {
+      return config.wooProductIdWithDandruff ?? 8393;
+    }
+    return config.wooProductIdNoMix ?? config.wooProductId;
+  }
+
   return includeHealthMix ? config.wooProductId : config.wooProductIdNoMix;
+}
+
+/** Separate Health Mix product ID when checkbox is on — only for 8393 / 8368 kits */
+export function getSeparateHealthMixWooId(bundleNumber, includeHealthMix = true, hasDandruff = false) {
+  if (!includeHealthMix) return null;
+  if (!usesSeparateHealthMixProduct(bundleNumber, hasDandruff)) return null;
+  return SEPARATE_HEALTH_MIX_WOO_ID;
 }
 export function getBundlePrices(bundleNumber) {
   const config = BUNDLE_CONFIG[bundleNumber];

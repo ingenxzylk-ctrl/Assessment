@@ -5,9 +5,12 @@ import {
   HAIR_FALL_LOCATION,
   SHEDDING_OPTIONS,
   DANDRUFF_QUESTION_OPTIONS,
+  SCALP_SYMPTOM_OPTIONS,
   FAMILY_HISTORY,
   LOSS_DURATION_OPTIONS,
 } from "../../data/questions";
+
+const HAIR_TOTAL = 7;
 
 const FEMALE_STAGE_OPTIONS = [
   { id: "1", label: "Stage 1", desc: "Early or unnoticeable part-line change", img: "/stagesf/stage1.png" },
@@ -34,19 +37,37 @@ function deriveSheddingAmount(dailyLossId) {
 
 export default function Section2Female({ onComplete, onBack }) {
   const { state, updateHairHealth } = useQuiz();
-  const [subStep, setSubStep] = useSectionStep("section2Female", 5, 0);
+  const [subStep, setSubStep] = useSectionStep("section2Female", HAIR_TOTAL - 1, 0);
   const [errors, setErrors] = useState(null);
   const [localForm, setLocalForm] = useState({
     hair_fall_zone: state?.hairHealth?.hair_fall_zone || "",
     hair_loss_area: state?.hairHealth?.hair_loss_area || "",
     daily_loss_amount: state?.hairHealth?.daily_loss_amount || "",
     dandruff_experience: state?.hairHealth?.dandruff_experience || "",
+    scalp_symptoms: Array.isArray(state?.hairHealth?.scalp_symptoms)
+      ? state.hairHealth.scalp_symptoms
+      : [],
     family_history: state?.hairHealth?.family_history || "",
     loss_duration: state?.hairHealth?.loss_duration || "",
   });
 
   const handleSelect = (field, id) => {
     setLocalForm((prev) => ({ ...prev, [field]: id }));
+    setErrors(null);
+  };
+
+  const toggleScalpSymptom = (id) => {
+    setLocalForm((prev) => {
+      const current = Array.isArray(prev.scalp_symptoms) ? prev.scalp_symptoms : [];
+      if (id === "none") {
+        return { ...prev, scalp_symptoms: current.includes("none") ? [] : ["none"] };
+      }
+      const withoutNone = current.filter((x) => x !== "none");
+      const next = withoutNone.includes(id)
+        ? withoutNone.filter((x) => x !== id)
+        : [...withoutNone, id];
+      return { ...prev, scalp_symptoms: next };
+    });
     setErrors(null);
   };
 
@@ -67,11 +88,15 @@ export default function Section2Female({ onComplete, onBack }) {
       setErrors("Please select your dandruff experience.");
       return;
     }
-    if (subStep === 4 && !localForm.family_history) {
+    if (subStep === 4 && (!localForm.scalp_symptoms || localForm.scalp_symptoms.length === 0)) {
+      setErrors("Please select all scalp symptoms that apply, or None of these.");
+      return;
+    }
+    if (subStep === 5 && !localForm.family_history) {
       setErrors("Please select a family history option.");
       return;
     }
-    if (subStep === 5) {
+    if (subStep === 6) {
       if (!localForm.loss_duration) {
         setErrors("Please select when you first noticed the change.");
         return;
@@ -122,9 +147,37 @@ export default function Section2Female({ onComplete, onBack }) {
     );
   };
 
+  const checkboxRow = (opt) => {
+    const selected = (localForm.scalp_symptoms || []).includes(opt.id);
+    return (
+      <label
+        key={opt.id}
+        className={`w-full min-h-[56px] px-5 flex items-center gap-3 border rounded-2xl transition-all font-medium text-sm bg-white cursor-pointer text-left ${
+          selected
+            ? "border-[#064e3b] bg-[#064e3b]/5 text-[#064e3b] ring-1 ring-[#064e3b]"
+            : "border-gray-200 text-gray-700 hover:border-gray-300"
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => toggleScalpSymptom(opt.id)}
+          className="w-4 h-4 rounded border-gray-300 accent-[#064e3b] shrink-0"
+        />
+        <span className="leading-snug">{opt.label}</span>
+      </label>
+    );
+  };
+
+  const badge = (n) => (
+    <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
+      HAIR ({n}/{HAIR_TOTAL})
+    </span>
+  );
+
   return (
     <div className="max-w-2xl mx-auto mt-4 px-4 mb-8">
-      <div className="bg-white rounded-[24px] p-5 md:p-8 shadow-[0_4px_24px_rgba(0,0,0,0.03)] border border-gray-100 text-left">
+      <div className="bg-white rounded-[24px] p-5 md:p-8 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 text-left">
         {errors && (
           <div className="p-3 bg-red-50 border border-red-200 text-red-800 text-xs font-medium rounded-xl mb-4">
             {errors}
@@ -134,9 +187,7 @@ export default function Section2Female({ onComplete, onBack }) {
         {subStep === 0 && (
           <div className="animate-[fadeIn_0.2s_ease-out]">
             <div className="mb-4">
-              <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
-                HAIR (1/6)
-              </span>
+              {badge(1)}
               <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
                 Which pattern looks closest to your hair today?
               </h2>
@@ -197,9 +248,7 @@ export default function Section2Female({ onComplete, onBack }) {
         {subStep === 1 && (
           <div className="animate-[fadeIn_0.2s_ease-out]">
             <div className="mb-4">
-              <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
-                HAIR (2/6)
-              </span>
+              {badge(2)}
               <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
                 Where have you noticed hair loss or thinning?
               </h2>
@@ -257,9 +306,7 @@ export default function Section2Female({ onComplete, onBack }) {
         {subStep === 2 && (
           <div className="animate-[fadeIn_0.2s_ease-out]">
             <div className="mb-6">
-              <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
-                HAIR (3/6)
-              </span>
+              {badge(3)}
               <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
                 Are you shedding more hair than usual?
               </h2>
@@ -276,9 +323,7 @@ export default function Section2Female({ onComplete, onBack }) {
         {subStep === 3 && (
           <div className="animate-[fadeIn_0.2s_ease-out]">
             <div className="mb-6">
-              <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
-                HAIR (4/6)
-              </span>
+              {badge(4)}
               <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
                 Do you experience dandruff?
               </h2>
@@ -295,9 +340,24 @@ export default function Section2Female({ onComplete, onBack }) {
         {subStep === 4 && (
           <div className="animate-[fadeIn_0.2s_ease-out]">
             <div className="mb-6">
-              <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
-                HAIR (5/6)
-              </span>
+              {badge(5)}
+              <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
+                Do you experience flaking, itching, or scalp irritation?
+              </h2>
+              <p className="text-gray-400 mt-1 text-xs">
+                Select all that apply. These symptoms help us tailor your scalp-care recommendations.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              {SCALP_SYMPTOM_OPTIONS.map((opt) => checkboxRow(opt))}
+            </div>
+          </div>
+        )}
+
+        {subStep === 5 && (
+          <div className="animate-[fadeIn_0.2s_ease-out]">
+            <div className="mb-6">
+              {badge(6)}
               <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
                 Does similar hair thinning run in your biological family?
               </h2>
@@ -311,12 +371,10 @@ export default function Section2Female({ onComplete, onBack }) {
           </div>
         )}
 
-        {subStep === 5 && (
+        {subStep === 6 && (
           <div className="animate-[fadeIn_0.2s_ease-out]">
             <div className="mb-6">
-              <span className="text-[10px] font-bold tracking-[0.1em] text-[#064e3b] uppercase bg-[#e8eede] px-2.5 py-0.5 rounded-full">
-                HAIR (6/6)
-              </span>
+              {badge(7)}
               <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
                 When did you first notice the change?
               </h2>
@@ -344,7 +402,7 @@ export default function Section2Female({ onComplete, onBack }) {
             onClick={handleContinue}
             className="flex-[2] h-11 bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all text-sm shadow-xs text-center cursor-pointer"
           >
-            {subStep === 5 ? "Complete Hair Section →" : "Next Question →"}
+            {subStep === HAIR_TOTAL - 1 ? "Complete Hair Section →" : "Next Question →"}
           </button>
         </div>
       </div>
