@@ -22,6 +22,7 @@ function openDb() {
 
 /**
  * Persist scalp photo data URLs outside localStorage (avoids quota stripping).
+ * Never overwrite existing IndexedDB photos with empty / metadata-only payloads.
  */
 export async function saveScalpImagesToIdb(images = []) {
   const payload = (Array.isArray(images) ? images : []).map((img) => ({
@@ -29,6 +30,9 @@ export async function saveScalpImagesToIdb(images = []) {
     label: img?.label || img?.type,
     dataUrl: img?.dataUrl || img?.previewUrl || img?.url || null,
   }));
+
+  const hasData = payload.some((img) => Boolean(img.dataUrl));
+  if (!hasData) return;
 
   const db = await openDb();
   await new Promise((resolve, reject) => {
@@ -71,6 +75,13 @@ export async function clearScalpImagesIdb() {
   }
 }
 
+/** True when at least one scalp image still has a usable data URL. */
+export function scalpImagesHaveData(images = []) {
+  return (Array.isArray(images) ? images : []).some(
+    (img) => Boolean(img?.dataUrl || img?.previewUrl || img?.url)
+  );
+}
+
 /** Prefer entries that still have a usable data URL. */
 export function mergeScalpImages(primary = [], fallback = []) {
   const byType = new Map();
@@ -79,11 +90,24 @@ export function mergeScalpImages(primary = [], fallback = []) {
     const existing = byType.get(img.type);
     const nextUrl = img.dataUrl || img.previewUrl || img.url || null;
     const existingUrl = existing?.dataUrl || existing?.previewUrl || existing?.url || null;
-    if (!existing || (nextUrl && !existingUrl) || nextUrl) {
+    // Keep a real photo if the incoming entry is metadata-only
+    if (!existing) {
       byType.set(img.type, {
         type: img.type,
         label: img.label || img.type,
-        dataUrl: nextUrl || existingUrl || null,
+        dataUrl: nextUrl,
+      });
+    } else if (nextUrl) {
+      byType.set(img.type, {
+        type: img.type,
+        label: img.label || existing.label || img.type,
+        dataUrl: nextUrl,
+      });
+    } else if (!existingUrl) {
+      byType.set(img.type, {
+        type: img.type,
+        label: img.label || existing.label || img.type,
+        dataUrl: null,
       });
     }
   }

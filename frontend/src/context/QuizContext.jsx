@@ -4,6 +4,7 @@ import {
   loadScalpImagesFromIdb,
   clearScalpImagesIdb,
   mergeScalpImages,
+  scalpImagesHaveData,
 } from "../utils/quizImageStore";
 
 const QuizContext = createContext();
@@ -358,28 +359,56 @@ export function QuizProvider({ children }) {
     setState(INITIAL_STATE);
   };
 
-  const hydrateFromReport = useCallback((report) => {
+  const hydrateFromReport = useCallback((report, { preferLocalPhotos = true } = {}) => {
     if (!report || typeof report !== "object") return;
+
+    const apply = (photoSources = []) => {
+      setState((prev) => {
+        const archiveImages = Array.isArray(report.scalpImages) ? report.scalpImages : [];
+        const mergedImages = preferLocalPhotos
+          ? mergeScalpImages(
+              mergeScalpImages(photoSources, prev.scalpImages),
+              archiveImages
+            )
+          : mergeScalpImages(archiveImages, mergeScalpImages(photoSources, prev.scalpImages));
+
+        return {
+          ...prev,
+          step: 5,
+          aboutMe: {
+            ...INITIAL_STATE.aboutMe,
+            ...(report.aboutMe || {}),
+          },
+          hairHealth: {
+            ...INITIAL_STATE.hairHealth,
+            ...(report.hairHealth || {}),
+          },
+          internalHealth: { ...(report.internalHealth || {}) },
+          scalpAnalysis: report.scalpAnalysis || prev.scalpAnalysis || null,
+          scalpImages: mergedImages,
+          archivedReportId: report.reportId || null,
+          archivedReportDate: report.reportDate || null,
+          isLoading: false,
+          error: null,
+          navDirection: "forward",
+        };
+      });
+    };
+
+    // Merge IndexedDB photos so archive metadata never blanks the Result overview
+    loadScalpImagesFromIdb()
+      .then((idbImages) => apply(idbImages))
+      .catch(() => apply([]));
+  }, []);
+
+  const restorePhotosFromIdb = useCallback(async () => {
+    const idbImages = await loadScalpImagesFromIdb();
+    if (!scalpImagesHaveData(idbImages)) return false;
     setState((prev) => ({
       ...prev,
-      step: 5,
-      aboutMe: {
-        ...INITIAL_STATE.aboutMe,
-        ...(report.aboutMe || {}),
-      },
-      hairHealth: {
-        ...INITIAL_STATE.hairHealth,
-        ...(report.hairHealth || {}),
-      },
-      internalHealth: { ...(report.internalHealth || {}) },
-      scalpAnalysis: report.scalpAnalysis || null,
-      scalpImages: Array.isArray(report.scalpImages) ? report.scalpImages : [],
-      archivedReportId: report.reportId || null,
-      archivedReportDate: report.reportDate || null,
-      isLoading: false,
-      error: null,
-      navDirection: "forward",
+      scalpImages: mergeScalpImages(idbImages, prev.scalpImages),
     }));
+    return true;
   }, []);
 
   const flushPersistence = useCallback(() => {
@@ -417,6 +446,7 @@ export function QuizProvider({ children }) {
         setError,
         resetQuiz,
         hydrateFromReport,
+        restorePhotosFromIdb,
         updateSectionStep,
         flushPersistence,
       }}
