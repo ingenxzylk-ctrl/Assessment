@@ -6,8 +6,8 @@ const WP_SITE_URL = import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com"
 
 /**
  * Resolve checkout product IDs.
- * Only the two no-mix dandruff kits (8393 / 8368) may also add Health Mix 8303.
- * All other bundles use a single with/without-mix Woo product ID.
+ * Male kit 8393 may also add Health Mix 8303.
+ * All other bundles (including female) use a single with/without-mix Woo product ID.
  */
 function resolveCheckoutProductIds(item) {
   const kitId = item?.wooProductId ? Number(item.wooProductId) : null;
@@ -16,7 +16,8 @@ function resolveCheckoutProductIds(item) {
   const wantsSeparateMix =
     Boolean(item.usesSeparateHealthMix) &&
     Boolean(item.includeHealthMix) &&
-    (kitId === 8393 || kitId === 8368);
+    item.gender === "male" &&
+    kitId === 8393;
 
   const mixId = wantsSeparateMix
     ? Number(item.wooHealthMixProductId) || SEPARATE_HEALTH_MIX_WOO_ID
@@ -142,7 +143,7 @@ async function addKitAndHealthMixWithPopupRetry(kitId, mixId, qty, existingPopup
  * Redirect to WordPress cart while preserving quiz progress locally,
  * so browser back / return lands on the same quiz step (usually Result).
  *
- * For kits 8393 / 8368 with Health Mix checked, adds product 8303 as a
+ * For male kit 8393 with Health Mix checked, adds product 8303 as a
  * second line item (Woo does not accept comma-separated add-to-cart IDs).
  */
 export async function redirectToWordPressCheckout(cartItems, quizState) {

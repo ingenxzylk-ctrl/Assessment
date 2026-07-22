@@ -1120,16 +1120,16 @@ export default function Result() {
     : state?.hairHealth?.norwood_stage;
   const hasDandruff = resolveHasDandruff(state);
 
-  // Kits 8393 / 8368 ship without Health Mix — default checkbox OFF (user opts in → 8303).
-  // Other bundles keep Health Mix ON by default (combined Woo SKU).
+  // Male kit 8393 ships without Health Mix — default checkbox OFF (user opts in → 8303).
+  // Female and other bundles keep Health Mix ON by default (combined Woo SKU).
   const [includeHealthMix, setIncludeHealthMix] = useState(true);
   const mixDefaultKeyRef = useRef("");
 
   useEffect(() => {
     if (!aiPredictedStageNumber) return;
     const bundleNumber = resolveBundleNumber(gender, aiPredictedStageNumber, hasDandruff);
-    const separate = usesSeparateHealthMixProduct(bundleNumber, hasDandruff);
-    const key = `${bundleNumber}:${hasDandruff ? 1 : 0}:${separate ? 1 : 0}`;
+    const separate = usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender);
+    const key = `${gender}:${bundleNumber}:${hasDandruff ? 1 : 0}:${separate ? 1 : 0}`;
     if (mixDefaultKeyRef.current === key) return;
     mixDefaultKeyRef.current = key;
     setIncludeHealthMix(!separate);
@@ -1287,9 +1287,14 @@ export default function Result() {
     }
     if (!recommendedBundle) return;
     const { bundleNumber } = recommendedBundle;
-    const separateMix = usesSeparateHealthMixProduct(bundleNumber, hasDandruff);
-    const kitWooId = getWooProductId(bundleNumber, includeHealthMix, hasDandruff);
-    const mixWooId = getSeparateHealthMixWooId(bundleNumber, includeHealthMix, hasDandruff);
+    const separateMix = usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender);
+    const kitWooId = getWooProductId(bundleNumber, includeHealthMix, hasDandruff, gender);
+    const mixWooId = getSeparateHealthMixWooId(
+      bundleNumber,
+      includeHealthMix,
+      hasDandruff,
+      gender
+    );
     // Replace any previous assessment kit (e.g. male → female redo)
     addToCart({
       id: recommendedBundle.bundleId,
@@ -1306,7 +1311,7 @@ export default function Result() {
       hasDandruff,
       usesSeparateHealthMix: separateMix,
       wooProductId: kitWooId,
-      // Only 8393 / 8368 may carry Health Mix product 8303
+      // Male kit 8393 may carry Health Mix product 8303
       wooHealthMixProductId: separateMix && includeHealthMix ? mixWooId : null,
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,

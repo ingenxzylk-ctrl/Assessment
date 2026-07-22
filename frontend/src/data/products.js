@@ -66,7 +66,7 @@ export const getRecommendedBundle = (
 ) => {
   const bundleNumber = resolveBundleNumber(gender, stage, hasDandruff);
   const config = BUNDLE_CONFIG[bundleNumber];
-  const prices = getBundlePrices(bundleNumber, Boolean(hasDandruff));
+  const prices = getBundlePrices(bundleNumber, Boolean(hasDandruff), gender);
   const displayName = getBundleDisplayName(bundleNumber, gender, stage);
 
   // Pull items from the official catalog for this bundle number.
@@ -89,7 +89,11 @@ export const getRecommendedBundle = (
     items = items.filter((item) => !isDermarollerProduct(item));
   }
 
-  const separateMix = usesSeparateHealthMixProduct(bundleNumber, Boolean(hasDandruff));
+  const separateMix = usesSeparateHealthMixProduct(
+    bundleNumber,
+    Boolean(hasDandruff),
+    gender
+  );
 
   return {
     bundleNumber,
@@ -103,17 +107,23 @@ export const getRecommendedBundle = (
     includeHealthMix,
     hasDandruff: Boolean(hasDandruff),
     usesSeparateHealthMix: separateMix,
-    wooProductId: getWooProductId(bundleNumber, includeHealthMix, Boolean(hasDandruff)),
+    wooProductId: getWooProductId(
+      bundleNumber,
+      includeHealthMix,
+      Boolean(hasDandruff),
+      gender
+    ),
     wooHealthMixProductId: getSeparateHealthMixWooId(
       bundleNumber,
       includeHealthMix,
-      Boolean(hasDandruff)
+      Boolean(hasDandruff),
+      gender
     ),
     wooProductIdWithMix: separateMix
-      ? getWooProductId(bundleNumber, false, Boolean(hasDandruff))
+      ? getWooProductId(bundleNumber, false, Boolean(hasDandruff), gender)
       : (config?.wooProductId ?? null),
     wooProductIdNoMix: separateMix
-      ? getWooProductId(bundleNumber, false, Boolean(hasDandruff))
+      ? getWooProductId(bundleNumber, false, Boolean(hasDandruff), gender)
       : (config?.wooProductIdNoMix ?? null),
   };
 };

@@ -45,17 +45,16 @@ export const BUNDLE_CONFIG = {
     priceWithoutMix: 1699,
     originalPrice: 3523,
   },
-  // Female stage 2–3 WITH dandruff — kit 8368 has no Health Mix (add-on 8303)
+  // Female stage 2–3 WITH dandruff (unchanged female kit — not the male 8393/8303 flow)
   5: {
     label: "Female Stage 2–3 (Dandruff)",
     pdfBundle: "Bundle-7-Dandruff",
-    wooProductId: 8368,
-    wooProductIdNoMix: 8368,
-    usesSeparateHealthMix: true,
-    // Woo 8368 sale / regular; Health Mix is separate product 8303
-    priceWithMix: 4798, // 2999 + 1799 Health Mix
-    priceWithoutMix: 2999,
-    originalPrice: 3524,
+    // Reuse Bundle-7 Woo IDs until a dedicated female-dandruff SKU is configured
+    wooProductId: 8317,
+    wooProductIdNoMix: 8327,
+    priceWithMix: 2999,
+    priceWithoutMix: 1699,
+    originalPrice: 3523,
   },
   99: {
     label: "₹1 Test Bundle",
@@ -71,17 +70,21 @@ export const BUNDLE_CONFIG = {
 export const TEST_BUNDLE_NUMBER = 99;
 export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
 
-/** Standalone Health Mix WooCommerce product — only for special no-mix kits (8393 / 8368) */
+/** Standalone Health Mix WooCommerce product — male special kit 8393 only */
 export const SEPARATE_HEALTH_MIX_WOO_ID = 8303;
 
 /**
- * These two kits ship without Health Mix in the WooCommerce product:
- * - Bundle 3 + dandruff → 8393 (stage 1 / overall thinning)
- * - Bundle 5 → 8368 (female stage 2–3 + dandruff)
- * Health Mix is added/removed separately via product 8303.
+ * Male-only: stage 1 / overall thinning WITH dandruff → kit 8393 (no Health Mix in kit).
+ * Health Mix is added separately via product 8303.
+ * Female kits keep the previous with/without-mix Woo product IDs.
  */
-export function usesSeparateHealthMixProduct(bundleNumber, hasDandruff = false) {
-  if (bundleNumber === 5) return true;
+export function usesSeparateHealthMixProduct(
+  bundleNumber,
+  hasDandruff = false,
+  gender = null
+) {
+  // Male-only special kit — require explicit male gender
+  if (gender !== "male") return false;
   if (bundleNumber === 3 && hasDandruff) return true;
   return false;
 }
@@ -143,14 +146,19 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
 }
 /**
  * Resolve kit WooCommerce product ID.
- * For special dandruff kits (8393 / 8368), the kit ID never changes with Health Mix —
- * Health Mix is a separate product (see getSeparateHealthMixWooId).
+ * Male stage 1 / overall thinning + dandruff → 8393 (Health Mix is separate via 8303).
+ * Female kits use the normal with/without-mix product IDs.
  */
-export function getWooProductId(bundleNumber, includeHealthMix = true, hasDandruff = false) {
+export function getWooProductId(
+  bundleNumber,
+  includeHealthMix = true,
+  hasDandruff = false,
+  gender = null
+) {
   const config = BUNDLE_CONFIG[bundleNumber];
   if (!config) return null;
 
-  if (usesSeparateHealthMixProduct(bundleNumber, hasDandruff)) {
+  if (usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender)) {
     if (bundleNumber === 3 && hasDandruff) {
       return config.wooProductIdWithDandruff ?? 8393;
     }
@@ -160,18 +168,23 @@ export function getWooProductId(bundleNumber, includeHealthMix = true, hasDandru
   return includeHealthMix ? config.wooProductId : config.wooProductIdNoMix;
 }
 
-/** Separate Health Mix product ID when checkbox is on — only for 8393 / 8368 kits */
-export function getSeparateHealthMixWooId(bundleNumber, includeHealthMix = true, hasDandruff = false) {
+/** Separate Health Mix product ID when checkbox is on — male kit 8393 only */
+export function getSeparateHealthMixWooId(
+  bundleNumber,
+  includeHealthMix = true,
+  hasDandruff = false,
+  gender = null
+) {
   if (!includeHealthMix) return null;
-  if (!usesSeparateHealthMixProduct(bundleNumber, hasDandruff)) return null;
+  if (!usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender)) return null;
   return SEPARATE_HEALTH_MIX_WOO_ID;
 }
-export function getBundlePrices(bundleNumber, hasDandruff = false) {
+export function getBundlePrices(bundleNumber, hasDandruff = false, gender = null) {
   const config = BUNDLE_CONFIG[bundleNumber];
   if (!config) return { priceWithMix: 0, priceWithoutMix: 0, originalPrice: 0 };
 
-  // Stage 1 / overall thinning + dandruff → Woo 8393 (+ optional 8303)
-  if (bundleNumber === 3 && hasDandruff) {
+  // Male stage 1 / overall thinning + dandruff → Woo 8393 (+ optional 8303)
+  if (bundleNumber === 3 && hasDandruff && gender === "male") {
     return {
       priceWithMix: config.priceWithDandruffWithMix ?? 2825,
       priceWithoutMix: config.priceWithDandruffNoMix ?? 1026,

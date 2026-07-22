@@ -91,16 +91,26 @@ export function CartProvider({ children }) {
         const includeHealthMix = !item.includeHealthMix;
         const newPrice = includeHealthMix ? item.priceWithMix : item.priceWithoutMix;
         const hasDandruff = Boolean(item.hasDandruff);
-        const separateMix = usesSeparateHealthMixProduct(item.bundleNumber, hasDandruff);
-        const newWooId = getWooProductId(item.bundleNumber, includeHealthMix, hasDandruff);
+        const gender = item.gender || null;
+        const separateMix = usesSeparateHealthMixProduct(
+          item.bundleNumber,
+          hasDandruff,
+          gender
+        );
+        const newWooId = getWooProductId(
+          item.bundleNumber,
+          includeHealthMix,
+          hasDandruff,
+          gender
+        );
         const mixWooId = getSeparateHealthMixWooId(
           item.bundleNumber,
           includeHealthMix,
-          hasDandruff
+          hasDandruff,
+          gender
         );
-        // Hard gate: Health Mix product 8303 only for kits 8393 / 8368
-        const allowSeparateMix =
-          separateMix && (Number(newWooId) === 8393 || Number(newWooId) === 8368);
+        // Hard gate: Health Mix product 8303 only for male kit 8393
+        const allowSeparateMix = separateMix && Number(newWooId) === 8393;
 
         return {
           ...item,
