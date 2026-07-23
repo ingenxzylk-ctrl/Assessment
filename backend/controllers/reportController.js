@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildAssessmentPdf } from "../services/pdfService.js";
+import { buildAssessmentPdf, PDF_FORMAT_VERSION } from "../services/pdfService.js";
 import {
   saveReportArtifacts,
   loadReportJson,
@@ -76,7 +76,12 @@ async function writeContentHashMapping(contentHash, reportId, reportDate) {
   const file = path.join(COUNTER_DIR, `_hash_${safe}.json`);
   await fs.writeFile(
     file,
-    JSON.stringify({ reportId, reportDate, savedAt: new Date().toISOString() }),
+    JSON.stringify({
+      reportId,
+      reportDate,
+      pdfFormatVersion: PDF_FORMAT_VERSION,
+      savedAt: new Date().toISOString(),
+    }),
     "utf8"
   );
 }
@@ -222,9 +227,13 @@ export async function submitAssessmentReport(req, res) {
       });
     }
 
-    // Skip regenerating PDF when quiz answers + photos are unchanged
+    // Skip regenerating PDF only when quiz/photos AND PDF layout version are unchanged.
+    // Old cached 7+ page PDFs must regenerate after layout fixes.
     const existingByHash = await readContentHashMapping(contentHash);
-    if (existingByHash?.reportId) {
+    if (
+      existingByHash?.reportId &&
+      existingByHash?.pdfFormatVersion === PDF_FORMAT_VERSION
+    ) {
       try {
         const loaded = await loadReportJson(existingByHash.reportId);
         return res.json({
@@ -239,10 +248,18 @@ export async function submitAssessmentReport(req, res) {
           pdfUrl: loaded.data?.storageInfo?.pdfUrl || null,
           drive: null,
           email: { skipped: true, reason: "content_unchanged" },
+          pdfFormatVersion: PDF_FORMAT_VERSION,
         });
       } catch {
         // Fall through and regenerate if archive missing
       }
+    } else if (
+      existingByHash?.reportId &&
+      existingByHash?.pdfFormatVersion !== PDF_FORMAT_VERSION
+    ) {
+      console.log(
+        `[report] regenerating PDF for ${existingByHash.reportId}: format ${existingByHash.pdfFormatVersion || "unknown"} → ${PDF_FORMAT_VERSION}`
+      );
     }
 
     const { reportId, reportDate } = await resolveReportIdentity(
