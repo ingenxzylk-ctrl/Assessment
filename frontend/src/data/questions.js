@@ -27,7 +27,7 @@ export const SHEDDING_OPTIONS = [
   { id: "slightly_more", label: "Slightly more than usual" },
   { id: "much_more", label: "Much more than usual" },
   { id: "clumps", label: "Hair is coming out in noticeable clumps" },
-  { id: "unsure", label: "I'm not sure" },
+  
 ];
 
 /** Dandruff — drives product recommendation (frequent | moderate | no) */
@@ -61,7 +61,7 @@ export const FAMILY_HISTORY = [
   { id: "father", label: "Father's side" },
   { id: "both", label: "Both sides" },
   { id: "none", label: "No known family history" },
-  { id: "unsure", label: "I'm not sure" },
+ 
 ];
 
 /** Timeline — PDF Question 6 */
@@ -71,7 +71,7 @@ export const LOSS_DURATION_OPTIONS = [
   { id: "6m_1y", label: "6–12 months ago" },
   { id: "1y_3y", label: "1–3 years ago" },
   { id: "over_3y", label: "More than 3 years ago" },
-  { id: "unsure", label: "I'm not sure" },
+  
 ];
 
 // Scalp Health Choices (legacy)
@@ -122,7 +122,7 @@ export const HEALTH_DIGESTIVE_OPTIONS = [
   "Occasional bloating, reflux, diarrhea, or constipation",
   "Frequent symptoms",
   "Diagnosed digestive condition",
-  "Prefer not to say",
+  
 ];
 
 export const HEALTH_DIET_WEIGHT_OPTIONS = [
@@ -131,7 +131,7 @@ export const HEALTH_DIET_WEIGHT_OPTIONS = [
   "Lost weight unexpectedly",
   "Gained weight",
   "Started a restrictive diet or fasting",
-  "Prefer not to say",
+  
 ];
 
 export const HEALTH_ENERGY_OPTIONS = [
@@ -139,19 +139,19 @@ export const HEALTH_ENERGY_OPTIONS = [
   "Afternoon dip",
   "Low most of the day",
   "It varies a lot",
-  "I'm not sure",
+  
 ];
 
 export const HEALTH_SUPPLEMENT_OPTIONS = [
-  "Yes, regularly",
-  "Sometimes",
+  "Yes",
+  
   "No",
-  "I'm not sure",
+  
 ];
 
 export const HEALTH_PRESCRIPTION_OPTIONS = [
   "Yes",
   "No",
-  "I'm not sure",
-  "Prefer not to say",
+  
+ 
 ];
