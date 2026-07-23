@@ -24,7 +24,7 @@ const ABOUT_STEPS = 4;
 const HAIR_STEPS_MALE = 7;
 const HAIR_STEPS_FEMALE = 6;
 const HEALTH_MALE_STEPS = 8;
-const HEALTH_FEMALE_STEPS = 9;
+const HEALTH_FEMALE_STEPS = 10;
 const SCAN_STEPS = 2;
 
 function getQuizProgressMeta(state) {
