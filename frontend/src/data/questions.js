@@ -142,16 +142,29 @@ export const HEALTH_ENERGY_OPTIONS = [
   
 ];
 
-export const HEALTH_SUPPLEMENT_OPTIONS = [
-  "Yes",
-  
-  "No",
-  
-];
+export const HEALTH_SUPPLEMENT_OPTIONS = ["Yes", "No"];
 
-export const HEALTH_PRESCRIPTION_OPTIONS = [
-  "Yes",
-  "No",
-  
- 
-];
+export const HEALTH_PRESCRIPTION_OPTIONS = ["Yes", "No"];
+
+/** Food habits — male + female health */
+export const HEALTH_FOOD_HABITS_OPTIONS = ["Vegetarian", "Non-Vegetarian"];
+
+/** True when Yes/No answered; if Yes, detail text is required. */
+export function isYesNoWithDetailsAnswered(choice, details) {
+  const c = String(choice || "").trim().toLowerCase();
+  if (c === "no") return true;
+  if (c === "yes") return Boolean(String(details || "").trim());
+  return false;
+}
+
+/** Format for PDF / Result: "No" or "Yes — biotin, iron". */
+export function formatYesNoWithDetails(choice, details) {
+  const c = String(choice || "").trim();
+  if (!c) return null;
+  if (c.toLowerCase() === "no") return "No";
+  if (c.toLowerCase() === "yes") {
+    const d = String(details || "").trim();
+    return d ? `Yes — ${d}` : "Yes";
+  }
+  return c;
+}
