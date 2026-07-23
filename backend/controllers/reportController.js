@@ -55,6 +55,32 @@ async function allocateReportId() {
   };
 }
 
+async function readContentHashMapping(contentHash) {
+  if (!contentHash) return null;
+  const safe = String(contentHash).replace(/[^\w-]/g, "").slice(0, 64);
+  if (!safe) return null;
+  const file = path.join(COUNTER_DIR, `_hash_${safe}.json`);
+  try {
+    const raw = await fs.readFile(file, "utf8");
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+async function writeContentHashMapping(contentHash, reportId, reportDate) {
+  if (!contentHash || !reportId) return;
+  const safe = String(contentHash).replace(/[^\w-]/g, "").slice(0, 64);
+  if (!safe) return;
+  await fs.mkdir(COUNTER_DIR, { recursive: true });
+  const file = path.join(COUNTER_DIR, `_hash_${safe}.json`);
+  await fs.writeFile(
+    file,
+    JSON.stringify({ reportId, reportDate, savedAt: new Date().toISOString() }),
+    "utf8"
+  );
+}
+
 /**
  * Prefer the client-facing report id so the PDF, archive folder, and
  * in-app `?report=` link all share the same identifier.
@@ -190,6 +216,7 @@ export async function submitAssessmentReport(req, res) {
       reportMeta,
       clientReportId,
       clientReportDate,
+      contentHash,
       gender,
       resultPageUrl: bodyResultPageUrl,
       appOrigin,
@@ -201,9 +228,32 @@ export async function submitAssessmentReport(req, res) {
       });
     }
 
+    // Skip regenerating PDF when quiz answers + photos are unchanged
+    const existingByHash = await readContentHashMapping(contentHash);
+    if (existingByHash?.reportId) {
+      try {
+        const loaded = await loadReportJson(existingByHash.reportId);
+        return res.json({
+          ok: true,
+          skipped: true,
+          reason: "content_unchanged",
+          reportId: existingByHash.reportId,
+          reportDate: existingByHash.reportDate || loaded.data?.reportDate || null,
+          resultPageUrl: loaded.data?.resultPageUrl || null,
+          storage: loaded.storage || "local",
+          pdfPath: null,
+          pdfUrl: loaded.data?.storageInfo?.pdfUrl || null,
+          drive: null,
+          email: { skipped: true, reason: "content_unchanged" },
+        });
+      } catch {
+        // Fall through and regenerate if archive missing
+      }
+    }
+
     const { reportId, reportDate } = await resolveReportIdentity(
-      clientReportId,
-      clientReportDate
+      clientReportId || existingByHash?.reportId,
+      clientReportDate || existingByHash?.reportDate
     );
 
     const resultPageUrl = buildResultPageUrl({
@@ -223,6 +273,7 @@ export async function submitAssessmentReport(req, res) {
       reportId,
       reportDate,
       clientReportId: clientReportId || null,
+      contentHash: contentHash || null,
       aboutMe,
       hairHealth: hairHealth || {},
       internalHealth: internalHealth || {},
@@ -242,6 +293,8 @@ export async function submitAssessmentReport(req, res) {
       jsonData: archive,
       patientName: aboutMe.fullName || "Guest",
     });
+
+    await writeContentHashMapping(contentHash, reportId, reportDate);
 
     let emailResult;
     try {

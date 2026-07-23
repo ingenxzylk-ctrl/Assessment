@@ -11,7 +11,6 @@ const WP_SITE_URL = import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com"
  * With dandruff Bundle-5: [8393] or [8393, 8303] when Include Health Mix is on
  */
 function resolveCheckoutProductIds(item) {
-  // Prefer live resolution from bundle + flags (source of truth = config)
   if (item?.bundleNumber) {
     const resolved = getCheckoutWooProductIds({
       bundleNumber: item.bundleNumber,
@@ -22,7 +21,6 @@ function resolveCheckoutProductIds(item) {
     if (resolved.kitId) return resolved;
   }
 
-  // Fallback for stale cart rows that already carry Woo IDs
   const kitId = item?.wooProductId ? Number(item.wooProductId) : null;
   if (!kitId) return { kitId: null, mixId: null, productIds: [] };
 
@@ -79,14 +77,12 @@ function writePopupPlaceholder(popup, message) {
   }
 }
 
-/** Classic Woo only accepts one ?add-to-cart= ID per request. */
 function addToCartUrl(productId, quantity = 1) {
   return `${WP_SITE_URL}/?add-to-cart=${productId}&quantity=${quantity || 1}`;
 }
 
 /**
- * Same-site no-cors GETs can still set classic Woo session cookies.
- * Adds each product ID in order: e.g. addToCart(8393) then addToCart(8303).
+ * Same-site no-cors GETs can set classic Woo session cookies without opening tabs.
  */
 async function addProductsViaNoCors(productIds, qty) {
   const opts = {
@@ -104,16 +100,15 @@ async function addProductsViaNoCors(productIds, qty) {
 }
 
 /**
- * Drive sequential top-level navigations in a popup:
- *   addToCart(8393) → addToCart(8303) → /cart/
+ * Use ONE helper popup only to hit add-to-cart URLs, then close it and
+ * navigate the main window to /cart/ once (never open cart in two tabs).
  */
-async function addProductsViaPopupNavigation(productIds, qty, popup) {
-  const cartUrl = `${WP_SITE_URL}/cart/`;
+async function addProductsViaHelperPopup(productIds, qty, popup) {
   if (!popup || popup.closed) throw new Error("Checkout popup unavailable");
 
   writePopupPlaceholder(
     popup,
-    `Adding ${productIds.length} product${productIds.length > 1 ? "s" : ""} to cart…<br/><span style='color:#666;font-size:0.875rem'>IDs: ${productIds.join(", ")}</span>`
+    `Adding products to cart…<br/><span style='color:#666;font-size:0.875rem'>IDs: ${productIds.join(", ")}</span>`
   );
 
   for (let i = 0; i < productIds.length; i += 1) {
@@ -125,45 +120,18 @@ async function addProductsViaPopupNavigation(productIds, qty, popup) {
     await sleep(900);
   }
 
-  if (!popup.closed) {
-    try {
-      popup.location.href = cartUrl;
-    } catch {
-      // ignore
-    }
+  try {
+    popup.close();
+  } catch {
+    // ignore
   }
-  window.location.href = cartUrl;
-}
 
-/** Open one window per product under the same user gesture, then land on /cart/. */
-async function addProductsViaParallelWindows(productIds, qty) {
-  const cartUrl = `${WP_SITE_URL}/cart/`;
-  const windows = productIds.map((id, i) => {
-    const quantity = i === 0 ? qty || 1 : 1;
-    return window.open(addToCartUrl(id, quantity), `zylk_add_${id}`);
-  });
-
-  if (windows.every((w) => !w)) throw new Error("Popups blocked");
-
-  await sleep(3500);
-
-  windows.forEach((w) => {
-    try {
-      w?.close();
-    } catch {
-      // ignore
-    }
-  });
-
-  window.location.href = cartUrl;
+  // Single tab: only the main window opens the cart
+  window.location.href = `${WP_SITE_URL}/cart/`;
 }
 
 /**
- * Redirect to WordPress cart.
- *
- * Dandruff Bundle-5 with Health Mix checked:
- *   addToCart(8393)
- *   addToCart(8303)   ← from config.healthMixProductId
+ * Redirect to WordPress cart in a single browser tab.
  */
 export async function redirectToWordPressCheckout(cartItems, quizState) {
   if (!cartItems?.length) return;
@@ -180,13 +148,13 @@ export async function redirectToWordPressCheckout(cartItems, quizState) {
   const cartUrl = `${WP_SITE_URL}/cart/`;
   const needsMultiAdd = productIds.length > 1;
 
-  // Open popup synchronously while we still have the user-gesture token.
-  const checkoutPopup = needsMultiAdd ? window.open("about:blank", "zylk_woo_add") : null;
-  if (checkoutPopup) {
+  // Reserve one helper popup under the user gesture (closed before cart opens).
+  const helperPopup = needsMultiAdd ? window.open("about:blank", "zylk_woo_add") : null;
+  if (helperPopup) {
     writePopupPlaceholder(
-      checkoutPopup,
+      helperPopup,
       mixId
-        ? `Preparing checkout…<br/><span style='color:#666;font-size:0.875rem'>Adding kit ${kitId} + Health Mix ${mixId}</span>`
+        ? `Adding kit ${kitId} + Health Mix ${mixId}…`
         : "Preparing checkout…"
     );
   }
@@ -201,49 +169,72 @@ export async function redirectToWordPressCheckout(cartItems, quizState) {
   }
   markCheckoutReturn();
 
-  // Single product → one classic add-to-cart URL
+  // Single product → one navigation in this tab only
   if (!needsMultiAdd) {
-    window.location.href = `${WP_SITE_URL}/cart/?add-to-cart=${kitId}&quantity=${qty}`;
-    return;
-  }
-
-  // Multi-product: addToCart(8393) then addToCart(8303)
-  if (checkoutPopup && !checkoutPopup.closed) {
-    try {
-      await addProductsViaPopupNavigation(productIds, qty, checkoutPopup);
-      return;
-    } catch (err) {
-      console.warn("Sequential popup add failed:", err);
+    if (helperPopup && !helperPopup.closed) {
       try {
-        if (!checkoutPopup.closed) checkoutPopup.close();
+        helperPopup.close();
       } catch {
         // ignore
       }
     }
+    window.location.href = `${WP_SITE_URL}/cart/?add-to-cart=${kitId}&quantity=${qty}`;
+    return;
   }
 
+  // Prefer cookie-based adds with no extra tabs, then open cart once here
   try {
     await addProductsViaNoCors(productIds, qty);
+    if (helperPopup && !helperPopup.closed) {
+      try {
+        helperPopup.close();
+      } catch {
+        // ignore
+      }
+    }
     window.location.href = cartUrl;
     return;
   } catch (err) {
     console.warn("no-cors multi add failed:", err);
   }
 
-  const retry = window.confirm(
-    `Click OK to add both products to your cart:\n• Kit ${kitId}\n• Health Mix ${mixId}`
-  );
-  if (retry) {
+  // Fallback: helper popup adds items, then we close it and open cart in THIS tab only
+  if (helperPopup && !helperPopup.closed) {
     try {
-      await addProductsViaParallelWindows(productIds, qty);
+      await addProductsViaHelperPopup(productIds, qty, helperPopup);
       return;
     } catch (err) {
-      console.warn("Parallel popup add failed:", err);
+      console.warn("Helper popup add failed:", err);
+      try {
+        if (!helperPopup.closed) helperPopup.close();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const retry = window.confirm(
+    `Click OK to add both products, then open your cart in this tab:\n• Kit ${kitId}\n• Health Mix ${mixId}`
+  );
+  if (retry) {
+    const popup = window.open("about:blank", "zylk_woo_add");
+    if (popup) {
+      try {
+        await addProductsViaHelperPopup(productIds, qty, popup);
+        return;
+      } catch (err) {
+        console.warn("Retry helper popup failed:", err);
+        try {
+          popup.close();
+        } catch {
+          // ignore
+        }
+      }
     }
   }
 
   alert(
-    "Please allow popups for this site, then try again so both the kit and Hair Health Mix can be added."
+    "Please allow popups briefly so we can add both products, then your cart will open in this tab."
   );
   window.location.href = `${WP_SITE_URL}/cart/?add-to-cart=${kitId}&quantity=${qty}`;
 }

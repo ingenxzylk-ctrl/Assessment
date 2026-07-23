@@ -125,21 +125,49 @@ export async function uploadReportToGoogleDrive({
   const pdfName = `${reportId}_${safeName}_assessment.pdf`;
   const jsonName = `${reportId}_${safeName}_assessment.json`;
 
+  async function findFileIdByName(name) {
+    try {
+      const listed = await drive.files.list({
+        q: `'${folderId}' in parents and name = '${name.replace(/'/g, "\\'")}' and trashed = false`,
+        fields: "files(id, name)",
+        pageSize: 1,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      });
+      return listed.data.files?.[0]?.id || null;
+    } catch {
+      return null;
+    }
+  }
+
   let pdfUpload;
   try {
-    pdfUpload = await drive.files.create({
-      requestBody: {
-        name: pdfName,
-        parents: [folderId],
-        description: `Zylk Hair & Scalp Assessment report ${reportId}`,
-      },
-      media: {
-        mimeType: "application/pdf",
-        body: bufferToStream(pdfBuffer),
-      },
-      fields: "id, name, webViewLink, webContentLink",
-      supportsAllDrives: true,
-    });
+    const existingPdfId = await findFileIdByName(pdfName);
+    if (existingPdfId) {
+      pdfUpload = await drive.files.update({
+        fileId: existingPdfId,
+        media: {
+          mimeType: "application/pdf",
+          body: bufferToStream(pdfBuffer),
+        },
+        fields: "id, name, webViewLink, webContentLink",
+        supportsAllDrives: true,
+      });
+    } else {
+      pdfUpload = await drive.files.create({
+        requestBody: {
+          name: pdfName,
+          parents: [folderId],
+          description: `Zylk Hair & Scalp Assessment report ${reportId}`,
+        },
+        media: {
+          mimeType: "application/pdf",
+          body: bufferToStream(pdfBuffer),
+        },
+        fields: "id, name, webViewLink, webContentLink",
+        supportsAllDrives: true,
+      });
+    }
   } catch (err) {
     throw improveDriveError(err);
   }
@@ -147,22 +175,37 @@ export async function uploadReportToGoogleDrive({
   let jsonFile = null;
   if (jsonData) {
     try {
-      const jsonUpload = await drive.files.create({
-        requestBody: {
-          name: jsonName,
-          parents: [folderId],
-          description: `Zylk assessment JSON archive ${reportId}`,
-        },
-        media: {
-          mimeType: "application/json",
-          body: bufferToStream(
-            Buffer.from(JSON.stringify(jsonData, null, 2), "utf8")
-          ),
-        },
-        fields: "id, name, webViewLink, webContentLink",
-        supportsAllDrives: true,
-      });
-      jsonFile = jsonUpload.data;
+      const jsonBody = bufferToStream(
+        Buffer.from(JSON.stringify(jsonData, null, 2), "utf8")
+      );
+      const existingJsonId = await findFileIdByName(jsonName);
+      if (existingJsonId) {
+        const jsonUpload = await drive.files.update({
+          fileId: existingJsonId,
+          media: {
+            mimeType: "application/json",
+            body: jsonBody,
+          },
+          fields: "id, name, webViewLink, webContentLink",
+          supportsAllDrives: true,
+        });
+        jsonFile = jsonUpload.data;
+      } else {
+        const jsonUpload = await drive.files.create({
+          requestBody: {
+            name: jsonName,
+            parents: [folderId],
+            description: `Zylk assessment JSON archive ${reportId}`,
+          },
+          media: {
+            mimeType: "application/json",
+            body: jsonBody,
+          },
+          fields: "id, name, webViewLink, webContentLink",
+          supportsAllDrives: true,
+        });
+        jsonFile = jsonUpload.data;
+      }
     } catch (err) {
       console.warn("[drive] JSON upload failed (PDF ok):", err.message);
     }
