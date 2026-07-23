@@ -19,11 +19,7 @@ const STEPS = [
 const STEP_TITLES = {
   iron_level: {
     title: "Have you ever been told that your iron level is low?",
-<<<<<<< HEAD
-    subtitle: "Low iron can be relevant to hair shedding,but only a blood test can confirm it.",
-=======
     subtitle: "Low iron can be relevant to hair shedding, but only a blood test can confirm it.",
->>>>>>> 7e75e07 (Add prescription medicines question to female health quiz)
   },
   symptoms: {
     title: "Do you experience any of these?",
@@ -47,11 +43,7 @@ const STEP_TITLES = {
   },
   energy_level: {
     title: "How would you describe your energy on most days?",
-<<<<<<< HEAD
-    subtitle: "Low energy can be useful context alongside sleep,stress,and nutrition.",
-=======
     subtitle: "Low energy can be useful context alongside sleep, stress, and nutrition.",
->>>>>>> 7e75e07 (Add prescription medicines question to female health quiz)
   },
   supplements: {
     title: "Do you take supplements or vitamins?",
@@ -214,34 +206,21 @@ export default function Section3Female({ onComplete, onBack }) {
         <div className="mt-8 animate-[fadeIn_0.3s_ease-out]">
           {currentStep === "iron_level" && (
             <div className="grid grid-cols-1 gap-3">
-<<<<<<< HEAD
-              {["No,my iron was normal ", "Yes,i was diagnosed with low iron or anemia", "i have Never Checked"].map((opt) =>
-                radioOption(opt, "iron_level")
-              )}
-=======
               {[
                 "No, my iron was normal",
                 "Yes, I was diagnosed with low iron or anemia",
                 "I have never checked",
               ].map((opt) => radioOption(opt, "iron_level"))}
->>>>>>> 7e75e07 (Add prescription medicines question to female health quiz)
             </div>
           )}
 
           {currentStep === "symptoms" && (
             <div className="grid grid-cols-1 gap-3">
               {[
-<<<<<<< HEAD
-                "Irregular or absent Periods",
-                "Diagnosed PCOS / PCOD ",
-                "Ongoing or Extreme Fatigue",
-                "Diagnosed Thyroid issue",
-=======
                 "Irregular or absent periods",
                 "Diagnosed PCOS / PCOD",
                 "Ongoing or extreme fatigue",
                 "Diagnosed thyroid issue",
->>>>>>> 7e75e07 (Add prescription medicines question to female health quiz)
                 "Increased facial hair",
                 "Acne around the chin or lower face",
                 "None of these",
@@ -270,30 +249,7 @@ export default function Section3Female({ onComplete, onBack }) {
 
           {RADIO_OPTIONS[currentStep] && (
             <div className="grid grid-cols-1 gap-3">
-<<<<<<< HEAD
-              {(currentStep === "life_stage"
-                ? [
-                    "Planning a pregnancy",
-                    "Currently Pregnant",
-                    "Postpartum or breastfeeding",
-                    "Perimenopause or menopause",
-                    "None of these",
-                  ]
-                : currentStep === "digestion"
-                  ? ["No ongoing symptoms ", "Occasional bloating,reflux,diarrhea,or constipation", "Frequent symptoms","Diagnosed digestive condition"]
-                  : currentStep === "sleep_cycle"
-                    ? ["Under 5 hours", "5–6 hours", "7–8 hours", "More than 8 hours"]
-                    : currentStep === "stress_level"
-                      ? ["Low or Manageable", "Moderate", "High", "Very high or recent major stress"]
-                      : currentStep === "energy_level"
-                        ? ["Steady most of the day", "Afternoon dip ", "Low most of the day","It varies a lot"]
-                        : currentStep === "supplements"
-                          ? ["Yes", "No"]
-                          : [" Vegetarian", "Non-Vegetarian"]
-              ).map((opt) => radioOption(opt, currentStep))}
-=======
               {RADIO_OPTIONS[currentStep].map((opt) => radioOption(opt, currentStep))}
->>>>>>> 7e75e07 (Add prescription medicines question to female health quiz)
             </div>
           )}
 
