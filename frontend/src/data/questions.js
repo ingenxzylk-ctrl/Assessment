@@ -111,7 +111,6 @@ export const HEALTH_CONDITION_OPTIONS = [
   "Thyroid condition",
   "Diabetes",
   "Iron deficiency or anemia",
-  "Hormonal condition, such as PCOS",
   "Autoimmune condition",
   "None of these or not sure",
   "Other",

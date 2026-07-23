@@ -100,7 +100,7 @@ export default function Section2Male({ onComplete, onBack }) {
                 HAIR HEALTH (1/6)
               </span>
               <h2 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">Which pattern looks closest to your hair today?</h2>
-              <p className="text-gray-400 mt-1 text-xs">Choose the closest match.if you're unsure,that's okay--your scalp photos will help us to access te visible pattern.</p>
+              <p className="text-gray-400 mt-1 text-xs">Choose the closest match. If you're unsure,that's okay--your scalp photos will help us to access your visible pattern.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4 w-full text-left mt-4">

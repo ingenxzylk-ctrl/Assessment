@@ -507,7 +507,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             <p className="text-gray-500 mt-2 text-base">
               {isFemale
                 ? "Upload 3 photos: front, ponytail side profile, and ponytail swept aside. Clear photos are required for AI processing."
-                : "Your photos help us assess visible thinning patterns. They are encrypted and used only for your assessment."}
+                : "Your photos help us assess visible thinning patterns."}
             </p>
           </div>
 
