@@ -362,9 +362,24 @@ function buildRootCauses(state, hasDandruff, isFemale) {
   if (listIncludesIgnoreCase(symptoms, "thyroid") || listIncludesIgnoreCase(conditions, "thyroid")) {
     hormonalSignals.push("thyroid");
   }
-  if (listIncludesIgnoreCase(symptoms, "irregular periods")) hormonalSignals.push("irregular periods");
-  if (listIncludesIgnoreCase(symptoms, "extra hair on face")) hormonalSignals.push("androgen signs");
-  if (listIncludesIgnoreCase(symptoms, "pimples")) hormonalSignals.push("hormonal acne");
+  if (
+    listIncludesIgnoreCase(symptoms, "irregular") ||
+    listIncludesIgnoreCase(symptoms, "absent periods")
+  ) {
+    hormonalSignals.push("irregular periods");
+  }
+  if (
+    listIncludesIgnoreCase(symptoms, "facial hair") ||
+    listIncludesIgnoreCase(symptoms, "extra hair on face")
+  ) {
+    hormonalSignals.push("androgen signs");
+  }
+  if (
+    listIncludesIgnoreCase(symptoms, "acne") ||
+    listIncludesIgnoreCase(symptoms, "pimples")
+  ) {
+    hormonalSignals.push("hormonal acne");
+  }
   if (listIncludesIgnoreCase(conditions, "diabetes")) hormonalSignals.push("blood sugar");
   if (listIncludesIgnoreCase(conditions, "hormonal") || listIncludesIgnoreCase(conditions, "pcos")) {
     hormonalSignals.push("hormonal condition");
@@ -377,9 +392,12 @@ function buildRootCauses(state, hasDandruff, isFemale) {
   }
   if (
     lifeStage &&
-    !/^none$/i.test(lifeStage.trim()) &&
+    !/^none( of these)?$/i.test(lifeStage.trim()) &&
     (includesIgnoreCase(lifeStage, "pregnant") ||
       includesIgnoreCase(lifeStage, "breastfeeding") ||
+      includesIgnoreCase(lifeStage, "postpartum") ||
+      includesIgnoreCase(lifeStage, "menopause") ||
+      includesIgnoreCase(lifeStage, "perimenopause") ||
       includesIgnoreCase(lifeStage, "periods anymore") ||
       includesIgnoreCase(lifeStage, "planning"))
   ) {
@@ -504,7 +522,15 @@ function buildRootCauseTags(state, hasDandruff) {
     listIncludesIgnoreCase(symptoms, "pcod") ||
     listIncludesIgnoreCase(symptoms, "thyroid") ||
     listIncludesIgnoreCase(conditions, "thyroid") ||
-    listIncludesIgnoreCase(symptoms, "irregular periods")
+    listIncludesIgnoreCase(symptoms, "irregular") ||
+    listIncludesIgnoreCase(symptoms, "absent periods") ||
+    listIncludesIgnoreCase(symptoms, "facial hair") ||
+    listIncludesIgnoreCase(symptoms, "acne") ||
+    includesIgnoreCase(internal.life_stage, "menopause") ||
+    includesIgnoreCase(internal.life_stage, "perimenopause") ||
+    includesIgnoreCase(internal.life_stage, "pregnant") ||
+    includesIgnoreCase(internal.life_stage, "postpartum") ||
+    includesIgnoreCase(internal.life_stage, "breastfeeding")
   ) {
     tags.push("Hormone Balancing");
   }

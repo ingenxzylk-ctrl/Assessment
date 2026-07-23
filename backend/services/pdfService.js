@@ -1,7 +1,7 @@
 import PDFDocument from "pdfkit";
 
 /** Bump when PDF layout changes — exposed via GET /api/health for deploy checks. */
-export const PDF_FORMAT_VERSION = "v2-result-link";
+export const PDF_FORMAT_VERSION = "v3-exact-quiz-answers";
 
 const BRAND = "#064e3b";
 const MUTED = "#6b7280";
@@ -10,47 +10,90 @@ const LINE = "#e5e7eb";
 const SOFT = "#f4f6f0";
 const WARN = "#b45309";
 
-function labelize(value) {
+function labelize(value, opts = {}) {
   if (value == null || value === "") return "—";
   if (Array.isArray(value)) {
-    return value.length ? value.map(labelize).join(", ") : "—";
+    return value.length ? value.map((v) => labelize(v, opts)).join(", ") : "—";
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
   const raw = String(value);
   // Keep emails / URLs / already human-formatted values intact
   if (raw.includes("@") || /^https?:\/\//i.test(raw)) return raw;
 
+  const isFemale = Boolean(opts.isFemale);
+
   const OPTION_LABELS = {
+    // Shedding (male + female daily_loss_amount IDs)
+    under_50: "About the same as usual",
+    "50_100": "Slightly more than usual",
+    "100_150": "Much more than usual",
+    over_150: "Hair is coming out in noticeable clumps",
     same: "About the same as usual",
     slightly_more: "Slightly more than usual",
     much_more: "Much more than usual",
     clumps: "Hair is coming out in noticeable clumps",
-    unsure: "I'm not sure",
+    // Female comb/wash shedding
+    minimal: "Minimal shedding",
+    noticeable: "Noticeable hair fall",
+    heavy: "Heavy shedding",
+    // Scalp symptoms
     flaking: "Flaking or dandruff",
     itching: "Itching",
     redness: "Redness or irritation",
     oily: "Oily scalp",
     tenderness: "Tenderness or burning",
+    // Dandruff
     frequent: "Heavy dandruff",
-    moderate: "Mild dandruff",
+    moderate: "Moderate dandruff",
     no: "No dandruff",
+    // Location
     front: "Front hairline or temples",
     crown: "Crown or top of head",
     parting: "Both front and crown",
     all_over: "General thinning all over",
     patchy: "Round or patchy areas",
+    // Male duration
     under_3m: "Within the past 3 months",
     "3m_6m": "3–6 months ago",
-    "6m_1y": "6–12 months ago",
-    "1y_3y": "1–3 years ago",
-    over_3y: "More than 3 years ago",
-    mother: "Mother's side",
-    father: "Father's side",
-    both: "Both sides",
-    overall_thinning: "Overall thinning",
-    "overall-thinning": "Overall thinning",
+    // Female pattern stage
+    "1": isFemale ? "Stage 1" : "1",
+    "2": isFemale ? "Stage 2" : "2",
+    "3": isFemale ? "Stage 3" : "3",
+    overall_thinning: "Overall Thinning",
+    "overall-thinning": "Overall Thinning",
+    // Family history — prefer longer female labels when present in quiz
+    mother: isFemale
+      ? "Mother's side (Mother,Grandmother)"
+      : "Mother's side(Uncle,Grandfather)",
+    father: isFemale
+      ? "Father's side (Father,Grandfather)"
+      : "Father's side(Uncle,Grandfather)",
+    both: isFemale ? "Both sides of the family tree" : "Both sides",
+    none: isFemale ? "No family history recorded" : "None",
+    unsure: "I'm not sure",
   };
+
+  // Duration / onset IDs collide across genders — resolve by gender
+  const DURATION_LABELS = isFemale
+    ? {
+        under_6m: "Suddenly, within a few weeks",
+        "6m_1y": "Gradually, over several months or years",
+        "1y_3y": "It comes and goes",
+        over_3y:
+          "I noticed shedding after illness, childbirth, stress, or weight change",
+      }
+    : {
+        under_6m: "Less than 6 months",
+        "6m_1y": "6 months to 1 year",
+        "1y_3y": "1 to 3 years",
+        over_3y: "More than 3 years",
+      };
+
+  if (DURATION_LABELS[raw]) return DURATION_LABELS[raw];
   if (OPTION_LABELS[raw]) return OPTION_LABELS[raw];
+
+  // Exact quiz free-text answers (iron, symptoms, life stage, etc.) — do not title-case
+  if (/[\s,/]/.test(raw) || raw.length > 24) return raw;
 
   return raw
     .replace(/[_-]+/g, " ")
@@ -249,7 +292,7 @@ function sectionBanner(doc, number, title) {
   doc.fillColor(INK).font("Helvetica").fontSize(9);
 }
 
-function addKeyValueRow(doc, key, value) {
+function addKeyValueRow(doc, key, value, opts = {}) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
   const col1 = width * 0.42;
@@ -269,7 +312,7 @@ function addKeyValueRow(doc, key, value) {
   doc
     .font("Helvetica-Bold")
     .fillColor(INK)
-    .text(labelize(value), left + col1, rowY, { width: col2 });
+    .text(labelize(value, opts), left + col1, rowY, { width: col2 });
   doc.x = left;
   doc.moveDown(0.15);
 }
@@ -293,56 +336,88 @@ function collectQaPairs(payload) {
   const pairs = [];
 
   pairs.push(["Full name", aboutMe.fullName]);
-  pairs.push(["WhatsApp number", aboutMe.whatsapp ? `${aboutMe.countryCode || ""} ${aboutMe.whatsapp}` : null]);
+  pairs.push([
+    "WhatsApp number",
+    aboutMe.whatsapp ? `${aboutMe.countryCode || ""} ${aboutMe.whatsapp}`.trim() : null,
+  ]);
   pairs.push(["Email", aboutMe.email]);
   pairs.push(["Age", aboutMe.age || aboutMe.ageRange]);
   pairs.push(["Gender", aboutMe.gender]);
 
   if (isFemale) {
-    pairs.push(["Self-reported pattern stage", hairHealth.hair_fall_zone]);
-    pairs.push(["Where have you noticed hair loss?", hairHealth.hair_loss_area || hairHealth.hair_fall_zone]);
-    pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount || hairHealth.shedding_amount]);
-    pairs.push(["Do you experience dandruff?", hairHealth.dandruff_experience]);
-    pairs.push([
-      "Do you experience flaking, itching, or scalp irritation?",
-      formatScalpSymptoms(hairHealth.scalp_symptoms),
-    ]);
-    pairs.push(["Family history of hair loss?", hairHealth.family_history]);
-    pairs.push(["When did you first notice the change?", hairHealth.loss_duration]);
-    pairs.push(["Iron level", internalHealth.iron_level]);
-    pairs.push(["Symptoms", internalHealth.symptoms]);
-    pairs.push(["Life stage", internalHealth.life_stage]);
-    pairs.push(["Digestive symptoms", internalHealth.digestion]);
-    pairs.push(["Sleep", internalHealth.sleep_cycle]);
-    pairs.push(["Stress level", internalHealth.stress_level]);
-    pairs.push(["Energy level", internalHealth.energy_level]);
-    pairs.push(["Currently on supplements?", internalHealth.supplements]);
-    pairs.push(["Food habits", internalHealth.food_habits]);
-  } else {
-    pairs.push(["Self-reported Norwood stage", hairHealth.norwood_stage ? `Stage ${hairHealth.norwood_stage}` : null]);
-    pairs.push(["Where have you noticed hair loss?", hairHealth.hair_fall_zone]);
+    pairs.push(["How much hair do you lose when you comb or wash?", hairHealth.shedding_amount]);
+    pairs.push(["What best describes your current volume of hair?", hairHealth.hair_fall_zone]);
     pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount]);
-    pairs.push(["Do you experience dandruff?", hairHealth.dandruff_experience]);
+    pairs.push(["Do you experience dandruff on your scalp?", hairHealth.dandruff_experience]);
+    pairs.push(["Family history of thinning / baldness?", hairHealth.family_history]);
+    pairs.push(["How did the change begin?", hairHealth.loss_duration]);
+    pairs.push(["Have you ever been told that your iron level is low?", internalHealth.iron_level]);
+    pairs.push(["Do you experience any of these?", internalHealth.symptoms]);
+    pairs.push(["Which applies to your current life stage?", internalHealth.life_stage]);
+    pairs.push(["Do you have ongoing digestion symptoms?", internalHealth.digestion]);
+    pairs.push(["How many hours do you sleep on average?", internalHealth.sleep_cycle]);
+    pairs.push(["What is your current stress level?", internalHealth.stress_level]);
+    pairs.push(["How would you describe your energy on most days?", internalHealth.energy_level]);
+    pairs.push(["Do you take supplements or vitamins?", internalHealth.supplements]);
     pairs.push([
-      "Do you experience flaking, itching, or scalp irritation?",
-      formatScalpSymptoms(hairHealth.scalp_symptoms),
+      "Are you currently taking any prescription medicines?",
+      internalHealth.prescription_medicines || internalHealth.blood_pressure,
     ]);
-    pairs.push(["Family history of hair loss?", hairHealth.family_history]);
-    pairs.push(["When did you first notice the change?", hairHealth.loss_duration]);
-    pairs.push(["Sleep", internalHealth.sleep_cycle]);
-    pairs.push(["Stress level", internalHealth.stress_level]);
-    pairs.push(["Existing health conditions", internalHealth.health_conditions]);
-    pairs.push(["Digestive symptoms", internalHealth.bowel]);
-    pairs.push(["Diet / weight change", internalHealth.diet_weight_change || internalHealth.gas_acidity]);
-    pairs.push(["Energy level", internalHealth.energy_level]);
-    pairs.push(["Currently on supplements?", internalHealth.supplements]);
+    pairs.push(["What are your food habits?", internalHealth.food_habits]);
+  } else {
     pairs.push([
-      "Prescription medicines",
+      "Which pattern looks closest to your hair today?",
+      hairHealth.norwood_stage ? `Stage ${hairHealth.norwood_stage}` : null,
+    ]);
+    pairs.push(["Where have you noticed hair loss or thinning?", hairHealth.hair_fall_zone]);
+    pairs.push(["Are you shedding more than usual?", hairHealth.daily_loss_amount]);
+    pairs.push(["Do you experience dandruff on your scalp?", hairHealth.dandruff_experience]);
+    if (Array.isArray(hairHealth.scalp_symptoms) && hairHealth.scalp_symptoms.length) {
+      pairs.push([
+        "Do you experience flaking, itching, or scalp irritation?",
+        formatScalpSymptoms(hairHealth.scalp_symptoms),
+      ]);
+    }
+    pairs.push(["Family history of baldness / hair loss?", hairHealth.family_history]);
+    pairs.push(["How long have you been facing hair loss?", hairHealth.loss_duration]);
+    pairs.push(["How many hours do you usually sleep each night?", internalHealth.sleep_cycle]);
+    pairs.push([
+      "What has your stress level been like over the past 3 months?",
+      internalHealth.stress_level,
+    ]);
+    const conditions = Array.isArray(internalHealth.health_conditions)
+      ? [...internalHealth.health_conditions]
+      : [];
+    if (
+      conditions.some((c) => String(c).toLowerCase() === "other") &&
+      internalHealth.otherConditionDetails
+    ) {
+      const idx = conditions.findIndex((c) => String(c).toLowerCase() === "other");
+      if (idx >= 0) {
+        conditions[idx] = `Other: ${internalHealth.otherConditionDetails}`;
+      } else {
+        conditions.push(`Other: ${internalHealth.otherConditionDetails}`);
+      }
+    }
+    pairs.push(["Have you been diagnosed with any of these conditions?", conditions]);
+    pairs.push(["Do you have ongoing digestive symptoms?", internalHealth.bowel]);
+    pairs.push([
+      "Have you had a major change in diet or weight recently?",
+      internalHealth.diet_weight_change || internalHealth.gas_acidity,
+    ]);
+    pairs.push(["How would you describe your energy on most days?", internalHealth.energy_level]);
+    pairs.push(["Are you currently taking vitamins or supplements?", internalHealth.supplements]);
+    pairs.push([
+      "Are you currently taking any prescription medicines?",
       internalHealth.prescription_medicines || internalHealth.blood_pressure,
     ]);
   }
 
-  return pairs.filter(([, v]) => v != null && v !== "");
+  return pairs.filter(([, v]) => {
+    if (v == null || v === "") return false;
+    if (Array.isArray(v) && v.length === 0) return false;
+    return true;
+  });
 }
 
 function parseDataUrlImage(dataUrl) {
@@ -762,10 +837,12 @@ export function buildAssessmentPdf(payload) {
     }
     if (aboutMe?.gender || payload.hairHealth?.family_history) {
       const fam = payload.hairHealth?.family_history;
-      if (fam) chips.push(`FAMILY HISTORY: ${labelize(fam).toUpperCase()}`);
+      if (fam) chips.push(`FAMILY HISTORY: ${labelize(fam, { isFemale: isFemaleProfile }).toUpperCase()}`);
     }
     if (payload.hairHealth?.loss_duration) {
-      chips.push(labelize(payload.hairHealth.loss_duration).toUpperCase());
+      chips.push(
+        labelize(payload.hairHealth.loss_duration, { isFemale: isFemaleProfile }).toUpperCase()
+      );
     }
     let chipX = left;
     const chipY = doc.y;
@@ -796,7 +873,7 @@ export function buildAssessmentPdf(payload) {
     doc.moveDown(0.4);
 
     for (const [q, a] of collectQaPairs(payload)) {
-      addKeyValueRow(doc, q, a);
+      addKeyValueRow(doc, q, a, { isFemale: isFemaleProfile });
     }
 
     drawFooter(doc, "PAGE 1 OF 2 · PROFILE & QUIZ RESPONSES");
