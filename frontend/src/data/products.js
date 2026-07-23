@@ -3,7 +3,6 @@ import {
   resolveBundleNumber,
   getBundleDisplayName,
   getBundlePrices,
-  getWooProductId,
   getCheckoutWooProductIds,
   usesSeparateHealthMixProduct,
   HAIR_HEALTH_MIX_ID,
