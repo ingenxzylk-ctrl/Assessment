@@ -252,6 +252,35 @@ function getOrCreateDailyReportMeta(fingerprint) {
   return { reportId, reportDate };
 }
 
+/** Hash quiz answers + photo fingerprints — PDF regenerates only when this changes. */
+function buildReportContentHash(state, analysis) {
+  const imagePrints = (state?.scalpImages || [])
+    .map((img) => {
+      const s = String(img?.dataUrl || img?.previewUrl || img?.url || "");
+      if (!s) return `${img?.type || ""}:empty`;
+      const mid = Math.floor(s.length / 2);
+      return `${img?.type || ""}:${s.length}:${s.slice(22, 70)}:${s.slice(mid, mid + 40)}`;
+    })
+    .sort()
+    .join("|");
+
+  const payload = JSON.stringify({
+    aboutMe: state?.aboutMe || {},
+    hairHealth: state?.hairHealth || {},
+    internalHealth: state?.internalHealth || {},
+    stage: analysis?.predictedStage ?? analysis?.stage ?? null,
+    model: analysis?.model || null,
+    images: imagePrints,
+  });
+
+  // djb2 — short stable string hash for localStorage keys
+  let hash = 5381;
+  for (let i = 0; i < payload.length; i += 1) {
+    hash = (hash * 33) ^ payload.charCodeAt(i);
+  }
+  return `c${(hash >>> 0).toString(16)}`;
+}
+
 function getDandruffLevel(state) {
   return String(state?.hairHealth?.dandruff_experience || "").toLowerCase().trim();
 }
@@ -1332,6 +1361,11 @@ export default function Result() {
     else window.history.back();
   };
 
+  const reportContentHash = useMemo(
+    () => buildReportContentHash(state, rawAnalysis),
+    [state?.aboutMe, state?.hairHealth, state?.internalHealth, state?.scalpImages, rawAnalysis]
+  );
+
   const { reportId, reportDate } = useMemo(() => {
     if (state?.archivedReportId) {
       return {
@@ -1345,31 +1379,43 @@ export default function Result() {
           }),
       };
     }
-    const fingerprint = [
-      userName,
-      state?.aboutMe?.email || "",
-      state?.aboutMe?.whatsapp || "",
-      aiPredictedStageNumber || "",
-      rawAnalysis?.model || "",
-    ].join("|");
-    return getOrCreateDailyReportMeta(fingerprint);
+    // Stable ID per content hash — regenerates only when quiz answers or photos change
+    return getOrCreateDailyReportMeta(reportContentHash);
   }, [
-    userName,
-    state?.aboutMe?.email,
-    state?.aboutMe?.whatsapp,
     state?.archivedReportId,
     state?.archivedReportDate,
-    aiPredictedStageNumber,
-    rawAnalysis?.model,
+    reportContentHash,
   ]);
 
-  // Persist quiz + report as PDF → storage → org email (once per Result visit).
+  // Generate PDF only after analysis, and only when quiz answers or photos changed.
   const reportSubmitRef = useRef(false);
   useEffect(() => {
+    // New content may need a fresh PDF even if this Result mount already submitted once
+    reportSubmitRef.current = false;
+  }, [reportContentHash]);
+
+  useEffect(() => {
     if (reportSubmitRef.current) return;
-    // Archived deep-link views should not regenerate / re-email the PDF.
     if (state?.archivedReportId) return;
     if (!state?.aboutMe || !rawAnalysis || analysisMissing) return;
+
+    if (typeof window !== "undefined") {
+      const submittedKey = `zylk_report_submitted_${reportContentHash}`;
+      const inflightKey = `zylk_report_inflight_${reportContentHash}`;
+      if (
+        window.localStorage.getItem(submittedKey) ||
+        window.localStorage.getItem(inflightKey)
+      ) {
+        reportSubmitRef.current = true;
+        return;
+      }
+      try {
+        window.localStorage.setItem(inflightKey, "1");
+      } catch {
+        // ignore
+      }
+    }
+
     reportSubmitRef.current = true;
 
     const publicAppBase =
@@ -1405,12 +1451,12 @@ export default function Result() {
         .map((img) => ({
           type: img.type,
           label: img.label || img.type,
-          // Include compressed data URLs so the org PDF can embed both photos
           dataUrl: img.dataUrl || img.previewUrl || img.url || null,
         })),
       gender,
       clientReportId: reportId,
       clientReportDate: reportDate,
+      contentHash: reportContentHash,
       appOrigin,
       resultPageUrl,
       reportMeta: {
@@ -1422,7 +1468,6 @@ export default function Result() {
               bundleTitle: kitDisplayName || recommendedBundle.bundleTitle,
               price: recommendedBundle.price,
               originalPrice: recommendedBundle.originalPrice,
-              // Use official sheet catalog names (not marketing short labels)
               products: (kitSourceItems.length ? kitSourceItems : recommendedBundle.items || [])
                 .filter((p) => {
                   const isHealthMix =
@@ -1455,6 +1500,15 @@ export default function Result() {
     })
       .then((data) => {
         if (typeof window === "undefined") return;
+        try {
+          window.localStorage.setItem(
+            `zylk_report_submitted_${reportContentHash}`,
+            data?.reportId || reportId
+          );
+          window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
+        } catch {
+          // ignore
+        }
         const id = data?.reportId || reportId;
         try {
           const url = new URL(window.location.href);
@@ -1465,6 +1519,13 @@ export default function Result() {
         }
       })
       .catch((err) => {
+        // Allow a later retry if this submit failed
+        reportSubmitRef.current = false;
+        try {
+          window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
+        } catch {
+          // ignore
+        }
         console.warn("[report] submit failed:", err?.message || err);
       });
   }, [
@@ -1478,6 +1539,7 @@ export default function Result() {
     gender,
     reportId,
     reportDate,
+    reportContentHash,
     rootCauses,
     eligibilityTimeline,
     recommendedBundle,
@@ -1508,6 +1570,13 @@ export default function Result() {
               <h1 className="text-[1.2rem] sm:text-[2.1rem] font-bold text-gray-900 leading-[1.15] tracking-tight">
                 Hello {userName},
               </h1>
+
+              {rawAnalysis?.duplicateImagesDetected && (
+                <div className="mt-2 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs sm:text-sm font-medium leading-snug">
+                  {rawAnalysis.duplicateImagesWarning ||
+                    "Based on the images we can see that you have uploaded the same image for every angle. Your result may vary because the same photo was used."}
+                </div>
+              )}
 
               {/* Mobile: stacked title rows */}
               <div className="sm:hidden space-y-0.5">

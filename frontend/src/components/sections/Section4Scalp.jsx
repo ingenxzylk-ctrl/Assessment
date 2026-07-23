@@ -55,6 +55,39 @@ function formatRejectionMessage(err) {
   return "Please upload a proper image: clear, well-lit scalp photos with dry hair, no hat, and no filters.";
 }
 
+/** Lightweight fingerprint so we can detect the same photo reused across slots. */
+function imageFingerprint(dataUrl) {
+  const s = String(dataUrl || "");
+  if (!s) return "";
+  const mid = Math.floor(s.length / 2);
+  return `${s.length}:${s.slice(22, 86)}:${s.slice(mid, mid + 64)}:${s.slice(-48)}`;
+}
+
+function detectDuplicateUploads(images, isFemale) {
+  const slots = isFemale
+    ? [
+        ["front", images.front],
+        ["side", images.side],
+        ["back", images.back],
+      ]
+    : [
+        ["front", images.front],
+        ["top", images.top],
+      ];
+  const present = slots.filter(([, url]) => Boolean(url));
+  if (present.length < 2) return { allSame: false, message: null };
+
+  const prints = present.map(([, url]) => imageFingerprint(url));
+  const allSame = prints.every((p) => p && p === prints[0]);
+  if (!allSame) return { allSame: false, message: null };
+
+  return {
+    allSame: true,
+    message:
+      "Based on the images we can see that you have uploaded the same image for every angle. Your result may vary because the same photo was used — please upload a distinct photo for each view for a more accurate assessment.",
+  };
+}
+
 function PhotoQualityTips({ failedKeys = [] }) {
   return (
     <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -152,6 +185,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const [useCamera, setUseCamera] = useState(false);
   const [activeCaptureType, setActiveCaptureType] = useState("");
   const [analysisStatus, setAnalysisStatus] = useState("Preparing images...");
+  const [duplicateImageWarning, setDuplicateImageWarning] = useState(null);
 
   const [images, setImages] = useState(() => buildImagesFromSaved(state?.scalpImages));
 
@@ -229,6 +263,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     }
 
     setImages((prev) => ({ ...prev, [targetType]: dataUrl }));
+    setDuplicateImageWarning(null);
   }, []);
 
   const handleFileUpload = useCallback(
@@ -287,6 +322,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
   const removeImage = (type) => {
     setError(null);
     setFailedQualityKeys([]);
+    setDuplicateImageWarning(null);
     setImages((prev) => {
       const next = { ...prev, [type]: null };
       // Keep quiz state in sync so assessment cannot proceed with a removed photo
@@ -304,6 +340,15 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     ? Boolean(images.front && images.side && images.back)
     : Boolean(images.front && images.top);
 
+  useEffect(() => {
+    if (!photosComplete) {
+      setDuplicateImageWarning(null);
+      return;
+    }
+    const dup = detectDuplicateUploads(images, isFemale);
+    setDuplicateImageWarning(dup.allSame ? dup.message : null);
+  }, [images, isFemale, photosComplete]);
+
   const handleTriggerAnalysis = async () => {
     if (isFemale && (!images.front || !images.side || !images.back)) {
       setError("Please provide Front, Side (ponytail), and Back (ponytail aside) images.");
@@ -312,6 +357,10 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     if (!isFemale && (!images.front || !images.top)) {
       setError("Please provide Front and Top images to proceed.");
       return;
+    }
+    const dup = detectDuplicateUploads(images, isFemale);
+    if (dup.allSame) {
+      setDuplicateImageWarning(dup.message);
     }
     await runAnalysis();
   };
@@ -363,12 +412,21 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
       clearTimeout(timeoutId);
 
-      setScalpAnalysis(aiResponse);
+      const dup = detectDuplicateUploads(images, isFemale);
+      const analysisPayload = dup.allSame
+        ? {
+            ...aiResponse,
+            duplicateImagesDetected: true,
+            duplicateImagesWarning: dup.message,
+          }
+        : aiResponse;
+
+      setScalpAnalysis(analysisPayload);
       setScalpImages(imagePayloads);
       setIsAnalyzing(false);
       setStep("upload");
       if (setLoading) setLoading(false);
-      if (onComplete) onComplete(aiResponse);
+      if (onComplete) onComplete(analysisPayload);
     } catch (err) {
       clearTimeout(timeoutId);
       setIsAnalyzing(false);
@@ -621,7 +679,6 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
               ref={fileInputRef}
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={handleFileUpload}
             />
@@ -638,6 +695,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
                   else nextType = "front";
                   setActiveCaptureType(nextType);
                   setUseCamera(false);
+                  // No capture= attribute → opens photo gallery / file picker, not camera
                   fileInputRef.current?.click();
                 }}
                 className="h-12 w-full px-5 bg-[#064e3b] text-white font-semibold rounded-full hover:bg-[#043427] transition-all text-sm shadow-sm cursor-pointer"
@@ -660,6 +718,12 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
                 Use camera
               </button>
             </div>
+
+            {duplicateImageWarning && (
+              <div className="mb-4 p-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs sm:text-sm font-medium leading-snug text-left">
+                {duplicateImageWarning}
+              </div>
+            )}
 
             <p className="text-center text-[11px] text-[#064e3b] bg-[#e8eede]/70 rounded-full py-2 px-3 mb-2">
               Encrypted · Used only for your assessment · Delete anytime
