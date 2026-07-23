@@ -227,13 +227,12 @@ export async function submitAssessmentReport(req, res) {
       });
     }
 
-    // Skip regenerating PDF only when quiz/photos AND PDF layout version are unchanged.
-    // Old cached 7+ page PDFs must regenerate after layout fixes.
+    // Never reuse cached PDFs from older layout versions (v2 had 7–8 pages + blanks).
+    // Skip only when the same quiz content was already rendered with THIS format.
     const existingByHash = await readContentHashMapping(contentHash);
-    if (
-      existingByHash?.reportId &&
-      existingByHash?.pdfFormatVersion === PDF_FORMAT_VERSION
-    ) {
+    const hashFormatOk =
+      existingByHash?.pdfFormatVersion === PDF_FORMAT_VERSION;
+    if (existingByHash?.reportId && hashFormatOk) {
       try {
         const loaded = await loadReportJson(existingByHash.reportId);
         return res.json({
@@ -253,10 +252,7 @@ export async function submitAssessmentReport(req, res) {
       } catch {
         // Fall through and regenerate if archive missing
       }
-    } else if (
-      existingByHash?.reportId &&
-      existingByHash?.pdfFormatVersion !== PDF_FORMAT_VERSION
-    ) {
+    } else if (existingByHash?.reportId && !hashFormatOk) {
       console.log(
         `[report] regenerating PDF for ${existingByHash.reportId}: format ${existingByHash.pdfFormatVersion || "unknown"} → ${PDF_FORMAT_VERSION}`
       );
@@ -297,11 +293,18 @@ export async function submitAssessmentReport(req, res) {
     };
 
     const pdfBuffer = await buildAssessmentPdf(payload);
-    const archive = sanitizeForArchive(payload);
+    const archive = sanitizeForArchive({
+      ...payload,
+      pdfFormatVersion: PDF_FORMAT_VERSION,
+      storageInfo: undefined,
+    });
     const storageInfo = await saveReportArtifacts({
       reportId,
       pdfBuffer,
-      jsonData: archive,
+      jsonData: {
+        ...archive,
+        pdfFormatVersion: PDF_FORMAT_VERSION,
+      },
       patientName: aboutMe.fullName || "Guest",
     });
 
@@ -333,6 +336,7 @@ export async function submitAssessmentReport(req, res) {
       pdfUrl: storageInfo.pdfUrl,
       drive: storageInfo.drive || null,
       email: emailResult,
+      pdfFormatVersion: PDF_FORMAT_VERSION,
     });
   } catch (err) {
     console.error("[report] submit failed:", err);

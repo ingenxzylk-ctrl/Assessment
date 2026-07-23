@@ -266,7 +266,7 @@ function buildReportContentHash(state, analysis) {
 
   const payload = JSON.stringify({
     // Bump with backend PDF_FORMAT_VERSION so layout fixes regenerate Drive PDFs
-    pdfFormatVersion: "v5-compact-2page",
+    pdfFormatVersion: "v6-strict-2page",
     aboutMe: state?.aboutMe || {},
     hairHealth: state?.hairHealth || {},
     internalHealth: state?.internalHealth || {},

@@ -1,7 +1,12 @@
 import PDFDocument from "pdfkit";
 
-/** Bump when PDF layout changes — exposed via GET /api/health for deploy checks. */
-export const PDF_FORMAT_VERSION = "v5-compact-2page";
+/**
+ * Bump whenever PDF layout changes.
+ * Live check: GET https://api.zylkhealth.com/api/health → pdfFormatVersion
+ * Must be "v6-strict-2page" after backend redeploy (was stuck on v2-result-link).
+ */
+export const PDF_FORMAT_VERSION = "v6-strict-2page";
+export const PDF_TARGET_PAGES = 2;
 
 const BRAND = "#064e3b";
 const MUTED = "#4b5563";
@@ -115,25 +120,42 @@ function pageWidth(doc) {
   return doc.page.width - doc.page.margins.left - doc.page.margins.right;
 }
 
+function pageBottom(doc) {
+  return doc.page.height - doc.page.margins.bottom;
+}
+
+function clampText(value, maxChars) {
+  const s = String(value || "").replace(/\s+/g, " ").trim();
+  if (!s) return "";
+  if (s.length <= maxChars) return s;
+  return `${s.slice(0, Math.max(0, maxChars - 1)).trim()}…`;
+}
+
 function addSectionTitle(doc, title) {
-  doc.moveDown(0.3);
-  doc.fontSize(11).fillColor(BRAND).font("Helvetica-Bold").text(title, { underline: true });
-  doc.moveDown(0.12);
-  doc.font("Helvetica").fillColor(INK).fontSize(8.5);
+  doc.moveDown(0.2);
+  doc
+    .fontSize(9.5)
+    .fillColor(BRAND)
+    .font("Helvetica-Bold")
+    .text(title, { underline: true });
+  doc.moveDown(0.08);
+  doc.font("Helvetica").fillColor(INK).fontSize(8);
 }
 
 function addKeyValue(doc, key, value, opts = {}) {
   if (value == null || value === "" || (Array.isArray(value) && !value.length)) return;
   const left = doc.page.margins.left;
-  const width = pageWidth(doc);
-  // Stay on current page for page-1 quiz; page-2 content uses explicit break only
+  const width = opts.width || pageWidth(doc);
+  const line = `${key}: ${clampText(labelize(value, opts), opts.maxChars || 220)}`;
   doc
     .font("Helvetica")
-    .fontSize(8.5)
+    .fontSize(opts.fontSize || 8)
     .fillColor(INK)
-    .text(`${key}: ${labelize(value, opts)}`, left, doc.y, {
+    .text(line, left, doc.y, {
       width,
-      lineGap: 0.5,
+      lineGap: 0.4,
+      height: opts.height,
+      ellipsis: Boolean(opts.height),
     });
 }
 
@@ -258,7 +280,8 @@ function getUploadedScalpPhotos(scalpImages = []) {
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
 
-  return withData;
+  // Cap at 3 photos so page 1 never overflows
+  return withData.slice(0, 3);
 }
 
 function photoCaption(type) {
@@ -275,24 +298,24 @@ function embedScalpPhotos(doc, scalpImages) {
   const left = doc.page.margins.left;
   const width = pageWidth(doc);
 
-  doc.moveDown(0.15);
-  doc.font("Helvetica-Bold").fontSize(9).fillColor(INK).text("Uploaded scalp photos");
+  doc.moveDown(0.1);
+  doc.font("Helvetica-Bold").fontSize(8.5).fillColor(INK).text("Uploaded scalp photos");
   doc
     .font("Helvetica")
-    .fontSize(8)
+    .fontSize(7.5)
     .fillColor(MUTED)
     .text("Customer-uploaded photos used for AI assessment:");
 
   if (!photos.length) {
-    doc.font("Helvetica").fontSize(8.5).fillColor(MUTED).text("No uploaded scalp photos available.");
+    doc.font("Helvetica").fontSize(8).fillColor(MUTED).text("No uploaded scalp photos available.");
     return;
   }
 
-  const gap = 8;
-  const cols = Math.min(photos.length, 3);
+  const gap = 6;
+  const cols = photos.length;
   const boxW = (width - gap * (cols - 1)) / cols;
-  const imgH = 72;
-  const rowTop = doc.y + 4;
+  const imgH = 58;
+  const rowTop = doc.y + 3;
 
   photos.forEach((photo, index) => {
     const px = left + index * (boxW + gap);
@@ -304,32 +327,67 @@ function embedScalpPhotos(doc, scalpImages) {
       });
     } catch {
       doc
-        .fontSize(8)
+        .fontSize(7.5)
         .fillColor("#9ca3af")
-        .text("Unavailable", px, rowTop + 28, { width: boxW, align: "center" });
+        .text("Unavailable", px, rowTop + 20, { width: boxW, align: "center" });
     }
     doc
       .font("Helvetica")
-      .fontSize(8)
+      .fontSize(7.5)
       .fillColor(INK)
-      .text(photoCaption(photo.type), px, rowTop + imgH + 2, {
+      .text(photoCaption(photo.type), px, rowTop + imgH + 1, {
         width: boxW,
         align: "left",
         lineBreak: false,
-        height: 10,
+        height: 9,
       });
   });
 
-  // Lock cursor below the photo row so PDFKit does not leave blank pages
   doc.x = left;
-  doc.y = rowTop + imgH + 16;
-  doc.font("Helvetica").fillColor(INK).fontSize(8.5);
+  doc.y = rowTop + imgH + 14;
+  doc.font("Helvetica").fillColor(INK).fontSize(8);
+}
+
+/** Dense two-column Q&A so page 1 never spills into page 2. */
+function addQaTwoColumn(doc, pairs, labelOpts) {
+  const left = doc.page.margins.left;
+  const width = pageWidth(doc);
+  const gap = 10;
+  const colW = (width - gap) / 2;
+  const startY = doc.y;
+  const mid = Math.ceil(pairs.length / 2);
+  const col1 = pairs.slice(0, mid);
+  const col2 = pairs.slice(mid);
+
+  function drawCol(items, x) {
+    let y = startY;
+    doc.font("Helvetica").fontSize(7.5).fillColor(INK);
+    for (const [q, a] of items) {
+      const line = `${q}: ${clampText(labelize(a, labelOpts), 90)}`;
+      doc.text(line, x, y, {
+        width: colW,
+        lineGap: 0.2,
+        height: 22,
+        ellipsis: true,
+      });
+      y = doc.y + 1;
+    }
+    return y;
+  }
+
+  const y1 = drawCol(col1, left);
+  const y2 = drawCol(col2, left + colW + gap);
+  doc.x = left;
+  doc.y = Math.max(y1, y2) + 2;
 }
 
 /**
- * Compact assessment PDF — target exactly 2 pages:
- *  Page 1: profile + photos + quiz answers + Result link
+ * Compact assessment PDF — exactly 2 pages, no blanks:
+ *  Page 1: header + profile + photos + quiz answers + Result link
  *  Page 2: AI findings + root causes + timeline + kit
+ *
+ * Layout is intentionally dense so PDFKit never auto-inserts blank pages.
+ * Production must run this build — check GET /api/health → pdfFormatVersion.
  */
 export function buildAssessmentPdf(payload) {
   const {
@@ -349,7 +407,7 @@ export function buildAssessmentPdf(payload) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: "A4",
-      margin: 40,
+      margin: 32,
       autoFirstPage: true,
       bufferPages: true,
       info: {
@@ -359,6 +417,10 @@ export function buildAssessmentPdf(payload) {
       },
     });
     const chunks = [];
+    let pagesCreated = 1;
+    doc.on("pageAdded", () => {
+      pagesCreated += 1;
+    });
     doc.on("data", (c) => chunks.push(c));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
@@ -368,24 +430,29 @@ export function buildAssessmentPdf(payload) {
 
     // ─── PAGE 1 ───
     doc
-      .fontSize(14)
+      .fontSize(12)
       .fillColor(BRAND)
       .font("Helvetica-Bold")
-      .text("ZYLK HEALTH — Hair & Scalp Assessment Report", { align: "center" });
-    doc.moveDown(0.15);
-    doc.fontSize(8.5).fillColor(MUTED).font("Helvetica");
-    doc.text(`Report ID: ${reportId || "—"}`, { align: "center" });
-    doc.text(`Date: ${reportDate || new Date().toLocaleDateString("en-GB")}`, {
-      align: "center",
-    });
+      .text("ZYLK HEALTH — Hair & Scalp Assessment Report", {
+        align: "center",
+        width,
+      });
+    doc.moveDown(0.08);
+    doc.fontSize(8).fillColor(MUTED).font("Helvetica");
+    doc.text(
+      `Report ID: ${reportId || "—"}  ·  Date: ${
+        reportDate || new Date().toLocaleDateString("en-GB")
+      }  ·  ${PDF_FORMAT_VERSION}`,
+      { align: "center", width }
+    );
 
     if (resultPageUrl) {
-      doc.moveDown(0.12);
+      doc.moveDown(0.08);
       doc
         .fillColor("#1d4ed8")
         .font("Helvetica-Bold")
-        .fontSize(8.5)
-        .text(`Result page: ${resultPageUrl}`, {
+        .fontSize(8)
+        .text(`Live result: ${resultPageUrl}`, {
           align: "center",
           link: resultPageUrl,
           underline: true,
@@ -393,38 +460,40 @@ export function buildAssessmentPdf(payload) {
         });
     }
 
-    doc.moveDown(0.2);
+    doc.moveDown(0.15);
     doc
       .strokeColor(LINE)
-      .lineWidth(1)
+      .lineWidth(0.8)
       .moveTo(left, doc.y)
       .lineTo(left + width, doc.y)
       .stroke();
-    doc.moveDown(0.25);
+    doc.moveDown(0.18);
 
     addSectionTitle(doc, "1. Patient profile");
-    addKeyValue(doc, "Name", aboutMe.fullName || "Guest", labelOpts);
-    addKeyValue(doc, "Email", aboutMe.email, labelOpts);
-    addKeyValue(
-      doc,
-      "WhatsApp",
-      aboutMe.whatsapp ? `${aboutMe.countryCode || ""} ${aboutMe.whatsapp}`.trim() : null,
-      labelOpts
-    );
-    addKeyValue(doc, "Age", aboutMe.age || aboutMe.ageRange, labelOpts);
-    addKeyValue(doc, "Gender", aboutMe.gender, labelOpts);
+    const profileLine = [
+      aboutMe.fullName || "Guest",
+      aboutMe.gender ? labelize(aboutMe.gender, labelOpts) : null,
+      aboutMe.age || aboutMe.ageRange ? `Age ${aboutMe.age || aboutMe.ageRange}` : null,
+      aboutMe.email || null,
+      aboutMe.whatsapp
+        ? `${aboutMe.countryCode || ""} ${aboutMe.whatsapp}`.trim()
+        : null,
+    ]
+      .filter(Boolean)
+      .join("  ·  ");
+    doc.font("Helvetica").fontSize(8).fillColor(INK).text(profileLine, { width });
 
     embedScalpPhotos(doc, scalpImages);
 
     addSectionTitle(doc, "2. Quiz questions & answers");
-    for (const [q, a] of collectQaPairs(payload)) {
-      addKeyValue(doc, q, a, labelOpts);
-    }
+    addQaTwoColumn(doc, collectQaPairs(payload), labelOpts);
 
-    // Hard page break — AI / kit always start on page 2 (no blank intermediates)
+    // Single intentional page break — AI / kit always on page 2
     doc.addPage();
 
     // ─── PAGE 2 ───
+    const page2Budget = pageBottom(doc) - 36;
+
     addSectionTitle(doc, "3. AI scalp assessment");
     addKeyValue(
       doc,
@@ -432,7 +501,12 @@ export function buildAssessmentPdf(payload) {
       scalpAnalysis.aiPredictedStage || scalpAnalysis.finalStage,
       labelOpts
     );
-    addKeyValue(doc, "Stage description", scalpAnalysis.stageDescription, labelOpts);
+    addKeyValue(
+      doc,
+      "Stage description",
+      clampText(scalpAnalysis.stageDescription, 180),
+      labelOpts
+    );
     addKeyValue(
       doc,
       "Confidence",
@@ -444,7 +518,12 @@ export function buildAssessmentPdf(payload) {
       labelOpts
     );
     addKeyValue(doc, "Self-reported stage", scalpAnalysis.selfReportedStage, labelOpts);
-    addKeyValue(doc, "Stage discrepancy", scalpAnalysis.stageDiscrepancy ? "Yes" : "No", labelOpts);
+    addKeyValue(
+      doc,
+      "Stage discrepancy",
+      scalpAnalysis.stageDiscrepancy ? "Yes" : "No",
+      labelOpts
+    );
     addKeyValue(
       doc,
       "Requires doctor consultation",
@@ -453,40 +532,63 @@ export function buildAssessmentPdf(payload) {
     );
     addKeyValue(doc, "Model", scalpAnalysis.model, labelOpts);
 
-    if (scalpAnalysis.aiReasoning) {
-      doc.moveDown(0.1);
-      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(INK).text("AI reasoning:");
-      doc.font("Helvetica").text(String(scalpAnalysis.aiReasoning), { width });
+    if (scalpAnalysis.aiReasoning && doc.y < page2Budget - 80) {
+      doc.moveDown(0.08);
+      doc.font("Helvetica-Bold").fontSize(8).fillColor(INK).text("AI reasoning:");
+      doc
+        .font("Helvetica")
+        .fontSize(7.5)
+        .text(clampText(scalpAnalysis.aiReasoning, 520), {
+          width,
+          height: 54,
+          ellipsis: true,
+        });
     }
 
-    if (scalpAnalysis.observations && typeof scalpAnalysis.observations === "object") {
-      doc.moveDown(0.12);
-      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(INK).text("Observations:");
-      doc.font("Helvetica");
+    if (
+      scalpAnalysis.observations &&
+      typeof scalpAnalysis.observations === "object" &&
+      doc.y < page2Budget - 100
+    ) {
+      doc.moveDown(0.08);
+      doc.font("Helvetica-Bold").fontSize(8).fillColor(INK).text("Observations:");
+      doc.font("Helvetica").fontSize(7.5);
+      const obsLines = [];
       for (const [k, v] of Object.entries(scalpAnalysis.observations)) {
         if (v && typeof v === "object") {
-          doc.text(`${labelize(k, labelOpts)}:`);
-          for (const [ik, iv] of Object.entries(v)) {
-            doc.text(`  • ${labelize(ik, labelOpts)}: ${labelize(iv, labelOpts)}`, {
-              width: width - 10,
-            });
-          }
+          const inner = Object.entries(v)
+            .map(([ik, iv]) => `${labelize(ik, labelOpts)}: ${labelize(iv, labelOpts)}`)
+            .join("; ");
+          obsLines.push(`• ${labelize(k, labelOpts)}: ${inner}`);
         } else {
-          doc.text(`• ${labelize(k, labelOpts)}: ${labelize(v, labelOpts)}`);
+          obsLines.push(`• ${labelize(k, labelOpts)}: ${labelize(v, labelOpts)}`);
         }
       }
+      doc.text(clampText(obsLines.join("  "), 420), {
+        width,
+        height: 40,
+        ellipsis: true,
+      });
     }
 
     if (Array.isArray(reportMeta.rootCauses) && reportMeta.rootCauses.length) {
       addSectionTitle(doc, "4. Root causes (report summary)");
-      for (const cause of reportMeta.rootCauses.slice(0, 5)) {
-        doc.font("Helvetica-Bold").fontSize(8.5).fillColor(INK).text(cause.label || cause.id || "Cause");
-        doc.font("Helvetica").text(String(cause.desc || "").slice(0, 280), { width });
-        doc.moveDown(0.06);
+      for (const cause of reportMeta.rootCauses.slice(0, 4)) {
+        if (doc.y > page2Budget - 70) break;
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(8)
+          .fillColor(INK)
+          .text(clampText(cause.label || cause.id || "Cause", 60), { width });
+        doc
+          .font("Helvetica")
+          .fontSize(7.5)
+          .text(clampText(cause.desc || "", 160), { width, height: 18, ellipsis: true });
+        doc.moveDown(0.04);
       }
     }
 
-    if (reportMeta.eligibilityTimeline) {
+    if (reportMeta.eligibilityTimeline && doc.y < page2Budget - 50) {
       addSectionTitle(doc, "5. Eligibility / timeline");
       addKeyValue(doc, "Label", reportMeta.eligibilityTimeline.label, labelOpts);
       addKeyValue(doc, "Months", reportMeta.eligibilityTimeline.months, labelOpts);
@@ -498,58 +600,56 @@ export function buildAssessmentPdf(payload) {
       );
     }
 
-    if (reportMeta.recommendedBundle) {
+    if (reportMeta.recommendedBundle && doc.y < page2Budget - 40) {
       addSectionTitle(doc, "6. Recommended kit");
       const bundle = reportMeta.recommendedBundle;
       addKeyValue(doc, "Bundle", bundle.bundleTitle || bundle.bundleId, labelOpts);
       addKeyValue(doc, "Price", bundle.price != null ? `₹${bundle.price}` : null, labelOpts);
-      addKeyValue(
-        doc,
-        "Original price",
-        bundle.originalPrice != null ? `₹${bundle.originalPrice}` : null,
-        labelOpts
-      );
       const products = bundle.products || bundle.items || [];
       if (Array.isArray(products) && products.length) {
-        doc.font("Helvetica-Bold").fontSize(8.5).fillColor(INK).text("Products:");
-        doc.font("Helvetica");
-        products.forEach((p) => {
-          const name =
-            typeof p === "string" ? p : p?.name || p?.shortName || p?.title || p?.id || "—";
-          doc.text(`  • ${String(name)}`);
-        });
+        const names = products
+          .map((p) =>
+            typeof p === "string" ? p : p?.name || p?.shortName || p?.title || p?.id || "—"
+          )
+          .join(", ");
+        doc
+          .font("Helvetica")
+          .fontSize(7.5)
+          .fillColor(INK)
+          .text(`Products: ${clampText(names, 200)}`, { width, height: 16, ellipsis: true });
       }
     }
 
     if (resultPageUrl) {
-      doc.moveDown(0.35);
+      doc.moveDown(0.2);
       doc
         .fillColor("#1d4ed8")
         .font("Helvetica-Bold")
-        .fontSize(8.5)
-        .text(`Result page: ${resultPageUrl}`, {
+        .fontSize(8)
+        .text(`Live result: ${resultPageUrl}`, {
           link: resultPageUrl,
           underline: true,
           width,
         });
     }
 
-    doc.moveDown(0.45);
     doc
-      .fontSize(7.5)
+      .fontSize(7)
       .fillColor("#9ca3af")
       .font("Helvetica")
       .text(
-        `Confidential — for Zylk Health internal use. Generated automatically from the Hair & Scalp Assessment. · ${PDF_FORMAT_VERSION}`,
+        `Confidential — Zylk Health internal use · ${PDF_FORMAT_VERSION} · 2 pages`,
+        left,
+        pageBottom(doc) - 10,
         { align: "center", width }
       );
 
-    // Drop any accidental trailing blank pages created by PDFKit
-    const range = doc.bufferedPageRange();
-    // PDFKit does not support deleting pages; we avoid creating extras above.
-    // Assert we stayed at 2 pages in logs during generation.
-    if (range.count > 3) {
-      console.warn(`[pdf] unexpected page count ${range.count} for ${reportId}`);
+    if (pagesCreated !== PDF_TARGET_PAGES) {
+      console.warn(
+        `[pdf] ${reportId}: expected ${PDF_TARGET_PAGES} pages, got ${pagesCreated} (${PDF_FORMAT_VERSION})`
+      );
+    } else {
+      console.log(`[pdf] ${reportId}: ${pagesCreated} pages · ${PDF_FORMAT_VERSION}`);
     }
 
     doc.end();
