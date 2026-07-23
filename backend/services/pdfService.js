@@ -172,6 +172,17 @@ function formatScalpSymptoms(value) {
   return value.map((id) => map[id] || labelize(id)).join(", ");
 }
 
+function formatYesNoWithDetails(choice, details) {
+  const c = String(choice || "").trim();
+  if (!c) return null;
+  if (c.toLowerCase() === "no") return "No";
+  if (c.toLowerCase() === "yes") {
+    const d = String(details || "").trim();
+    return d ? `Yes — ${d}` : "Yes";
+  }
+  return c;
+}
+
 function collectQaPairs(payload) {
   const { aboutMe = {}, hairHealth = {}, internalHealth = {}, gender } = payload;
   const isFemale = (gender || aboutMe.gender) === "female";
@@ -200,10 +211,19 @@ function collectQaPairs(payload) {
     pairs.push(["Sleep", internalHealth.sleep_cycle]);
     pairs.push(["Stress level", internalHealth.stress_level]);
     pairs.push(["Energy level", internalHealth.energy_level]);
-    pairs.push(["Supplements", internalHealth.supplements]);
+    pairs.push([
+      "Vitamins / supplements",
+      formatYesNoWithDetails(
+        internalHealth.supplements,
+        internalHealth.supplements_details
+      ),
+    ]);
     pairs.push([
       "Prescription medicines",
-      internalHealth.prescription_medicines || internalHealth.blood_pressure,
+      formatYesNoWithDetails(
+        internalHealth.prescription_medicines || internalHealth.blood_pressure,
+        internalHealth.prescription_medicines_details
+      ),
     ]);
     pairs.push(["Food habits", internalHealth.food_habits]);
   } else {
@@ -239,11 +259,21 @@ function collectQaPairs(payload) {
       internalHealth.diet_weight_change || internalHealth.gas_acidity,
     ]);
     pairs.push(["Energy level", internalHealth.energy_level]);
-    pairs.push(["Supplements", internalHealth.supplements]);
+    pairs.push([
+      "Vitamins / supplements",
+      formatYesNoWithDetails(
+        internalHealth.supplements,
+        internalHealth.supplements_details
+      ),
+    ]);
     pairs.push([
       "Prescription medicines",
-      internalHealth.prescription_medicines || internalHealth.blood_pressure,
+      formatYesNoWithDetails(
+        internalHealth.prescription_medicines || internalHealth.blood_pressure,
+        internalHealth.prescription_medicines_details
+      ),
     ]);
+    pairs.push(["Food habits", internalHealth.food_habits]);
   }
 
   return pairs.filter(([, v]) => {

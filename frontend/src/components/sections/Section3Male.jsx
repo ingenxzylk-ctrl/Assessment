@@ -10,6 +10,8 @@ import {
   HEALTH_ENERGY_OPTIONS,
   HEALTH_SUPPLEMENT_OPTIONS,
   HEALTH_PRESCRIPTION_OPTIONS,
+  HEALTH_FOOD_HABITS_OPTIONS,
+  isYesNoWithDetailsAnswered,
 } from "../../data/questions";
 
 const STEPS = [
@@ -21,6 +23,7 @@ const STEPS = [
   "energy_level",
   "supplements",
   "prescription_medicines",
+  "food_habits",
 ];
 
 const STEP_TITLES = {
@@ -58,6 +61,10 @@ const STEP_TITLES = {
     title: "Are you currently taking any prescription medicines?",
     subtitle: "Some medicines may affect hair or interact with treatment recommendations.",
   },
+  food_habits: {
+    title: "What are your food habits?",
+    subtitle: "Dietary building blocks build hair proteins.",
+  },
 };
 
 const OPTIONS = {
@@ -68,6 +75,20 @@ const OPTIONS = {
   energy_level: HEALTH_ENERGY_OPTIONS,
   supplements: HEALTH_SUPPLEMENT_OPTIONS,
   prescription_medicines: HEALTH_PRESCRIPTION_OPTIONS,
+  food_habits: HEALTH_FOOD_HABITS_OPTIONS,
+};
+
+const DETAIL_FIELDS = {
+  supplements: {
+    stateKey: "supplements_details",
+    placeholder: "Please mention which vitamins or supplements you are taking",
+    error: "Please mention what vitamins or supplements you are taking",
+  },
+  prescription_medicines: {
+    stateKey: "prescription_medicines_details",
+    placeholder: "Please mention which prescription medicines you are taking",
+    error: "Please mention what prescription medicines you are taking",
+  },
 };
 
 export default function Section3InternalHealthMale({ onComplete, onBack }) {
@@ -85,10 +106,14 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
     diet_weight_change: state?.internalHealth?.diet_weight_change || "",
     energy_level: state?.internalHealth?.energy_level || "",
     supplements: state?.internalHealth?.supplements || "",
+    supplements_details: state?.internalHealth?.supplements_details || "",
     prescription_medicines:
       state?.internalHealth?.prescription_medicines ||
       state?.internalHealth?.blood_pressure ||
       "",
+    prescription_medicines_details:
+      state?.internalHealth?.prescription_medicines_details || "",
+    food_habits: state?.internalHealth?.food_habits || "",
   });
 
   const isStepAnswered = (stepIndex) => {
@@ -98,6 +123,18 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
       if (!localForm.health_conditions?.length) return false;
       if (localForm.health_conditions.includes("Other") && !otherCondition.trim()) return false;
       return true;
+    }
+    if (field === "supplements") {
+      return isYesNoWithDetailsAnswered(
+        localForm.supplements,
+        localForm.supplements_details
+      );
+    }
+    if (field === "prescription_medicines") {
+      return isYesNoWithDetailsAnswered(
+        localForm.prescription_medicines,
+        localForm.prescription_medicines_details
+      );
     }
     return Boolean(localForm[field]);
   };
@@ -111,10 +148,23 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
 
   const currentStep = STEPS[step];
   const headingInfo = STEP_TITLES[currentStep];
+  const detailMeta = DETAIL_FIELDS[currentStep];
 
   const handleSelect = (field, value) => {
-    setLocalForm((prev) => ({ ...prev, [field]: value }));
+    setLocalForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "supplements" && value !== "Yes") next.supplements_details = "";
+      if (field === "prescription_medicines" && value !== "Yes") {
+        next.prescription_medicines_details = "";
+      }
+      return next;
+    });
     setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const handleDetailChange = (stateKey, value) => {
+    setLocalForm((prev) => ({ ...prev, [stateKey]: value }));
+    setErrors((prev) => ({ ...prev, [currentStep]: "" }));
   };
 
   const handleToggleMulti = (field, value) => {
@@ -143,6 +193,24 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
       } else if (localForm.health_conditions.includes("Other") && !otherCondition.trim()) {
         e.health_conditions = "Please specify the other condition";
       }
+    } else if (currentStep === "supplements") {
+      if (!localForm.supplements) {
+        e.supplements = "Please select an option to continue";
+      } else if (
+        localForm.supplements === "Yes" &&
+        !String(localForm.supplements_details || "").trim()
+      ) {
+        e.supplements = DETAIL_FIELDS.supplements.error;
+      }
+    } else if (currentStep === "prescription_medicines") {
+      if (!localForm.prescription_medicines) {
+        e.prescription_medicines = "Please select an option to continue";
+      } else if (
+        localForm.prescription_medicines === "Yes" &&
+        !String(localForm.prescription_medicines_details || "").trim()
+      ) {
+        e.prescription_medicines = DETAIL_FIELDS.prescription_medicines.error;
+      }
     } else if (!localForm[currentStep]) {
       e[currentStep] = "Please select an option to continue";
     }
@@ -157,6 +225,14 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
       ...localForm,
       blood_pressure: localForm.prescription_medicines,
       gas_acidity: localForm.diet_weight_change,
+      supplements_details:
+        localForm.supplements === "Yes"
+          ? String(localForm.supplements_details || "").trim()
+          : "",
+      prescription_medicines_details:
+        localForm.prescription_medicines === "Yes"
+          ? String(localForm.prescription_medicines_details || "").trim()
+          : "",
     };
     if (localForm.health_conditions.includes("Other") && otherCondition.trim()) {
       partialForm.otherConditionDetails = otherCondition.trim();
@@ -265,6 +341,16 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
                   </div>
                 </button>
               ))}
+
+              {detailMeta && localForm[currentStep] === "Yes" && (
+                <input
+                  type="text"
+                  value={localForm[detailMeta.stateKey] || ""}
+                  onChange={(e) => handleDetailChange(detailMeta.stateKey, e.target.value)}
+                  placeholder={detailMeta.placeholder}
+                  className="w-full min-h-[56px] px-5 border border-gray-200 rounded-2xl focus:outline-none focus:border-[#064e3b] bg-white text-gray-900 text-base transition-all"
+                />
+              )}
             </div>
           )}
 

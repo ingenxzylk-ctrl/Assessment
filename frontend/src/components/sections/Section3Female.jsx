@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
-import { HEALTH_PRESCRIPTION_OPTIONS } from "../../data/questions";
+import {
+  HEALTH_PRESCRIPTION_OPTIONS,
+  HEALTH_SUPPLEMENT_OPTIONS,
+  HEALTH_FOOD_HABITS_OPTIONS,
+  isYesNoWithDetailsAnswered,
+} from "../../data/questions";
 
 const STEPS = [
   "iron_level",
@@ -46,8 +51,8 @@ const STEP_TITLES = {
     subtitle: "Low energy can be useful context alongside sleep, stress, and nutrition.",
   },
   supplements: {
-    title: "Do you take supplements or vitamins?",
-    subtitle: "Current nutrient tracking prevents over-supplementation.",
+    title: "Are you currently taking vitamins or supplements?",
+    subtitle: "This helps us avoid duplicate recommendations and tailor your report.",
   },
   prescription_medicines: {
     title: "Are you currently taking any prescription medicines?",
@@ -86,14 +91,26 @@ const RADIO_OPTIONS = {
     "Low most of the day",
     "It varies a lot",
   ],
-  supplements: ["Yes", "No"],
+  supplements: HEALTH_SUPPLEMENT_OPTIONS,
   prescription_medicines: HEALTH_PRESCRIPTION_OPTIONS,
-  food_habits: ["Vegetarian", "Non-Vegetarian"],
+  food_habits: HEALTH_FOOD_HABITS_OPTIONS,
+};
+
+const DETAIL_FIELDS = {
+  supplements: {
+    stateKey: "supplements_details",
+    placeholder: "Please mention which vitamins or supplements you are taking",
+    error: "Please mention what vitamins or supplements you are taking",
+  },
+  prescription_medicines: {
+    stateKey: "prescription_medicines_details",
+    placeholder: "Please mention which prescription medicines you are taking",
+    error: "Please mention what prescription medicines you are taking",
+  },
 };
 
 export default function Section3Female({ onComplete, onBack }) {
   const { state, updateInternalHealth } = useQuiz();
-  const [step, setStep] = useSectionStep("section3Female", STEPS.length - 1, 0);
   const [errors, setErrors] = useState({});
 
   const [localForm, setLocalForm] = useState({
@@ -105,19 +122,63 @@ export default function Section3Female({ onComplete, onBack }) {
     stress_level: state?.internalHealth?.stress_level || "",
     energy_level: state?.internalHealth?.energy_level || "",
     supplements: state?.internalHealth?.supplements || "",
+    supplements_details: state?.internalHealth?.supplements_details || "",
     prescription_medicines:
       state?.internalHealth?.prescription_medicines ||
       state?.internalHealth?.blood_pressure ||
       "",
+    prescription_medicines_details:
+      state?.internalHealth?.prescription_medicines_details || "",
     food_habits: state?.internalHealth?.food_habits || "",
   });
 
+  const isStepAnswered = (stepIndex) => {
+    const field = STEPS[stepIndex];
+    if (!field) return false;
+    if (field === "symptoms") {
+      return Boolean(localForm.symptoms?.length);
+    }
+    if (field === "supplements") {
+      return isYesNoWithDetailsAnswered(
+        localForm.supplements,
+        localForm.supplements_details
+      );
+    }
+    if (field === "prescription_medicines") {
+      return isYesNoWithDetailsAnswered(
+        localForm.prescription_medicines,
+        localForm.prescription_medicines_details
+      );
+    }
+    return Boolean(localForm[field]);
+  };
+
+  const [step, setStep] = useSectionStep(
+    "section3Female",
+    STEPS.length - 1,
+    0,
+    isStepAnswered
+  );
+
   const currentStep = STEPS[step];
   const headingInfo = STEP_TITLES[currentStep];
+  const detailMeta = DETAIL_FIELDS[currentStep];
 
   const handleSelect = (field, value) => {
-    setLocalForm((prev) => ({ ...prev, [field]: value }));
+    setLocalForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "supplements" && value !== "Yes") next.supplements_details = "";
+      if (field === "prescription_medicines" && value !== "Yes") {
+        next.prescription_medicines_details = "";
+      }
+      return next;
+    });
     setErrors((prev) => ({ ...prev, [field]: "" }));
+  };
+
+  const handleDetailChange = (stateKey, value) => {
+    setLocalForm((prev) => ({ ...prev, [stateKey]: value }));
+    setErrors((prev) => ({ ...prev, [currentStep]: "" }));
   };
 
   const handleToggleMulti = (field, value) => {
@@ -138,6 +199,24 @@ export default function Section3Female({ onComplete, onBack }) {
       if (!localForm.symptoms || localForm.symptoms.length === 0) {
         e.symptoms = "Please select at least one option";
       }
+    } else if (currentStep === "supplements") {
+      if (!localForm.supplements) {
+        e.supplements = "Please select an option to continue";
+      } else if (
+        localForm.supplements === "Yes" &&
+        !String(localForm.supplements_details || "").trim()
+      ) {
+        e.supplements = DETAIL_FIELDS.supplements.error;
+      }
+    } else if (currentStep === "prescription_medicines") {
+      if (!localForm.prescription_medicines) {
+        e.prescription_medicines = "Please select an option to continue";
+      } else if (
+        localForm.prescription_medicines === "Yes" &&
+        !String(localForm.prescription_medicines_details || "").trim()
+      ) {
+        e.prescription_medicines = DETAIL_FIELDS.prescription_medicines.error;
+      }
     } else if (!localForm[currentStep]) {
       e[currentStep] = "Please select an option to continue";
     }
@@ -152,12 +231,28 @@ export default function Section3Female({ onComplete, onBack }) {
     const partialForm = {
       ...localForm,
       blood_pressure: localForm.prescription_medicines,
+      supplements_details:
+        localForm.supplements === "Yes"
+          ? String(localForm.supplements_details || "").trim()
+          : "",
+      prescription_medicines_details:
+        localForm.prescription_medicines === "Yes"
+          ? String(localForm.prescription_medicines_details || "").trim()
+          : "",
     };
 
     if (step < STEPS.length - 1) {
       if (updateInternalHealth) updateInternalHealth(partialForm);
       setStep((prev) => prev + 1);
       return;
+    }
+
+    for (let i = 0; i < STEPS.length; i += 1) {
+      if (!isStepAnswered(i)) {
+        setErrors({ [STEPS[i]]: "Please answer every question before continuing." });
+        setStep(i);
+        return;
+      }
     }
 
     if (updateInternalHealth) updateInternalHealth(partialForm);
@@ -250,6 +345,16 @@ export default function Section3Female({ onComplete, onBack }) {
           {RADIO_OPTIONS[currentStep] && (
             <div className="grid grid-cols-1 gap-3">
               {RADIO_OPTIONS[currentStep].map((opt) => radioOption(opt, currentStep))}
+
+              {detailMeta && localForm[currentStep] === "Yes" && (
+                <input
+                  type="text"
+                  value={localForm[detailMeta.stateKey] || ""}
+                  onChange={(e) => handleDetailChange(detailMeta.stateKey, e.target.value)}
+                  placeholder={detailMeta.placeholder}
+                  className="w-full min-h-[56px] px-5 border border-gray-200 rounded-2xl focus:outline-none focus:border-[#064e3b] bg-white text-gray-900 text-base transition-all"
+                />
+              )}
             </div>
           )}
 
@@ -268,8 +373,9 @@ export default function Section3Female({ onComplete, onBack }) {
           </button>
           <button
             type="button"
+            disabled={!isStepAnswered(step)}
             onClick={handleContinue}
-            className="h-14 flex items-center justify-center bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all shadow-sm text-base flex-[2] cursor-pointer"
+            className="h-14 flex items-center justify-center bg-[#064e3b] text-white rounded-full font-semibold hover:bg-[#043427] transition-all shadow-sm text-base flex-[2] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {step === STEPS.length - 1 ? "Continue to Scan →" : "Next Question →"}
           </button>
