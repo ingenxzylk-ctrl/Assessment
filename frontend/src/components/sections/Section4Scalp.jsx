@@ -90,13 +90,13 @@ function detectDuplicateUploads(images, isFemale) {
 
 function PhotoQualityTips({ failedKeys = [] }) {
   return (
-    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 w-full">
       {PHOTO_QUALITY_TIPS.map((tip) => {
         const failed = failedKeys.includes(tip.key);
         return (
           <div
             key={tip.label}
-            className={`rounded-xl border px-3 py-2.5 text-center ${
+            className={`rounded-xl border px-2.5 sm:px-3 py-2.5 text-center h-full flex flex-col items-center justify-center min-h-[4.25rem] ${
               failed
                 ? "bg-red-50 border-red-200"
                 : "bg-[#f4f6f0] border-[#064e3b]/10"
@@ -109,7 +109,11 @@ function PhotoQualityTips({ failedKeys = [] }) {
             >
               <span aria-hidden>{failed ? "✕" : "✓"}</span> {tip.label}
             </p>
-            <p className={`text-[10px] mt-0.5 leading-snug ${failed ? "text-red-600" : "text-gray-500"}`}>
+            <p
+              className={`text-[10px] mt-0.5 leading-snug min-h-[2rem] flex items-start justify-center ${
+                failed ? "text-red-600" : "text-gray-500"
+              }`}
+            >
               {tip.detail}
             </p>
           </div>
@@ -513,35 +517,41 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             </div>
           )}
 
-          <div className={`grid gap-4 mb-6 ${isFemale ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"}`}>
+          <div
+            className={`grid gap-4 mb-6 items-stretch ${
+              isFemale ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2"
+            }`}
+          >
             {guideOptions.map((opt, index) => (
               <div
                 key={index}
-                className={`rounded-2xl border border-gray-200 bg-white p-4 text-center flex flex-col items-center justify-between shadow-2xs ${
-                  isFemale && index === 2 ? "col-span-2 sm:col-span-1 max-w-xs mx-auto sm:max-w-none w-full" : ""
-                }`}
+                className="rounded-2xl border border-gray-200 bg-white p-4 text-center flex flex-col h-full shadow-2xs"
               >
-                <div className="w-full flex flex-col items-center">
-                  <span className="text-xl block mb-1">📸</span>
-                  <p className="text-sm font-bold text-gray-900 uppercase tracking-wide">{opt.label}</p>
-                  <div className="w-full h-44 my-3 rounded-xl flex items-center justify-center bg-white relative p-1">
-                    <img
-                      src={opt.img}
-                      alt={opt.label}
-                      className="w-full h-full object-contain rounded-xl"
-                      onError={(e) => {
-                        e.target.src =
-                          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80";
-                      }}
-                    />
-                  </div>
+                <span className="text-xl block mb-1 shrink-0" aria-hidden>
+                  📸
+                </span>
+                <p className="text-sm font-bold text-gray-900 uppercase tracking-wide min-h-[2.5rem] flex items-center justify-center leading-snug shrink-0">
+                  {opt.label}
+                </p>
+                <div className="w-full aspect-[3/4] my-3 rounded-xl overflow-hidden bg-[#f7f8f5] border border-gray-100 flex items-center justify-center shrink-0">
+                  <img
+                    src={opt.img}
+                    alt={opt.label}
+                    className="max-w-full max-h-full w-full h-full object-contain object-center p-1"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80";
+                    }}
+                  />
                 </div>
-                <p className="text-xs text-gray-400 font-medium leading-relaxed px-1 mt-1">{opt.desc}</p>
+                <p className="text-xs text-gray-400 font-medium leading-relaxed px-1 mt-auto min-h-[3.75rem]">
+                  {opt.desc}
+                </p>
               </div>
             ))}
           </div>
 
-          <div className="mb-8">
+          <div className="mb-8 w-full">
             <PhotoQualityTips />
           </div>
 
