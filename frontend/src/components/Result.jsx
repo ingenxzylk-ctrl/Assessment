@@ -1120,8 +1120,8 @@ export default function Result() {
     : state?.hairHealth?.norwood_stage;
   const hasDandruff = resolveHasDandruff(state);
 
-  // Male kit 8393 ships without Health Mix — default checkbox OFF (user opts in → 8303).
-  // Female and other bundles keep Health Mix ON by default (combined Woo SKU).
+  // Kit 8393 (dandruff Bundle-5) ships without Health Mix — default checkbox OFF
+  // (user opts in → separate product 8303). Other bundles keep Health Mix ON by default.
   const [includeHealthMix, setIncludeHealthMix] = useState(true);
   const mixDefaultKeyRef = useRef("");
 
@@ -1309,10 +1309,13 @@ export default function Result() {
       gender,
       stage: aiPredictedStageNumber,
       hasDandruff,
-      usesSeparateHealthMix: separateMix,
+      usesSeparateHealthMix: separateMix || Number(kitWooId) === 8393,
       wooProductId: kitWooId,
-      // Male kit 8393 may carry Health Mix product 8303
-      wooHealthMixProductId: separateMix && includeHealthMix ? mixWooId : null,
+      // Kit 8393 + Include Health Mix → also add product 8303 at checkout
+      wooHealthMixProductId:
+        (separateMix || Number(kitWooId) === 8393) && includeHealthMix
+          ? mixWooId || SEPARATE_HEALTH_MIX_WOO_ID
+          : null,
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
       subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,

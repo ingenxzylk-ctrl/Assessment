@@ -3,6 +3,7 @@ import {
   getWooProductId,
   getSeparateHealthMixWooId,
   usesSeparateHealthMixProduct,
+  SEPARATE_HEALTH_MIX_WOO_ID,
 } from "../config/bundles";
 import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 
@@ -109,15 +110,19 @@ export function CartProvider({ children }) {
           hasDandruff,
           gender
         );
-        // Hard gate: Health Mix product 8303 only for male kit 8393
-        const allowSeparateMix = separateMix && Number(newWooId) === 8393;
+        // Kit 8393: Health Mix is always separate product 8303 when checkbox is on
+        const isDandruffKit8393 = Number(newWooId) === 8393;
+        const allowSeparateMix = separateMix || isDandruffKit8393;
 
         return {
           ...item,
           includeHealthMix,
           price: newPrice,
           wooProductId: newWooId,
-          wooHealthMixProductId: allowSeparateMix ? mixWooId : null,
+          wooHealthMixProductId:
+            allowSeparateMix && includeHealthMix
+              ? mixWooId || SEPARATE_HEALTH_MIX_WOO_ID
+              : null,
           usesSeparateHealthMix: allowSeparateMix,
           healthMixPrice: item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
           subtitle: includeHealthMix
