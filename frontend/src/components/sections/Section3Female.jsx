@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
+import { HEALTH_PRESCRIPTION_OPTIONS } from "../../data/questions";
 
 const STEPS = [
   "iron_level",
@@ -11,13 +12,14 @@ const STEPS = [
   "stress_level",
   "energy_level",
   "supplements",
+  "prescription_medicines",
   "food_habits",
 ];
 
 const STEP_TITLES = {
   iron_level: {
     title: "Have you ever been told that your iron level is low?",
-    subtitle: "Low iron can be relevant to hair shedding,but only a blood test can confirm it.",
+    subtitle: "Low iron can be relevant to hair shedding, but only a blood test can confirm it.",
   },
   symptoms: {
     title: "Do you experience any of these?",
@@ -41,11 +43,15 @@ const STEP_TITLES = {
   },
   energy_level: {
     title: "How would you describe your energy on most days?",
-    subtitle: "Low energy can be useful context alongside sleep,stress,and nutrition.",
+    subtitle: "Low energy can be useful context alongside sleep, stress, and nutrition.",
   },
   supplements: {
     title: "Do you take supplements or vitamins?",
     subtitle: "Current nutrient tracking prevents over-supplementation.",
+  },
+  prescription_medicines: {
+    title: "Are you currently taking any prescription medicines?",
+    subtitle: "Some medicines may affect hair or interact with treatment recommendations.",
   },
   food_habits: {
     title: "What are your food habits?",
@@ -57,6 +63,33 @@ const OPTION_BTN =
   "w-full min-h-[56px] px-5 flex items-center justify-between border rounded-2xl transition-all font-medium text-base text-left cursor-pointer";
 const OPTION_SELECTED = "border-[#064e3b] bg-[#064e3b]/5 text-[#064e3b] ring-1 ring-[#064e3b]";
 const OPTION_IDLE = "border-gray-200 text-gray-700 hover:bg-gray-50";
+
+const RADIO_OPTIONS = {
+  life_stage: [
+    "Planning a pregnancy",
+    "Currently Pregnant",
+    "Postpartum or breastfeeding",
+    "Perimenopause or menopause",
+    "None of these",
+  ],
+  digestion: [
+    "No ongoing symptoms",
+    "Occasional bloating, reflux, diarrhea, or constipation",
+    "Frequent symptoms",
+    "Diagnosed digestive condition",
+  ],
+  sleep_cycle: ["Under 5 hours", "5–6 hours", "7–8 hours", "More than 8 hours"],
+  stress_level: ["Low or Manageable", "Moderate", "High", "Very high or recent major stress"],
+  energy_level: [
+    "Steady most of the day",
+    "Afternoon dip",
+    "Low most of the day",
+    "It varies a lot",
+  ],
+  supplements: ["Yes", "No"],
+  prescription_medicines: HEALTH_PRESCRIPTION_OPTIONS,
+  food_habits: ["Vegetarian", "Non-Vegetarian"],
+};
 
 export default function Section3Female({ onComplete, onBack }) {
   const { state, updateInternalHealth } = useQuiz();
@@ -72,6 +105,10 @@ export default function Section3Female({ onComplete, onBack }) {
     stress_level: state?.internalHealth?.stress_level || "",
     energy_level: state?.internalHealth?.energy_level || "",
     supplements: state?.internalHealth?.supplements || "",
+    prescription_medicines:
+      state?.internalHealth?.prescription_medicines ||
+      state?.internalHealth?.blood_pressure ||
+      "",
     food_habits: state?.internalHealth?.food_habits || "",
   });
 
@@ -112,12 +149,19 @@ export default function Section3Female({ onComplete, onBack }) {
   const handleContinue = () => {
     if (!validate()) return;
 
+    const partialForm = {
+      ...localForm,
+      blood_pressure: localForm.prescription_medicines,
+    };
+
     if (step < STEPS.length - 1) {
+      if (updateInternalHealth) updateInternalHealth(partialForm);
       setStep((prev) => prev + 1);
-    } else {
-      if (updateInternalHealth) updateInternalHealth(localForm);
-      if (onComplete) onComplete();
+      return;
     }
+
+    if (updateInternalHealth) updateInternalHealth(partialForm);
+    if (onComplete) onComplete();
   };
 
   const handleBack = () => {
@@ -162,19 +206,21 @@ export default function Section3Female({ onComplete, onBack }) {
         <div className="mt-8 animate-[fadeIn_0.3s_ease-out]">
           {currentStep === "iron_level" && (
             <div className="grid grid-cols-1 gap-3">
-              {["No,my iron was normal ", "Yes,i was diagnosed with low iron or anemia", "i have Never Checked"].map((opt) =>
-                radioOption(opt, "iron_level")
-              )}
+              {[
+                "No, my iron was normal",
+                "Yes, I was diagnosed with low iron or anemia",
+                "I have never checked",
+              ].map((opt) => radioOption(opt, "iron_level"))}
             </div>
           )}
 
           {currentStep === "symptoms" && (
             <div className="grid grid-cols-1 gap-3">
               {[
-                "Irregular or absent Periods",
-                "Diagnosed PCOS / PCOD ",
-                "Ongoing or Extreme Fatigue",
-                "Diagnosed Thyroid issue",
+                "Irregular or absent periods",
+                "Diagnosed PCOS / PCOD",
+                "Ongoing or extreme fatigue",
+                "Diagnosed thyroid issue",
                 "Increased facial hair",
                 "Acne around the chin or lower face",
                 "None of these",
@@ -201,36 +247,9 @@ export default function Section3Female({ onComplete, onBack }) {
             </div>
           )}
 
-          {[
-            "life_stage",
-            "digestion",
-            "sleep_cycle",
-            "stress_level",
-            "energy_level",
-            "supplements",
-            "food_habits",
-          ].includes(currentStep) && (
+          {RADIO_OPTIONS[currentStep] && (
             <div className="grid grid-cols-1 gap-3">
-              {(currentStep === "life_stage"
-                ? [
-                    "Planning a pregnancy",
-                    "Currently Pregnant",
-                    "Postpartum or breastfeeding",
-                    "Perimenopause or menopause",
-                    "None of these",
-                  ]
-                : currentStep === "digestion"
-                  ? ["No ongoing symptoms ", "Occasional bloating,reflux,diarrhea,or constipation", "Frequent symptoms","Diagnosed digestive condition"]
-                  : currentStep === "sleep_cycle"
-                    ? ["Under 5 hours", "5–6 hours", "7–8 hours", "More than 8 hours"]
-                    : currentStep === "stress_level"
-                      ? ["Low or Manageable", "Moderate", "High", "Very high or recent major stress"]
-                      : currentStep === "energy_level"
-                        ? ["Steady most of the day", "Afternoon dip ", "Low most of the day","It varies a lot"]
-                        : currentStep === "supplements"
-                          ? ["Yes", "No"]
-                          : [" Vegetarian", "Non-Vegetarian"]
-              ).map((opt) => radioOption(opt, currentStep))}
+              {RADIO_OPTIONS[currentStep].map((opt) => radioOption(opt, currentStep))}
             </div>
           )}
 
