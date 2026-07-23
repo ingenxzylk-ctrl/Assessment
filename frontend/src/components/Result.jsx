@@ -505,9 +505,9 @@ function buildRootCauseTags(state, hasDandruff) {
     tags.push("Cortisol Control");
   }
   if (
-    includesIgnoreCase(iron, "low") ||
-    includesIgnoreCase(iron, "anemia") ||
-    includesIgnoreCase(iron, "anaemia") ||
+    includesIgnoreCase(internal.iron_level, "low") ||
+    includesIgnoreCase(internal.iron_level, "anemia") ||
+    includesIgnoreCase(internal.iron_level, "anaemia") ||
     includesIgnoreCase(internal.energy_level, "low") ||
     includesIgnoreCase(internal.energy_level, "afternoon") ||
     (includesIgnoreCase(internal.food_habits, "vegetarian") &&
