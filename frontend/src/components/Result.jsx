@@ -430,7 +430,9 @@ function buildRootCauses(state, hasDandruff, isFemale) {
   if (includesIgnoreCase(digestion, "bloating") || includesIgnoreCase(digestion, "constipation")) {
     nutritionBits.push("gut absorption stress");
   }
-  if (includesIgnoreCase(food, "vegetarian")) nutritionBits.push("vegetarian diet gaps");
+  if (includesIgnoreCase(food, "vegetarian") && !/non[-\s]?veg/i.test(food)) {
+    nutritionBits.push("vegetarian diet gaps");
+  }
   if (String(internal.supplements || "").toLowerCase() === "no") {
     nutritionBits.push("no current supplements");
   }
@@ -503,10 +505,13 @@ function buildRootCauseTags(state, hasDandruff) {
     tags.push("Cortisol Control");
   }
   if (
-    includesIgnoreCase(internal.iron_level, "low") ||
+    includesIgnoreCase(iron, "low") ||
+    includesIgnoreCase(iron, "anemia") ||
+    includesIgnoreCase(iron, "anaemia") ||
     includesIgnoreCase(internal.energy_level, "low") ||
     includesIgnoreCase(internal.energy_level, "afternoon") ||
-    includesIgnoreCase(internal.food_habits, "vegetarian") ||
+    (includesIgnoreCase(internal.food_habits, "vegetarian") &&
+      !/non[-\s]?veg/i.test(String(internal.food_habits || ""))) ||
     includesIgnoreCase(internal.bowel, "irregular") ||
     includesIgnoreCase(internal.bowel, "constipation") ||
     includesIgnoreCase(internal.bowel, "bloating") ||
@@ -1444,18 +1449,19 @@ export default function Result() {
 
     reportSubmitRef.current = true;
 
+    const LIVE_DEFAULT = "https://zylkhealth.com/assessment/";
     const publicAppBase =
       (typeof import.meta !== "undefined" &&
         (import.meta.env?.VITE_PUBLIC_APP_URL || import.meta.env?.VITE_APP_ORIGIN)) ||
-      "";
+      LIVE_DEFAULT;
     const resultPageUrl =
       typeof window !== "undefined"
         ? (() => {
-            const base =
-              publicAppBase && /^https?:\/\//i.test(publicAppBase)
-                ? publicAppBase
-                : window.location.href;
-            const url = new URL(base, window.location.origin);
+            const configured =
+              publicAppBase && /^https?:\/\//i.test(publicAppBase) ? publicAppBase : "";
+            const onLoopback = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+            const base = configured || (onLoopback ? LIVE_DEFAULT : window.location.href);
+            const url = new URL(base, onLoopback ? LIVE_DEFAULT : window.location.origin);
             url.searchParams.set("report", reportId);
             return url.toString();
           })()
@@ -1463,9 +1469,10 @@ export default function Result() {
     const appOrigin =
       publicAppBase && /^https?:\/\//i.test(publicAppBase)
         ? publicAppBase
-        : typeof window !== "undefined"
+        : typeof window !== "undefined" &&
+            !/^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname)
           ? `${window.location.origin}${window.location.pathname || "/"}`
-          : "";
+          : LIVE_DEFAULT;
 
     submitAssessmentReport({
       aboutMe: state.aboutMe,
