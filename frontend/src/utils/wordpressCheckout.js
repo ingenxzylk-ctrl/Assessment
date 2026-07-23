@@ -3,6 +3,7 @@ import { saveScalpImagesToIdb } from "./quizImageStore";
 import { getCheckoutWooProductIds } from "../config/bundles";
 
 const WP_SITE_URL = import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com";
+const WP_STORE_API = `${WP_SITE_URL}/wp-json/wc/store/v1`;
 
 /**
  * Build the WooCommerce product ID list for checkout from a cart line item.
@@ -40,41 +41,23 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function waitForPopupLoad(popup, timeoutMs = 4500) {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (reason) => {
-      if (settled) return;
-      settled = true;
-      resolve(reason);
-    };
-
-    const timer = setTimeout(() => finish("timeout"), timeoutMs);
-
-    try {
-      popup.onload = () => {
-        clearTimeout(timer);
-        setTimeout(() => finish("load"), 700);
-      };
-    } catch {
-      clearTimeout(timer);
-      finish("error");
-    }
-  });
+function headerValue(headers, name) {
+  if (!headers) return null;
+  return (
+    headers.get(name) ||
+    headers.get(name.toLowerCase()) ||
+    headers.get(name.replace(/(^|-)([a-z])/g, (_, p, c) => (p ? "-" : "") + c.toUpperCase()))
+  );
 }
 
-function writePopupPlaceholder(popup, message) {
-  try {
-    popup.document.open();
-    popup.document.write(`<!doctype html>
-<html><head><meta charset="utf-8"><title>Adding to cart…</title></head>
-<body style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f7f7f5;color:#064e3b;">
-  <p style="text-align:center;padding:1.5rem;font-size:1rem;line-height:1.5;">${message}</p>
-</body></html>`);
-    popup.document.close();
-  } catch {
-    // ignore
-  }
+function readStoreAuth(response) {
+  return {
+    cartToken: headerValue(response.headers, "Cart-Token") || headerValue(response.headers, "cart-token"),
+    nonce:
+      headerValue(response.headers, "Nonce") ||
+      headerValue(response.headers, "nonce") ||
+      headerValue(response.headers, "X-WC-Store-API-Nonce"),
+  };
 }
 
 function addToCartUrl(productId, quantity = 1) {
@@ -82,7 +65,102 @@ function addToCartUrl(productId, quantity = 1) {
 }
 
 /**
- * Same-site no-cors GETs can set classic Woo session cookies without opening tabs.
+ * Woo Store API — same-tab, no popups.
+ * Works when CORS allows the assessment origin; fails otherwise.
+ */
+async function addProductsViaStoreApi(productIds, qty) {
+  const cartRes = await fetch(`${WP_STORE_API}/cart`, {
+    method: "GET",
+    credentials: "include",
+    mode: "cors",
+    headers: { Accept: "application/json" },
+  });
+  if (!cartRes.ok) throw new Error(`Cart bootstrap failed (${cartRes.status})`);
+
+  let { cartToken, nonce } = readStoreAuth(cartRes);
+  if (!cartToken) throw new Error("Missing Cart-Token");
+
+  for (let i = 0; i < productIds.length; i += 1) {
+    const id = productIds[i];
+    const quantity = i === 0 ? qty || 1 : 1;
+    const res = await fetch(`${WP_STORE_API}/cart/add-item`, {
+      method: "POST",
+      credentials: "include",
+      mode: "cors",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "Cart-Token": cartToken,
+        ...(nonce ? { Nonce: nonce } : {}),
+      },
+      body: JSON.stringify({ id: Number(id), quantity: Number(quantity) || 1 }),
+    });
+
+    const next = readStoreAuth(res);
+    if (next.cartToken) cartToken = next.cartToken;
+    if (next.nonce) nonce = next.nonce;
+
+    if (!res.ok) {
+      let detail = "";
+      try {
+        const body = await res.json();
+        detail = body?.message || body?.code || "";
+      } catch {
+        // ignore
+      }
+      throw new Error(`Add item ${id} failed (${res.status}) ${detail}`.trim());
+    }
+  }
+}
+
+/**
+ * Same-tab hidden iframes — no new browser tabs.
+ * On same-site hosts (assessment.zylkhealth.com → zylkhealth.com) Woo session cookies apply.
+ */
+function addProductsViaHiddenIframes(productIds, qty) {
+  return productIds.reduce(async (prev, id, i) => {
+    await prev;
+    const quantity = i === 0 ? qty || 1 : 1;
+    const url = addToCartUrl(id, quantity);
+
+    await new Promise((resolve, reject) => {
+      const iframe = document.createElement("iframe");
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.tabIndex = -1;
+      iframe.style.cssText =
+        "position:absolute;width:1px;height:1px;left:-9999px;top:0;border:0;opacity:0;pointer-events:none";
+
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timer);
+        try {
+          iframe.remove();
+        } catch {
+          // ignore
+        }
+        if (ok) resolve();
+        else reject(new Error(`Iframe add-to-cart failed for ${id}`));
+      };
+
+      const timer = window.setTimeout(() => finish(true), 3500);
+      iframe.onload = () => {
+        // Give Woo a moment to commit the session before the next product
+        window.setTimeout(() => finish(true), 700);
+      };
+      iframe.onerror = () => finish(false);
+
+      document.body.appendChild(iframe);
+      iframe.src = url;
+    });
+
+    if (i < productIds.length - 1) await sleep(400);
+  }, Promise.resolve());
+}
+
+/**
+ * no-cors GETs in the current tab (opaque responses; cookies may still be set same-site).
  */
 async function addProductsViaNoCors(productIds, qty) {
   const opts = {
@@ -100,44 +178,26 @@ async function addProductsViaNoCors(productIds, qty) {
 }
 
 /**
- * Use ONE helper popup only to hit add-to-cart URLs, then close it and
- * navigate the main window to /cart/ once (never open cart in two tabs).
+ * Same-tab checkout:
+ * 1) Persist quiz
+ * 2) Add all Woo products async in this tab (no window.open / about:blank)
+ * 3) Wait until adds finish
+ * 4) Redirect this window once to /cart/
+ *
+ * @param {object[]} cartItems
+ * @param {object} quizState
+ * @param {{ onStatus?: (msg: string) => void }} [options]
  */
-async function addProductsViaHelperPopup(productIds, qty, popup) {
-  if (!popup || popup.closed) throw new Error("Checkout popup unavailable");
-
-  writePopupPlaceholder(
-    popup,
-    `Adding products to cart…<br/><span style='color:#666;font-size:0.875rem'>IDs: ${productIds.join(", ")}</span>`
-  );
-
-  for (let i = 0; i < productIds.length; i += 1) {
-    if (popup.closed) throw new Error("Checkout popup closed");
-    const id = productIds[i];
-    const quantity = i === 0 ? qty || 1 : 1;
-    popup.location.href = addToCartUrl(id, quantity);
-    await waitForPopupLoad(popup);
-    await sleep(900);
-  }
-
-  try {
-    popup.close();
-  } catch {
-    // ignore
-  }
-
-  // Single tab: only the main window opens the cart
-  window.location.href = `${WP_SITE_URL}/cart/`;
-}
-
-/**
- * Redirect to WordPress cart in a single browser tab.
- */
-export async function redirectToWordPressCheckout(cartItems, quizState) {
+export async function redirectToWordPressCheckout(cartItems, quizState, options = {}) {
   if (!cartItems?.length) return;
 
+  const { onStatus } = options;
+  const setStatus = (msg) => {
+    if (typeof onStatus === "function") onStatus(msg);
+  };
+
   const item = cartItems[0];
-  const { kitId, mixId, productIds } = resolveCheckoutProductIds(item);
+  const { kitId, productIds } = resolveCheckoutProductIds(item);
 
   if (!kitId || !productIds.length) {
     alert("Product is not linked to the store yet. Please contact support.");
@@ -148,16 +208,11 @@ export async function redirectToWordPressCheckout(cartItems, quizState) {
   const cartUrl = `${WP_SITE_URL}/cart/`;
   const needsMultiAdd = productIds.length > 1;
 
-  // Reserve one helper popup under the user gesture (closed before cart opens).
-  const helperPopup = needsMultiAdd ? window.open("about:blank", "zylk_woo_add") : null;
-  if (helperPopup) {
-    writePopupPlaceholder(
-      helperPopup,
-      mixId
-        ? `Adding kit ${kitId} + Health Mix ${mixId}…`
-        : "Preparing checkout…"
-    );
-  }
+  setStatus(
+    needsMultiAdd
+      ? `Adding products to cart… (${productIds.join(", ")})`
+      : "Preparing checkout…"
+  );
 
   if (quizState) {
     persistQuizStateNow(quizState);
@@ -169,72 +224,54 @@ export async function redirectToWordPressCheckout(cartItems, quizState) {
   }
   markCheckoutReturn();
 
-  // Single product → one navigation in this tab only
+  // Single product — one same-tab redirect
   if (!needsMultiAdd) {
-    if (helperPopup && !helperPopup.closed) {
-      try {
-        helperPopup.close();
-      } catch {
-        // ignore
-      }
-    }
     window.location.href = `${WP_SITE_URL}/cart/?add-to-cart=${kitId}&quantity=${qty}`;
     return;
   }
 
-  // Prefer cookie-based adds with no extra tabs, then open cart once here
+  // Multi-product: sync in this tab, then one redirect (never open a second tab)
+  let added = false;
+
   try {
-    await addProductsViaNoCors(productIds, qty);
-    if (helperPopup && !helperPopup.closed) {
-      try {
-        helperPopup.close();
-      } catch {
-        // ignore
-      }
-    }
-    window.location.href = cartUrl;
-    return;
+    setStatus(`Adding kit ${productIds[0]}…`);
+    await addProductsViaStoreApi(productIds, qty);
+    added = true;
   } catch (err) {
-    console.warn("no-cors multi add failed:", err);
+    console.warn("Store API cart add failed:", err);
   }
 
-  // Fallback: helper popup adds items, then we close it and open cart in THIS tab only
-  if (helperPopup && !helperPopup.closed) {
+  if (!added) {
     try {
-      await addProductsViaHelperPopup(productIds, qty, helperPopup);
-      return;
+      setStatus(`Adding products… (${productIds.join(", ")})`);
+      await addProductsViaHiddenIframes(productIds, qty);
+      added = true;
     } catch (err) {
-      console.warn("Helper popup add failed:", err);
-      try {
-        if (!helperPopup.closed) helperPopup.close();
-      } catch {
-        // ignore
-      }
+      console.warn("Hidden iframe cart add failed:", err);
     }
   }
 
-  const retry = window.confirm(
-    `Click OK to add both products, then open your cart in this tab:\n• Kit ${kitId}\n• Health Mix ${mixId}`
-  );
-  if (retry) {
-    const popup = window.open("about:blank", "zylk_woo_add");
-    if (popup) {
-      try {
-        await addProductsViaHelperPopup(productIds, qty, popup);
-        return;
-      } catch (err) {
-        console.warn("Retry helper popup failed:", err);
-        try {
-          popup.close();
-        } catch {
-          // ignore
-        }
-      }
+  if (!added) {
+    try {
+      setStatus(`Syncing cart… (${productIds.join(", ")})`);
+      await addProductsViaNoCors(productIds, qty);
+      added = true;
+    } catch (err) {
+      console.warn("no-cors cart add failed:", err);
     }
   }
 
-  alert(
-    "Please allow popups briefly so we can add both products, then your cart will open in this tab."
-  );
-  window.location.href = `${WP_SITE_URL}/cart/?add-to-cart=${kitId}&quantity=${qty}`;
+  if (!added) {
+    // Last resort still stays in THIS tab — kit first; user can add Health Mix from shop
+    alert(
+      "Could not sync both products automatically. Opening cart with your kit — please confirm Hair Health Mix is included."
+    );
+    window.location.href = `${WP_SITE_URL}/cart/?add-to-cart=${kitId}&quantity=${qty}`;
+    return;
+  }
+
+  // Brief pause so the session cookie is committed before /cart/ loads
+  setStatus("Opening your cart…");
+  await sleep(400);
+  window.location.href = cartUrl;
 }
