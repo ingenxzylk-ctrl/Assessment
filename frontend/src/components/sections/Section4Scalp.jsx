@@ -300,10 +300,15 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
     if (!videoRef.current) return;
 
     const canvas = document.createElement("canvas");
-    canvas.width = videoRef.current.videoWidth || 480;
-    canvas.height = videoRef.current.videoHeight || 640;
+    const width = videoRef.current.videoWidth || 480;
+    const height = videoRef.current.videoHeight || 640;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    // Mirror capture to match the mirrored preview (selfie / mirror framing)
+    ctx.translate(width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(videoRef.current, 0, 0, width, height);
 
     const screenshot = canvas.toDataURL("image/jpeg");
 
@@ -607,14 +612,21 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
         {useCamera ? (
           <div className="relative rounded-2xl overflow-hidden bg-black aspect-[3/4] max-w-sm mx-auto shadow-md mb-6">
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            {/* Mirrored preview: move right → image moves right (like a bathroom mirror) */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover scale-x-[-1]"
+            />
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-56 h-72 border-2 border-dashed border-white/70 rounded-[50%] shadow-[0_0_0_400px_rgba(0,0,0,0.4)]" />
             </div>
-            <p className="absolute top-4 inset-x-0 text-center text-white text-xs font-medium">
+            <p className="absolute top-4 inset-x-0 text-center text-white text-xs font-medium px-4">
               {activeCaptureType
-                ? `Capturing ${activeCaptureType} view`
-                : "Point camera at your scalp"}
+                ? `Capturing ${activeCaptureType} view · mirrored preview`
+                : "Mirrored preview — move to fit your scalp in the oval"}
             </p>
             <button
               type="button"
