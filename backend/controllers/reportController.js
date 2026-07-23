@@ -143,47 +143,41 @@ function getRequestOrigin(req) {
 
 /**
  * Build an org-shareable Result page URL.
- * Prefer RESULT_APP_BASE_URL / FRONTEND_ORIGIN so emailed PDFs do not point at localhost.
+ * Prefer RESULT_APP_BASE_URL / FRONTEND_ORIGIN / production default so emailed PDFs
+ * never point at localhost when the live assessment app is available.
  * Always returns a URL when reportId is present so the PDF never omits the link.
  */
 function buildResultPageUrl({ resultPageUrl, appOrigin, reportId, requestOrigin }) {
+  const LIVE_DEFAULT = "https://zylkhealth.com/assessment/";
   const envBase =
-    process.env.RESULT_APP_BASE_URL || process.env.FRONTEND_ORIGIN || "";
+    process.env.RESULT_APP_BASE_URL ||
+    process.env.FRONTEND_ORIGIN ||
+    process.env.PUBLIC_APP_URL ||
+    LIVE_DEFAULT;
 
-  if (envBase) {
-    return appendReportParam(envBase, reportId);
+  const candidates = [
+    envBase,
+    typeof resultPageUrl === "string" ? resultPageUrl.trim() : "",
+    typeof appOrigin === "string" ? appOrigin.trim() : "",
+    requestOrigin || "",
+  ].filter(Boolean);
+
+  // Prefer the first non-loopback absolute URL (rewrite path + report id onto env/live base when needed)
+  for (const candidate of candidates) {
+    if (!/^https?:\/\//i.test(candidate)) continue;
+    if (isLoopbackUrl(candidate)) continue;
+    // If candidate is already a full result URL with report param, keep it
+    try {
+      const u = new URL(candidate);
+      if (u.searchParams.get("report") === String(reportId)) return u.toString();
+    } catch {
+      // fall through
+    }
+    return appendReportParam(candidate, reportId);
   }
 
-  if (
-    typeof resultPageUrl === "string" &&
-    /^https?:\/\//i.test(resultPageUrl) &&
-    !isLoopbackUrl(resultPageUrl)
-  ) {
-    return resultPageUrl.trim();
-  }
-
-  if (typeof appOrigin === "string" && appOrigin.trim() && !isLoopbackUrl(appOrigin)) {
-    return appendReportParam(appOrigin.trim(), reportId);
-  }
-
-  if (requestOrigin && !isLoopbackUrl(requestOrigin)) {
-    return appendReportParam(requestOrigin, reportId);
-  }
-
-  if (typeof resultPageUrl === "string" && /^https?:\/\//i.test(resultPageUrl)) {
-    return resultPageUrl.trim();
-  }
-
-  if (typeof appOrigin === "string" && appOrigin.trim()) {
-    return appendReportParam(appOrigin.trim(), reportId);
-  }
-
-  if (requestOrigin) {
-    return appendReportParam(requestOrigin, reportId);
-  }
-
-  // Last resort — still embed a deep link so the PDF always shows something clickable/copyable
-  return appendReportParam("http://localhost:5173/", reportId);
+  // Client sent only localhost (local testing) — still publish the live org link
+  return appendReportParam(envBase || LIVE_DEFAULT, reportId);
 }
 
 /**

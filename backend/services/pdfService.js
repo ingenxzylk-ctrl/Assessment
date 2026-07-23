@@ -1,7 +1,7 @@
 import PDFDocument from "pdfkit";
 
 /** Bump when PDF layout changes — exposed via GET /api/health for deploy checks. */
-export const PDF_FORMAT_VERSION = "v3-exact-quiz-answers";
+export const PDF_FORMAT_VERSION = "v4-live-link-photos";
 
 const BRAND = "#064e3b";
 const MUTED = "#6b7280";
@@ -92,12 +92,15 @@ function labelize(value, opts = {}) {
   if (DURATION_LABELS[raw]) return DURATION_LABELS[raw];
   if (OPTION_LABELS[raw]) return OPTION_LABELS[raw];
 
-  // Exact quiz free-text answers (iron, symptoms, life stage, etc.) — do not title-case
-  if (/[\s,/]/.test(raw) || raw.length > 24) return raw;
+  // Only auto-format pure lowercase snake/kebab option IDs.
+  // Preserve exact quiz free-text answers (mixed case, punctuation, etc.).
+  if (/^[a-z0-9]+(?:[_-][a-z0-9]+)*$/.test(raw)) {
+    return raw
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
 
-  return raw
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return raw;
 }
 
 function contentWidth(doc) {
@@ -174,21 +177,35 @@ function drawFooter(doc, pageLabel) {
   const left = doc.page.margins.left;
   const width = contentWidth(doc);
   const y = doc.page.height - 36;
-  doc
-    .fontSize(7)
-    .fillColor("#9ca3af")
-    .font("Helvetica")
-    .text(
-      `Confidential — for Zylk Health internal use only.  ·  PDF ${PDF_FORMAT_VERSION} · zylkhealth.com`,
-      left,
-      y,
-      { width: width * 0.68, lineBreak: false }
-    );
+  const savedY = doc.y;
+  const savedX = doc.x;
+
+  // Absolute footer draw — never trigger an automatic page break
+  doc.fontSize(7).fillColor("#9ca3af").font("Helvetica");
+  doc.text(
+    `Confidential — for Zylk Health internal use only.  ·  PDF ${PDF_FORMAT_VERSION} · zylkhealth.com`,
+    left,
+    y,
+    { width: width * 0.68, lineBreak: false, height: 12 }
+  );
   doc.text(pageLabel, left + width * 0.68, y, {
     width: width * 0.32,
     align: "right",
     lineBreak: false,
+    height: 12,
   });
+
+  doc.x = savedX;
+  doc.y = savedY;
+}
+
+function photoCaption(typeOrLabel) {
+  const raw = String(typeOrLabel || "").toLowerCase();
+  if (raw.includes("front")) return "FRONT VIEW";
+  if (raw.includes("side")) return "SIDE VIEW";
+  if (raw.includes("back")) return "BACK VIEW";
+  if (raw.includes("top") || raw.includes("crown")) return "TOP / CROWN VIEW";
+  return String(typeOrLabel || "PHOTO").toUpperCase();
 }
 
 /**
@@ -201,7 +218,9 @@ function drawResultPageLink(doc, resultPageUrl, { compact = false, reportId = nu
   const width = contentWidth(doc);
   const url =
     (typeof resultPageUrl === "string" && resultPageUrl.trim()) ||
-    (reportId ? `/?report=${encodeURIComponent(reportId)}` : null);
+    (reportId
+      ? `https://zylkhealth.com/assessment/?report=${encodeURIComponent(reportId)}`
+      : null);
   if (!url) return;
 
   const needed = compact ? 58 : 92;
@@ -464,17 +483,27 @@ function embedScalpPhotos(doc, scalpImages) {
   doc.moveDown(0.35);
 
   if (!photos.length) {
-    doc.font("Helvetica").fontSize(9).fillColor(MUTED).text("No uploaded scalp photos were available for this report.");
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor(MUTED)
+      .text("No uploaded scalp photos were available for this report.");
     doc.moveDown(0.4);
     return;
   }
 
-  const gap = 14;
-  const cols = Math.min(2, photos.length);
+  const gap = 10;
+  const cols = Math.min(photos.length === 3 ? 3 : 2, photos.length);
   const boxW = (width - gap * (cols - 1)) / cols;
-  const boxH = 118;
+  const boxH = photos.length === 3 ? 132 : 128;
   let x = left;
   let rowTop = doc.y;
+
+  if (rowTop + boxH + 28 > doc.page.height - 56) {
+    doc.addPage();
+    rowTop = doc.page.margins.top + 8;
+    x = left;
+  }
 
   photos.forEach((photo, index) => {
     if (index > 0 && index % cols === 0) {
@@ -488,8 +517,8 @@ function embedScalpPhotos(doc, scalpImages) {
 
     doc.roundedRect(x, rowTop, boxW, boxH, 6).strokeColor(LINE).lineWidth(0.8).stroke();
     try {
-      doc.image(photo.buffer, x + 6, rowTop + 6, {
-        fit: [boxW - 12, boxH - 12],
+      doc.image(photo.buffer, x + 5, rowTop + 5, {
+        fit: [boxW - 10, boxH - 10],
         align: "center",
         valign: "center",
       });
@@ -508,10 +537,11 @@ function embedScalpPhotos(doc, scalpImages) {
       .font("Helvetica-Bold")
       .fontSize(8)
       .fillColor(INK)
-      .text(labelize(photo.label || photo.type).toUpperCase(), x, rowTop + boxH + 4, {
+      .text(photoCaption(photo.type || photo.label), x, rowTop + boxH + 4, {
         width: boxW,
         align: "center",
         lineBreak: false,
+        height: 12,
       });
 
     x += boxW + gap;
@@ -733,10 +763,26 @@ export function buildAssessmentPdf(payload) {
     resultPageUrl: rawResultPageUrl = null,
   } = payload;
 
-  // Never omit the link — fall back to a report deep-link if URL missing
-  const resultPageUrl =
-    (typeof rawResultPageUrl === "string" && rawResultPageUrl.trim()) ||
-    (reportId ? `/?report=${encodeURIComponent(reportId)}` : null);
+  // Never omit the link — fall back to a live deep-link if URL missing / localhost
+  const LIVE_RESULT_BASE = "https://zylkhealth.com/assessment/";
+  let resultPageUrl =
+    (typeof rawResultPageUrl === "string" && rawResultPageUrl.trim()) || null;
+  if (!resultPageUrl && reportId) {
+    resultPageUrl = `${LIVE_RESULT_BASE}?report=${encodeURIComponent(reportId)}`;
+  } else if (resultPageUrl) {
+    try {
+      const host = new URL(resultPageUrl).hostname.toLowerCase();
+      if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") {
+        resultPageUrl = reportId
+          ? `${LIVE_RESULT_BASE}?report=${encodeURIComponent(reportId)}`
+          : LIVE_RESULT_BASE;
+      }
+    } catch {
+      if (reportId) {
+        resultPageUrl = `${LIVE_RESULT_BASE}?report=${encodeURIComponent(reportId)}`;
+      }
+    }
+  }
 
   const predicted = scalpAnalysis.aiPredictedStage || scalpAnalysis.finalStage || "—";
   const selfReported = scalpAnalysis.selfReportedStage || aboutMe?.norwood_stage || "—";
