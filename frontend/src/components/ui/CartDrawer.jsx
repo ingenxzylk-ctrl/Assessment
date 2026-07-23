@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useQuiz } from "../../context/QuizContext";
 import { redirectToWordPressCheckout } from "../../utils/wordpressCheckout";
@@ -15,22 +16,48 @@ export default function CartDrawer() {
     cartTotal,
     cartCount,
   } = useCart();
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutStatus, setCheckoutStatus] = useState("");
 
   if (!isCartOpen) return null;
 
   const handleCheckout = async () => {
-    if (flushPersistence) flushPersistence();
-    await redirectToWordPressCheckout(cartItems, state);
+    if (checkoutBusy) return;
+    setCheckoutBusy(true);
+    setCheckoutStatus("Preparing checkout…");
+    try {
+      if (flushPersistence) flushPersistence();
+      await redirectToWordPressCheckout(cartItems, state, {
+        onStatus: setCheckoutStatus,
+      });
+    } catch (err) {
+      console.warn("Checkout failed:", err);
+      setCheckoutBusy(false);
+      setCheckoutStatus("");
+      alert("Checkout could not be started. Please try again.");
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden animate-[fadeIn_0.2s_ease-out]">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={() => {
+          if (!checkoutBusy) setIsCartOpen(false);
+        }}
+      />
 
       <div className="absolute inset-y-0 right-0 max-w-md w-full bg-white shadow-2xl flex flex-col transform transition-transform duration-300">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center">
           <h3 className="font-serif font-bold text-xl text-gray-900">Your Cart ({cartCount})</h3>
-          <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1 cursor-pointer">×</button>
+          <button
+            type="button"
+            disabled={checkoutBusy}
+            onClick={() => setIsCartOpen(false)}
+            className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1 cursor-pointer disabled:opacity-40"
+          >
+            ×
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -55,17 +82,39 @@ export default function CartDrawer() {
                       )}
                     </div>
                     <div className="flex items-center gap-2.5 bg-white border border-gray-200 px-2 py-1 rounded-xl">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="text-gray-500 font-bold px-1 text-sm cursor-pointer">-</button>
+                      <button
+                        type="button"
+                        disabled={checkoutBusy}
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="text-gray-500 font-bold px-1 text-sm cursor-pointer disabled:opacity-40"
+                      >
+                        -
+                      </button>
                       <span className="text-xs font-bold text-gray-700 w-4 text-center">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="text-gray-500 font-bold px-1 text-sm cursor-pointer">+</button>
+                      <button
+                        type="button"
+                        disabled={checkoutBusy}
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="text-gray-500 font-bold px-1 text-sm cursor-pointer disabled:opacity-40"
+                      >
+                        +
+                      </button>
                     </div>
-                    <button onClick={() => removeFromCart(item.id)} className="text-red-400 hover:text-red-600 text-sm font-bold pl-2 cursor-pointer">🗑️</button>
+                    <button
+                      type="button"
+                      disabled={checkoutBusy}
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-red-400 hover:text-red-600 text-sm font-bold pl-2 cursor-pointer disabled:opacity-40"
+                    >
+                      🗑️
+                    </button>
                   </div>
 
                   {item.bundleNumber && !item.isTestBundle && (
                     <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
                       <input
                         type="checkbox"
+                        disabled={checkoutBusy}
                         checked={item.includeHealthMix !== false}
                         onChange={() => toggleHealthMix(item.id)}
                         className="rounded border-gray-300"
@@ -85,11 +134,26 @@ export default function CartDrawer() {
               <span>Subtotal:</span>
               <span className="text-[#064e3b] font-bold text-lg">₹{cartTotal}</span>
             </div>
+            {checkoutBusy && checkoutStatus && (
+              <p className="text-xs text-gray-600 text-center font-medium">{checkoutStatus}</p>
+            )}
             <button
+              type="button"
+              disabled={checkoutBusy}
               onClick={handleCheckout}
-              className="w-full h-13 bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all tracking-wide text-sm shadow-sm cursor-pointer"
+              className="w-full min-h-[3.25rem] bg-[#064e3b] text-white rounded-xl font-semibold hover:bg-[#043427] transition-all tracking-wide text-sm shadow-sm cursor-pointer disabled:opacity-70 disabled:cursor-wait flex items-center justify-center gap-2 px-4"
             >
-              Proceed to Checkout on Zylk Health
+              {checkoutBusy ? (
+                <>
+                  <span
+                    className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
+                    aria-hidden
+                  />
+                  <span>Adding to cart…</span>
+                </>
+              ) : (
+                "Proceed to Checkout on Zylk Health"
+              )}
             </button>
           </div>
         )}
