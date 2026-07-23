@@ -149,9 +149,4 @@ export const HEALTH_SUPPLEMENT_OPTIONS = [
   
 ];
 
-export const HEALTH_PRESCRIPTION_OPTIONS = [
-  "Yes",
-  "No",
-  
- 
-];
+export const HEALTH_PRESCRIPTION_OPTIONS = ["Yes", "No"];
