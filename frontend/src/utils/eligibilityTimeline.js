@@ -67,9 +67,9 @@ export const hasFemaleSpecialCondition = (state = {}) => {
     (internal.health_conditions || []).some((c) => /thyroid/i.test(c)) ||
     dump.includes("thyroid");
 
-  const menopause =
-    String(internal.life_stage || "").toLowerCase().includes("don't get my periods") ||
-    dump.includes("menopause");
+  const menopause = /menopause|perimenopause|don't get my periods|periods anymore/i.test(
+    String(internal.life_stage || "")
+  );
 
   return anaemia || heavyDandruff || pcos || thyroid || menopause;
 };
