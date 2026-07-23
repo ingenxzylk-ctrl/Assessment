@@ -6,6 +6,7 @@ import {
   getBundleDisplayName,
   getWooProductId,
   getSeparateHealthMixWooId,
+  getCheckoutWooProductIds,
   usesSeparateHealthMixProduct,
   resolveBundleNumber,
 } from "../config/bundles";
@@ -1288,13 +1289,12 @@ export default function Result() {
     if (!recommendedBundle) return;
     const { bundleNumber } = recommendedBundle;
     const separateMix = usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender);
-    const kitWooId = getWooProductId(bundleNumber, includeHealthMix, hasDandruff, gender);
-    const mixWooId = getSeparateHealthMixWooId(
+    const { kitId: kitWooId, mixId: mixWooId } = getCheckoutWooProductIds({
       bundleNumber,
-      includeHealthMix,
       hasDandruff,
-      gender
-    );
+      includeHealthMix,
+      gender,
+    });
     // Replace any previous assessment kit (e.g. male → female redo)
     addToCart({
       id: recommendedBundle.bundleId,
@@ -1309,13 +1309,16 @@ export default function Result() {
       gender,
       stage: aiPredictedStageNumber,
       hasDandruff,
-      usesSeparateHealthMix: separateMix || Number(kitWooId) === 8393,
-      wooProductId: kitWooId,
-      // Kit 8393 + Include Health Mix → also add product 8303 at checkout
-      wooHealthMixProductId:
-        (separateMix || Number(kitWooId) === 8393) && includeHealthMix
-          ? mixWooId || SEPARATE_HEALTH_MIX_WOO_ID
-          : null,
+      usesSeparateHealthMix: separateMix,
+      // Primary kit (8393 when dandruff; 8315/8325 when not)
+      wooProductId: kitWooId || getWooProductId(bundleNumber, includeHealthMix, hasDandruff, gender),
+      // Separate Health Mix line item from config.healthMixProductId (8303)
+      wooHealthMixProductId: mixWooId || getSeparateHealthMixWooId(
+        bundleNumber,
+        includeHealthMix,
+        hasDandruff,
+        gender
+      ),
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
       subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,

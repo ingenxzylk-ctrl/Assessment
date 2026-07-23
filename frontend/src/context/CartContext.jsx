@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import {
   getWooProductId,
-  getSeparateHealthMixWooId,
+  getCheckoutWooProductIds,
   usesSeparateHealthMixProduct,
-  SEPARATE_HEALTH_MIX_WOO_ID,
 } from "../config/bundles";
 import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
 
@@ -83,7 +82,7 @@ export function CartProvider({ children }) {
     );
   };
 
-  /** Toggle Health Mix → changes price AND WordPress product ID(s) */
+  /** Toggle Health Mix → updates price + Woo IDs (8393 ± 8303 for dandruff Bundle-5) */
   const toggleHealthMix = (productId) => {
     setCartItems((prev) =>
       prev.map((item) => {
@@ -93,37 +92,27 @@ export function CartProvider({ children }) {
         const newPrice = includeHealthMix ? item.priceWithMix : item.priceWithoutMix;
         const hasDandruff = Boolean(item.hasDandruff);
         const gender = item.gender || null;
+
+        const { kitId, mixId } = getCheckoutWooProductIds({
+          bundleNumber: item.bundleNumber,
+          hasDandruff,
+          includeHealthMix,
+          gender,
+        });
+
         const separateMix = usesSeparateHealthMixProduct(
           item.bundleNumber,
           hasDandruff,
           gender
         );
-        const newWooId = getWooProductId(
-          item.bundleNumber,
-          includeHealthMix,
-          hasDandruff,
-          gender
-        );
-        const mixWooId = getSeparateHealthMixWooId(
-          item.bundleNumber,
-          includeHealthMix,
-          hasDandruff,
-          gender
-        );
-        // Kit 8393: Health Mix is always separate product 8303 when checkbox is on
-        const isDandruffKit8393 = Number(newWooId) === 8393;
-        const allowSeparateMix = separateMix || isDandruffKit8393;
 
         return {
           ...item,
           includeHealthMix,
           price: newPrice,
-          wooProductId: newWooId,
-          wooHealthMixProductId:
-            allowSeparateMix && includeHealthMix
-              ? mixWooId || SEPARATE_HEALTH_MIX_WOO_ID
-              : null,
-          usesSeparateHealthMix: allowSeparateMix,
+          wooProductId: kitId || getWooProductId(item.bundleNumber, includeHealthMix, hasDandruff, gender),
+          wooHealthMixProductId: mixId,
+          usesSeparateHealthMix: separateMix,
           healthMixPrice: item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
           subtitle: includeHealthMix
             ? `Bundle ${item.bundleNumber} • With Health Mix`

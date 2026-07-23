@@ -4,7 +4,7 @@ import {
   getBundleDisplayName,
   getBundlePrices,
   getWooProductId,
-  getSeparateHealthMixWooId,
+  getCheckoutWooProductIds,
   usesSeparateHealthMixProduct,
   HAIR_HEALTH_MIX_ID,
 } from "../config/bundles";
@@ -94,6 +94,12 @@ export const getRecommendedBundle = (
     Boolean(hasDandruff),
     gender
   );
+  const { kitId, mixId } = getCheckoutWooProductIds({
+    bundleNumber,
+    hasDandruff: Boolean(hasDandruff),
+    includeHealthMix,
+    gender,
+  });
 
   return {
     bundleNumber,
@@ -107,23 +113,13 @@ export const getRecommendedBundle = (
     includeHealthMix,
     hasDandruff: Boolean(hasDandruff),
     usesSeparateHealthMix: separateMix,
-    wooProductId: getWooProductId(
-      bundleNumber,
-      includeHealthMix,
-      Boolean(hasDandruff),
-      gender
-    ),
-    wooHealthMixProductId: getSeparateHealthMixWooId(
-      bundleNumber,
-      includeHealthMix,
-      Boolean(hasDandruff),
-      gender
-    ),
+    wooProductId: kitId,
+    wooHealthMixProductId: mixId,
     wooProductIdWithMix: separateMix
-      ? getWooProductId(bundleNumber, false, Boolean(hasDandruff), gender)
+      ? kitId
       : (config?.wooProductId ?? null),
     wooProductIdNoMix: separateMix
-      ? getWooProductId(bundleNumber, false, Boolean(hasDandruff), gender)
+      ? kitId
       : (config?.wooProductIdNoMix ?? null),
   };
 };

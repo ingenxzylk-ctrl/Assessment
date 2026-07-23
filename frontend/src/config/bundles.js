@@ -24,11 +24,12 @@ export const BUNDLE_CONFIG = {
   3: {
     label: "Bundle 5 — Stage 1 / Overall Thinning",
     pdfBundle: "Bundle-5",
+    // No dandruff: combined kits (Health Mix baked into the Woo product)
     wooProductId: 8315,
     wooProductIdNoMix: 8325,
-    // Stage 1 / overall thinning WITH dandruff — kit 8393 has no Health Mix
+    // With dandruff: kit has NO Health Mix — add Health Mix separately when opted in
     wooProductIdWithDandruff: 8393,
-    // Woo 8393 sale / regular (Health Mix is separate product 8303)
+    healthMixProductId: 8303,
     priceWithDandruffNoMix: 1026,
     priceWithDandruffWithMix: 2825, // 1026 + 1799 Health Mix
     originalPriceWithDandruff: 1476,
@@ -70,13 +71,13 @@ export const BUNDLE_CONFIG = {
 export const TEST_BUNDLE_NUMBER = 99;
 export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
 
-/** Standalone Health Mix WooCommerce product — for kit 8393 (dandruff Bundle-5) */
+/** Fallback Health Mix Woo ID (prefer config.healthMixProductId on Bundle 5) */
 export const SEPARATE_HEALTH_MIX_WOO_ID = 8303;
 
 /**
  * Stage 1 / overall thinning WITH dandruff → kit 8393 (no Health Mix in the kit).
- * Health Mix is optional via separate product 8303 (cart checkbox add/remove).
- * Without dandruff, Bundle-5 still uses 8315 (with mix) / 8325 (without mix).
+ * Health Mix is optional via config.healthMixProductId (8303).
+ * Without dandruff → 8315 (with mix) / 8325 (without mix).
  */
 export function usesSeparateHealthMixProduct(
   bundleNumber,
@@ -85,6 +86,52 @@ export function usesSeparateHealthMixProduct(
 ) {
   if (bundleNumber === 3 && hasDandruff) return true;
   return false;
+}
+
+/**
+ * Resolve WooCommerce product ID(s) to add at checkout.
+ *
+ * No dandruff:
+ *   includeHealthMix → [8315]
+ *   else             → [8325]
+ *
+ * With dandruff:
+ *   always           → [8393]
+ *   + includeHealthMix → also [8303]
+ *
+ * @returns {{ kitId: number|null, mixId: number|null, productIds: number[] }}
+ */
+export function getCheckoutWooProductIds({
+  bundleNumber,
+  hasDandruff = false,
+  includeHealthMix = true,
+  gender = null,
+} = {}) {
+  const config = BUNDLE_CONFIG[bundleNumber];
+  if (!config) return { kitId: null, mixId: null, productIds: [] };
+
+  // Bundle-5 + dandruff: kit 8393, optional separate Health Mix 8303
+  if (usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender)) {
+    const kitId = Number(config.wooProductIdWithDandruff) || 8393;
+    const mixId = includeHealthMix
+      ? Number(config.healthMixProductId) || SEPARATE_HEALTH_MIX_WOO_ID
+      : null;
+    return {
+      kitId,
+      mixId,
+      productIds: mixId ? [kitId, mixId] : [kitId],
+    };
+  }
+
+  // All other kits (including Bundle-5 without dandruff): single combined SKU
+  const kitId = includeHealthMix
+    ? Number(config.wooProductId)
+    : Number(config.wooProductIdNoMix ?? config.wooProductId);
+  return {
+    kitId: kitId || null,
+    mixId: null,
+    productIds: kitId ? [kitId] : [],
+  };
 }
 
 /**
@@ -143,8 +190,8 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
   return gender === "female" ? "Zylk Early Care Kit — Women" : "Zylk Early Care Kit — Men";
 }
 /**
- * Resolve kit WooCommerce product ID.
- * Bundle-5 + dandruff → always 8393 (Health Mix is separate product 8303).
+ * Resolve kit WooCommerce product ID (primary line item only).
+ * Bundle-5 + dandruff → always 8393 (Health Mix is a second line item via healthMixProductId).
  * Bundle-5 without dandruff → 8315 with mix / 8325 without mix.
  */
 export function getWooProductId(
@@ -153,26 +200,31 @@ export function getWooProductId(
   hasDandruff = false,
   gender = null
 ) {
-  const config = BUNDLE_CONFIG[bundleNumber];
-  if (!config) return null;
-
-  if (usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender)) {
-    return config.wooProductIdWithDandruff ?? 8393;
-  }
-
-  return includeHealthMix ? config.wooProductId : config.wooProductIdNoMix;
+  const { kitId } = getCheckoutWooProductIds({
+    bundleNumber,
+    includeHealthMix,
+    hasDandruff,
+    gender,
+  });
+  return kitId;
 }
 
-/** Separate Health Mix product ID when checkbox is on — kit 8393 only */
+/**
+ * Separate Health Mix Woo ID when checkbox is on — reads config.healthMixProductId (8303).
+ */
 export function getSeparateHealthMixWooId(
   bundleNumber,
   includeHealthMix = true,
   hasDandruff = false,
   gender = null
 ) {
-  if (!includeHealthMix) return null;
-  if (!usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender)) return null;
-  return SEPARATE_HEALTH_MIX_WOO_ID;
+  const { mixId } = getCheckoutWooProductIds({
+    bundleNumber,
+    includeHealthMix,
+    hasDandruff,
+    gender,
+  });
+  return mixId;
 }
 export function getBundlePrices(bundleNumber, hasDandruff = false, gender = null) {
   const config = BUNDLE_CONFIG[bundleNumber];
