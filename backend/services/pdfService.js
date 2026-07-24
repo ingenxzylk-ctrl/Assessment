@@ -102,8 +102,18 @@ function resolveResultPageUrl(rawUrl, reportId) {
   }
   if (!url) return null;
   try {
-    const host = new URL(url).hostname.toLowerCase();
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
     if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") {
+      return reportId
+        ? `${LIVE_RESULT_BASE}?report=${encodeURIComponent(reportId)}`
+        : LIVE_RESULT_BASE;
+    }
+    // Old PDFs / misconfig pointed at WordPress /assessment/ (404) — always use quiz app
+    if (
+      (host === "zylkhealth.com" || host === "www.zylkhealth.com") &&
+      /\/assessment\/?/i.test(parsed.pathname)
+    ) {
       return reportId
         ? `${LIVE_RESULT_BASE}?report=${encodeURIComponent(reportId)}`
         : LIVE_RESULT_BASE;
