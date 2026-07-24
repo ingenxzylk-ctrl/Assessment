@@ -153,7 +153,7 @@ function getRequestOrigin(req) {
  * Always returns a URL when reportId is present so the PDF never omits the link.
  */
 function buildResultPageUrl({ resultPageUrl, appOrigin, reportId, requestOrigin }) {
-  const LIVE_DEFAULT = "https://zylkhealth.com/assessment/";
+  const LIVE_DEFAULT = "https://quiz.zylkhealth.com/";
   const envBase =
     process.env.RESULT_APP_BASE_URL ||
     process.env.FRONTEND_ORIGIN ||

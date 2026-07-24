@@ -1451,7 +1451,7 @@ export default function Result() {
 
     reportSubmitRef.current = true;
 
-    const LIVE_DEFAULT = "https://zylkhealth.com/assessment/";
+    const LIVE_DEFAULT = "https://quiz.zylkhealth.com/";
     const publicAppBase =
       (typeof import.meta !== "undefined" &&
         (import.meta.env?.VITE_PUBLIC_APP_URL || import.meta.env?.VITE_APP_ORIGIN)) ||

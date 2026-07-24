@@ -12,7 +12,7 @@ const BRAND = "#064e3b";
 const MUTED = "#4b5563";
 const INK = "#111827";
 const LINE = "#e5e7eb";
-const LIVE_RESULT_BASE = "https://zylkhealth.com/assessment/";
+const LIVE_RESULT_BASE = "https://quiz.zylkhealth.com/";
 
 function labelize(value, opts = {}) {
   if (value == null || value === "") return "—";
