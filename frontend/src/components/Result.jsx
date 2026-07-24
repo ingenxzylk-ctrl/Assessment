@@ -1183,8 +1183,8 @@ export default function Result() {
     : state?.hairHealth?.norwood_stage;
   const hasDandruff = resolveHasDandruff(state);
 
-  // Kit 8393 (dandruff Bundle-5) ships without Health Mix — default checkbox OFF
-  // (user opts in → separate product 8303). Other bundles keep Health Mix ON by default.
+  // Health Mix is ON by default for every kit (including 8393 + separate 8303).
+  // User can still Remove / uncheck before checkout.
   const [includeHealthMix, setIncludeHealthMix] = useState(true);
   const mixDefaultKeyRef = useRef("");
 
@@ -1195,7 +1195,7 @@ export default function Result() {
     const key = `${gender}:${bundleNumber}:${hasDandruff ? 1 : 0}:${separate ? 1 : 0}`;
     if (mixDefaultKeyRef.current === key) return;
     mixDefaultKeyRef.current = key;
-    setIncludeHealthMix(!separate);
+    setIncludeHealthMix(true);
   }, [aiPredictedStageNumber, gender, hasDandruff]);
 
   const extractImageUrl = (img) => {

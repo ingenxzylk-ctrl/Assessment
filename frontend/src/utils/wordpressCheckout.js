@@ -3,16 +3,10 @@ import { saveScalpImagesToIdb } from "./quizImageStore";
 import { getCheckoutWooProductIds } from "../config/bundles";
 
 const WP_SITE_URL = import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com";
-const WP_STORE_API = `${WP_SITE_URL}/wp-json/wc/store/v1`;
 
 /**
- * Build the WooCommerce product ID list for checkout from a cart line item.
- *
- * Prefer re-resolving from bundleNumber so Health Mix 8303 is never dropped
- * if wooHealthMixProductId was missing on a stale cart line.
- *
- * No dandruff Bundle-5: [8315] or [8325]
- * With dandruff Bundle-5: [8393] or [8393, 8303] when Include Health Mix is on
+ * Build WooCommerce product IDs for checkout.
+ * Re-resolve from bundleNumber so Health Mix 8303 is never dropped.
  */
 function resolveCheckoutProductIds(item) {
   if (item?.bundleNumber) {
@@ -44,198 +38,114 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function headerValue(headers, name) {
-  if (!headers) return null;
-  return (
-    headers.get(name) ||
-    headers.get(name.toLowerCase()) ||
-    headers.get(
-      name.replace(/(^|-)([a-z])/g, (_, p, c) => (p ? "-" : "") + c.toUpperCase())
-    )
-  );
-}
-
-function readStoreAuth(response) {
-  return {
-    cartToken:
-      headerValue(response.headers, "Cart-Token") ||
-      headerValue(response.headers, "cart-token"),
-    nonce:
-      headerValue(response.headers, "Nonce") ||
-      headerValue(response.headers, "nonce") ||
-      headerValue(response.headers, "X-WC-Store-API-Nonce"),
-  };
-}
-
 function addToCartUrl(productId, quantity = 1) {
   return `${WP_SITE_URL}/?add-to-cart=${productId}&quantity=${quantity || 1}`;
 }
 
-/**
- * Woo Store API — same-tab, no popups.
- * Works when CORS allows the assessment origin; fails otherwise.
- */
-async function addProductsViaStoreApi(productIds, qty) {
-  const cartRes = await fetch(`${WP_STORE_API}/cart`, {
-    method: "GET",
-    credentials: "include",
-    mode: "cors",
-    headers: { Accept: "application/json" },
-  });
-  if (!cartRes.ok) throw new Error(`Cart bootstrap failed (${cartRes.status})`);
-
-  let { cartToken, nonce } = readStoreAuth(cartRes);
-  if (!cartToken) throw new Error("Missing Cart-Token");
-
-  for (let i = 0; i < productIds.length; i += 1) {
-    const id = productIds[i];
-    const quantity = i === 0 ? qty || 1 : 1;
-    const res = await fetch(`${WP_STORE_API}/cart/add-item`, {
-      method: "POST",
-      credentials: "include",
-      mode: "cors",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "Cart-Token": cartToken,
-        ...(nonce ? { Nonce: nonce } : {}),
-      },
-      body: JSON.stringify({ id: Number(id), quantity: Number(quantity) || 1 }),
-    });
-
-    const next = readStoreAuth(res);
-    if (next.cartToken) cartToken = next.cartToken;
-    if (next.nonce) nonce = next.nonce;
-
-    if (!res.ok) {
-      let detail = "";
-      try {
-        const body = await res.json();
-        detail = body?.message || body?.code || "";
-      } catch {
-        // ignore
-      }
-      throw new Error(`Add item ${id} failed (${res.status}) ${detail}`.trim());
-    }
-  }
+function cartWithAddUrl(productId, quantity = 1) {
+  return `${WP_SITE_URL}/cart/?add-to-cart=${productId}&quantity=${quantity || 1}`;
 }
 
-/**
- * Same-tab hidden iframes — no new browser tabs.
- * On related hosts (quiz.zylkhealth.com → zylkhealth.com) Woo session cookies apply.
- */
-function addProductsViaHiddenIframes(productIds, qty) {
-  return productIds.reduce(async (prev, id, i) => {
-    await prev;
-    const quantity = i === 0 ? qty || 1 : 1;
-    const url = addToCartUrl(id, quantity);
+function waitForPopupLoad(popup, timeoutMs = 15000) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (reason) => {
+      if (settled) return;
+      settled = true;
+      resolve(reason);
+    };
 
-    await new Promise((resolve, reject) => {
-      const iframe = document.createElement("iframe");
-      iframe.setAttribute("aria-hidden", "true");
-      iframe.tabIndex = -1;
-      iframe.style.cssText =
-        "position:absolute;width:1px;height:1px;left:-9999px;top:0;border:0;opacity:0;pointer-events:none";
+    const timer = setTimeout(() => finish("timeout"), timeoutMs);
 
-      let settled = false;
-      const finish = (ok) => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(timer);
-        try {
-          iframe.remove();
-        } catch {
-          // ignore
-        }
-        if (ok) resolve();
-        else reject(new Error(`Iframe add-to-cart failed for ${id}`));
-      };
-
-      const timer = window.setTimeout(() => finish(true), 4000);
-      iframe.onload = () => {
-        window.setTimeout(() => finish(true), 800);
-      };
-      iframe.onerror = () => finish(false);
-
-      document.body.appendChild(iframe);
-      iframe.src = url;
-    });
-
-    if (i < productIds.length - 1) await sleep(500);
-  }, Promise.resolve());
-}
-
-/**
- * no-cors GETs in the current tab (opaque responses; cookies may still be set same-site).
- */
-async function addProductsViaNoCors(productIds, qty) {
-  const opts = {
-    method: "GET",
-    mode: "no-cors",
-    credentials: "include",
-    cache: "no-store",
-  };
-  for (let i = 0; i < productIds.length; i += 1) {
-    const id = productIds[i];
-    const quantity = i === 0 ? qty || 1 : 1;
-    await fetch(addToCartUrl(id, quantity), opts);
-    if (i < productIds.length - 1) await sleep(600);
-  }
-}
-
-/**
- * Last-resort helper that stays on ONE cart tab:
- * add kit then Health Mix in a short-lived popup, close it, then open cart once
- * in the main window (never leave two cart tabs open).
- */
-async function addKitAndMixViaHelperWindow(kitId, mixId, qty) {
-  const popup = window.open("about:blank", "zylk_woo_add");
-  if (!popup || popup.closed) {
-    throw new Error("Checkout popup blocked");
-  }
-
-  try {
-    popup.document.open();
-    popup.document.write(`<!doctype html><html><body style="font-family:system-ui;padding:2rem;color:#064e3b">
-      Adding kit + Hair Health Mix…</body></html>`);
-    popup.document.close();
-  } catch {
-    // ignore
-  }
-
-  const waitLoad = () =>
-    new Promise((resolve) => {
-      const timer = setTimeout(() => resolve("timeout"), 10000);
-      try {
-        popup.onload = () => {
-          clearTimeout(timer);
-          setTimeout(() => resolve("load"), 700);
-        };
-      } catch {
+    try {
+      popup.onload = () => {
         clearTimeout(timer);
-        setTimeout(() => resolve("error"), 2000);
-      }
-    });
-
-  popup.location.href = addToCartUrl(kitId, qty);
-  await waitLoad();
-  if (popup.closed) throw new Error("Checkout popup closed");
-
-  popup.location.href = addToCartUrl(mixId, 1);
-  await waitLoad();
-
-  try {
-    popup.close();
-  } catch {
-    // ignore
-  }
+        // Woo needs time to commit the cart cookie after each add
+        setTimeout(() => finish("load"), 1200);
+      };
+    } catch {
+      clearTimeout(timer);
+      setTimeout(() => finish("error"), 2000);
+    }
+  });
 }
 
 /**
- * Same-tab checkout:
- * 1) Persist quiz
- * 2) Add all Woo products in this session (kit + optional Health Mix 8303)
- * 3) Redirect THIS window once to /cart/ — never open a second cart tab
+ * WooCommerce cart cookies are SameSite=Lax — only top-level navigations
+ * (not iframes/fetch from quiz.zylkhealth.com) can add items to the shop session.
+ *
+ * Flow when Health Mix is included:
+ *  1. Top-level popup adds the kit (8393)
+ *  2. Same popup adds Health Mix (8303)
+ *  3. Close popup
+ *  4. Main window top-level navigates to /cart/?add-to-cart=8303 once
+ *     (ensures mix is in the session even if popup cookies were flaky,
+ *      and opens exactly one cart tab)
+ */
+async function addKitThenOpenCartWithMix(kitId, mixId, qty, setStatus) {
+  setStatus("Adding your kit…");
+
+  // Open synchronously under the user gesture whenever possible
+  let popup = window.open(addToCartUrl(kitId, qty), "zylk_woo_add");
+
+  if (!popup || popup.closed) {
+    const retry = window.confirm(
+      "Your browser blocked the checkout window.\n\nClick OK to open it so we can add the kit and Hair Health Mix."
+    );
+    if (!retry) return false;
+    popup = window.open(addToCartUrl(kitId, qty), "zylk_woo_add");
+  }
+
+  if (!popup || popup.closed) {
+    // Last resort: at least add kit in this tab (mix cannot be chained without a helper)
+    alert(
+      "Please allow popups for this site so Hair Health Mix can be added with your kit.\n\nOpening cart with the kit only for now."
+    );
+    window.location.href = cartWithAddUrl(kitId, qty);
+    return false;
+  }
+
+  await waitForPopupLoad(popup);
+  await sleep(800);
+
+  if (popup.closed) {
+    // Kit may still have been added — finish with mix on the main tab
+    window.location.href = cartWithAddUrl(mixId, 1);
+    return true;
+  }
+
+  setStatus("Adding Hair Health Mix…");
+  try {
+    popup.location.href = addToCartUrl(mixId, 1);
+  } catch {
+    try {
+      popup.close();
+    } catch {
+      // ignore
+    }
+    window.location.href = cartWithAddUrl(mixId, 1);
+    return true;
+  }
+
+  await waitForPopupLoad(popup);
+  await sleep(800);
+
+  try {
+    if (!popup.closed) popup.close();
+  } catch {
+    // ignore
+  }
+
+  setStatus("Opening your cart…");
+  // Top-level main navigation: adds/ensures Health Mix + shows cart (one tab)
+  window.location.href = cartWithAddUrl(mixId, 1);
+  return true;
+}
+
+/**
+ * Redirect to WordPress cart while preserving quiz progress.
+ * Kit-only: one same-tab redirect.
+ * Kit + Health Mix 8303: top-level adds (required for Woo cookies), then one cart tab.
  */
 export async function redirectToWordPressCheckout(cartItems, quizState, options = {}) {
   if (!cartItems?.length) return;
@@ -254,15 +164,14 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
   }
 
   const qty = item.quantity || 1;
-  const cartUrl = `${WP_SITE_URL}/cart/`;
-  const needsMultiAdd = productIds.length > 1;
 
   setStatus(
-    needsMultiAdd
-      ? `Adding kit + Hair Health Mix… (${productIds.join(", ")})`
+    mixId
+      ? `Adding kit ${kitId} + Hair Health Mix ${mixId}…`
       : "Preparing checkout…"
   );
 
+  // Persist BEFORE any navigation / popup work
   if (quizState) {
     persistQuizStateNow(quizState);
     try {
@@ -274,62 +183,19 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
   markCheckoutReturn();
 
   // Single product — one same-tab redirect
-  if (!needsMultiAdd) {
-    window.location.href = `${WP_SITE_URL}/cart/?add-to-cart=${kitId}&quantity=${qty}`;
+  if (!mixId) {
+    window.location.href = cartWithAddUrl(kitId, qty);
     return;
   }
 
-  // Multi-product: sync in this tab, then one redirect (never leave two cart tabs)
-  let added = false;
-
+  // Kit + Health Mix
   try {
-    setStatus(`Adding kit ${productIds[0]}…`);
-    await addProductsViaStoreApi(productIds, qty);
-    added = true;
+    await addKitThenOpenCartWithMix(kitId, mixId, qty, setStatus);
   } catch (err) {
-    console.warn("Store API cart add failed:", err);
-  }
-
-  if (!added) {
-    try {
-      setStatus(`Adding products… (${productIds.join(", ")})`);
-      await addProductsViaHiddenIframes(productIds, qty);
-      added = true;
-    } catch (err) {
-      console.warn("Hidden iframe cart add failed:", err);
-    }
-  }
-
-  if (!added) {
-    try {
-      setStatus(`Syncing cart… (${productIds.join(", ")})`);
-      await addProductsViaNoCors(productIds, qty);
-      added = true;
-    } catch (err) {
-      console.warn("no-cors cart add failed:", err);
-    }
-  }
-
-  if (!added && mixId) {
-    try {
-      setStatus("Adding kit + Hair Health Mix…");
-      await addKitAndMixViaHelperWindow(kitId, mixId, qty);
-      added = true;
-    } catch (err) {
-      console.warn("Helper-window cart add failed:", err);
-    }
-  }
-
-  if (!added) {
+    console.warn("Kit + Health Mix checkout failed:", err);
     alert(
       "Could not add Hair Health Mix automatically. Opening cart with your kit — please add “Zylk Hair Health Mix” from the shop if it is missing."
     );
-    window.location.href = `${WP_SITE_URL}/cart/?add-to-cart=${kitId}&quantity=${qty}`;
-    return;
+    window.location.href = cartWithAddUrl(kitId, qty);
   }
-
-  setStatus("Opening your cart…");
-  await sleep(500);
-  // Exactly one tab navigation to cart
-  window.location.href = cartUrl;
 }
