@@ -266,7 +266,7 @@ function buildReportContentHash(state, analysis) {
 
   const payload = JSON.stringify({
     // Bump with backend PDF_FORMAT_VERSION so layout fixes regenerate Drive PDFs
-    pdfFormatVersion: "v6-strict-2page",
+    pdfFormatVersion: "v7-quiz-result-link",
     aboutMe: state?.aboutMe || {},
     hairHealth: state?.hairHealth || {},
     internalHealth: state?.internalHealth || {},
@@ -1451,7 +1451,7 @@ export default function Result() {
 
     reportSubmitRef.current = true;
 
-    const LIVE_DEFAULT = "https://zylkhealth.com/assessment/";
+    const LIVE_DEFAULT = "https://quiz.zylkhealth.com/";
     const publicAppBase =
       (typeof import.meta !== "undefined" &&
         (import.meta.env?.VITE_PUBLIC_APP_URL || import.meta.env?.VITE_APP_ORIGIN)) ||
