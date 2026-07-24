@@ -324,6 +324,15 @@ export async function submitAssessmentReport(req, res) {
       patientName: aboutMe.fullName || "Guest",
     });
 
+    console.log(
+      `[report] stored ${reportId}: storage=${storageInfo.storage}` +
+        (storageInfo.pdfUrl ? ` pdfUrl=${storageInfo.pdfUrl}` : "") +
+        (storageInfo.driveError ? ` driveError=${storageInfo.driveError}` : "") +
+        (storageInfo.drive?.skipped
+          ? ` driveSkipped=${storageInfo.drive.reason || "yes"}`
+          : "")
+    );
+
     await writeContentHashMapping(contentHash, reportId, reportDate);
 
     let emailResult;
