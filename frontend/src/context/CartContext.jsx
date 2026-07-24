@@ -12,7 +12,26 @@ export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState(() => {
     try {
       const saved = localStorage.getItem("follicle_cart");
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      // Normalize legacy rows so Health Mix checkout gets mixId 8303
+      return (Array.isArray(parsed) ? parsed : []).map((item) => {
+        if (!item?.bundleNumber || item.isTestBundle) return item;
+        const includeHealthMix = item.includeHealthMix !== false;
+        const hasDandruff = Boolean(item.hasDandruff);
+        const gender = item.gender || null;
+        const { kitId, mixId } = getCheckoutWooProductIds({
+          bundleNumber: item.bundleNumber,
+          hasDandruff,
+          includeHealthMix,
+          gender,
+        });
+        return {
+          ...item,
+          includeHealthMix,
+          wooProductId: kitId || item.wooProductId,
+          wooHealthMixProductId: mixId ?? item.wooHealthMixProductId ?? null,
+        };
+      });
     } catch {
       return [];
     }
@@ -88,7 +107,9 @@ export function CartProvider({ children }) {
       prev.map((item) => {
         if (item.id !== productId) return item;
 
-        const includeHealthMix = !item.includeHealthMix;
+        // Match drawer checkbox: undefined/missing counts as currently ON
+        const currentlyOn = item.includeHealthMix !== false;
+        const includeHealthMix = !currentlyOn;
         const newPrice = includeHealthMix ? item.priceWithMix : item.priceWithoutMix;
         const hasDandruff = Boolean(item.hasDandruff);
         const gender = item.gender || null;

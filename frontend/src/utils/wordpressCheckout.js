@@ -4,28 +4,48 @@ import { getCheckoutWooProductIds } from "../config/bundles";
 
 const WP_SITE_URL = import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com";
 
+/** Match CartDrawer UI: missing/undefined means Health Mix is included. */
+function wantsHealthMix(item) {
+  return item?.includeHealthMix !== false;
+}
+
 /**
  * Build WooCommerce product IDs for checkout.
  * Re-resolve from bundleNumber so Health Mix 8303 is never dropped.
  */
 function resolveCheckoutProductIds(item) {
+  const includeHealthMix = wantsHealthMix(item);
+
   if (item?.bundleNumber) {
     const resolved = getCheckoutWooProductIds({
       bundleNumber: item.bundleNumber,
       hasDandruff: Boolean(item.hasDandruff),
-      includeHealthMix: Boolean(item.includeHealthMix),
+      includeHealthMix,
       gender: item.gender || null,
     });
-    if (resolved.kitId) return resolved;
+    if (resolved.kitId) {
+      console.info("[zylk-checkout] v3-popup-mix", {
+        kitId: resolved.kitId,
+        mixId: resolved.mixId,
+        includeHealthMix,
+        bundleNumber: item.bundleNumber,
+        hasDandruff: Boolean(item.hasDandruff),
+      });
+      return resolved;
+    }
   }
 
   const kitId = item?.wooProductId ? Number(item.wooProductId) : null;
   if (!kitId) return { kitId: null, mixId: null, productIds: [] };
 
   const mixId =
-    Boolean(item.includeHealthMix) && Number(item.wooHealthMixProductId)
+    includeHealthMix && Number(item.wooHealthMixProductId)
       ? Number(item.wooHealthMixProductId)
-      : null;
+      : includeHealthMix
+        ? 8303
+        : null;
+
+  console.info("[zylk-checkout] v3-popup-mix", { kitId, mixId, includeHealthMix });
 
   return {
     kitId,
@@ -85,13 +105,8 @@ function writePopupPlaceholder(popup, message) {
 
 /**
  * Woo cart cookies are SameSite=Lax — only top-level navigations can add items.
- * Iframes/fetch from quiz.zylkhealth.com will NOT update the shop cart (kit-only bug).
- *
- * Flow when Health Mix is included:
- *  1. Popup (opened under user gesture) adds kit
- *  2. Same popup adds Health Mix 8303
- *  3. Close popup
- *  4. Main window opens /cart/?add-to-cart=8303 once (one cart tab; ensures mix)
+ * Store API / iframes from localhost or quiz.zylkhealth.com are blocked by CORS
+ * and never update the shop session (that caused kit-only carts).
  */
 async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
   if (!popup || popup.closed) {
@@ -102,8 +117,8 @@ async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
     return false;
   }
 
-  setStatus("Adding your kit…");
-  writePopupPlaceholder(popup, "Adding your kit to cart…");
+  setStatus(`Adding kit ${kitId}…`);
+  writePopupPlaceholder(popup, `Adding kit ${kitId} to cart…`);
   try {
     popup.location.href = addToCartUrl(kitId, qty);
   } catch {
@@ -112,15 +127,15 @@ async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
   }
 
   await waitForPopupLoad(popup);
-  await sleep(800);
+  await sleep(1000);
 
   if (popup.closed) {
     window.location.href = cartWithAddUrl(mixId, 1);
     return true;
   }
 
-  setStatus("Adding Hair Health Mix…");
-  writePopupPlaceholder(popup, "Adding Hair Health Mix…");
+  setStatus(`Adding Hair Health Mix ${mixId}…`);
+  writePopupPlaceholder(popup, `Adding Hair Health Mix (${mixId})…`);
   try {
     popup.location.href = addToCartUrl(mixId, 1);
   } catch {
@@ -134,7 +149,7 @@ async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
   }
 
   await waitForPopupLoad(popup);
-  await sleep(800);
+  await sleep(1000);
 
   try {
     if (!popup.closed) popup.close();
@@ -169,13 +184,14 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
   const qty = item.quantity || 1;
 
   // Open popup SYNCHRONOUSLY while we still have the user-gesture token.
-  // Any await before window.open will cause browsers to block it.
   const checkoutPopup = mixId ? window.open("about:blank", "zylk_woo_add") : null;
   if (checkoutPopup) {
     writePopupPlaceholder(
       checkoutPopup,
       "Preparing checkout…<br/><span style='color:#666;font-size:0.875rem'>Adding kit + Hair Health Mix</span>"
     );
+  } else if (mixId) {
+    console.warn("[zylk-checkout] popup blocked — Health Mix may be missing");
   }
 
   setStatus(
