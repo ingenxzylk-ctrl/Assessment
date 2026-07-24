@@ -160,10 +160,26 @@ function buildResultPageUrl({ resultPageUrl, appOrigin, reportId, requestOrigin 
     process.env.PUBLIC_APP_URL ||
     LIVE_DEFAULT;
 
+  const rewriteBrokenWpAssessment = (value) => {
+    try {
+      const u = new URL(value);
+      const host = u.hostname.toLowerCase();
+      if (
+        (host === "zylkhealth.com" || host === "www.zylkhealth.com") &&
+        /\/assessment\/?/i.test(u.pathname)
+      ) {
+        return LIVE_DEFAULT;
+      }
+    } catch {
+      // ignore
+    }
+    return value;
+  };
+
   const candidates = [
-    envBase,
-    typeof resultPageUrl === "string" ? resultPageUrl.trim() : "",
-    typeof appOrigin === "string" ? appOrigin.trim() : "",
+    rewriteBrokenWpAssessment(envBase),
+    typeof resultPageUrl === "string" ? rewriteBrokenWpAssessment(resultPageUrl.trim()) : "",
+    typeof appOrigin === "string" ? rewriteBrokenWpAssessment(appOrigin.trim()) : "",
     requestOrigin || "",
   ].filter(Boolean);
 
