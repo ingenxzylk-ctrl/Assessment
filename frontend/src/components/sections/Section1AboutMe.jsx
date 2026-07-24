@@ -255,7 +255,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     }
     if (stepIndex === 2) {
       const ageNum = Number(localForm.age);
-      return Number.isFinite(ageNum) && ageNum >= 13 && ageNum <= 100;
+      return Number.isFinite(ageNum) && ageNum >= 18 && ageNum <= 100;
     }
     if (stepIndex === 3) return Boolean(localForm.gender);
     return false;
@@ -311,8 +311,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
       const ageNum = Number(localForm.age);
       if (!localForm.age || !Number.isFinite(ageNum)) {
         e.age = "Please enter your age";
-      } else if (ageNum < 13 || ageNum > 100) {
-        e.age = "Please enter an age between 13 and 100";
+      } else if (ageNum < 18 || ageNum > 100) {
+        e.age = "Please enter an age between 18 and 100";
       }
     }
     if (step === 3 && !localForm.gender) e.gender = "Please select your gender";
@@ -497,7 +497,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
               <input
                 type="number"
                 inputMode="numeric"
-                min={13}
+                min={18}
                 max={100}
                 value={localForm.age}
                 onChange={(e) => {

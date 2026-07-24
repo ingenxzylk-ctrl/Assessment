@@ -560,9 +560,6 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
             <PhotoQualityTips />
           </div>
 
-          <p className="text-center text-[11px] text-gray-400 mb-6">
-            Encrypted · Used only for your assessment · Delete anytime
-          </p>
 
           <div className="flex gap-4 max-w-md mx-auto">
             <button
@@ -747,9 +744,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
               </div>
             )}
 
-            <p className="text-center text-[11px] text-[#064e3b] bg-[#e8eede]/70 rounded-full py-2 px-3 mb-2">
-              Encrypted · Used only for your assessment · Delete anytime
-            </p>
+            
           </>
         )}
 

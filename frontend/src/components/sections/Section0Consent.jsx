@@ -119,9 +119,13 @@ export default function Section0Consent({ onComplete, onBack }) {
               <LegalLinkButton docId="terms" onOpen={setOpenDocId}>
                 Terms of Service
               </LegalLinkButton>{" "}
-              and{" "}
+              ,{" "}
               <LegalLinkButton docId="privacy" onOpen={setOpenDocId}>
                 Privacy Policy
+              </LegalLinkButton>
+              and{" "}
+              <LegalLinkButton docId="consent" onOpen={setOpenDocId}>
+                Care Plan Informed Consent
               </LegalLinkButton>
               . I understand that Zylk Health will process my information to provide my personalized
               assessment and, with this consent, send my assessment results, hair-care
@@ -131,20 +135,7 @@ export default function Section0Consent({ onComplete, onBack }) {
           </label>
         </div>
 
-        <p className="text-center text-xs text-gray-500 mb-6">
-          Read our{" "}
-          <LegalLinkButton docId="privacy" onOpen={setOpenDocId}>
-            Privacy Policy
-          </LegalLinkButton>
-          {", "}
-          <LegalLinkButton docId="terms" onOpen={setOpenDocId}>
-            Terms of Service
-          </LegalLinkButton>
-          {", and "}
-          <LegalLinkButton docId="consent" onOpen={setOpenDocId}>
-            Care Plan Informed Consent
-          </LegalLinkButton>
-        </p>
+        
 
         <div className="flex gap-4 pt-4 border-t border-gray-100 w-full">
           <button
