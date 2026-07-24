@@ -24,12 +24,15 @@ export default function CartDrawer() {
   const handleCheckout = async () => {
     if (checkoutBusy) return;
     setCheckoutBusy(true);
-    setCheckoutStatus("Preparing checkout…");
+    setCheckoutStatus("Adding to your cart…");
     try {
       if (flushPersistence) flushPersistence();
       await redirectToWordPressCheckout(cartItems, state, {
         onStatus: setCheckoutStatus,
       });
+      // On success the page navigates away; if not, re-enable.
+      setCheckoutBusy(false);
+      setCheckoutStatus("");
     } catch (err) {
       console.warn("Checkout failed:", err);
       setCheckoutBusy(false);
@@ -134,9 +137,6 @@ export default function CartDrawer() {
               <span>Subtotal:</span>
               <span className="text-[#064e3b] font-bold text-lg">₹{cartTotal}</span>
             </div>
-            {checkoutBusy && checkoutStatus && (
-              <p className="text-xs text-gray-600 text-center font-medium">{checkoutStatus}</p>
-            )}
             <button
               type="button"
               disabled={checkoutBusy}
@@ -152,12 +152,33 @@ export default function CartDrawer() {
                   <span>Adding to cart…</span>
                 </>
               ) : (
-                "Proceed to Checkout on Zylk Health"
+                "Go to Cart"
               )}
             </button>
           </div>
         )}
       </div>
+
+      {/* In-app loading overlay — stay on the quiz UI instead of a blank Woo page */}
+      {checkoutBusy && (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-[#064e3b]/70 backdrop-blur-[2px]">
+          <div className="mx-4 max-w-sm w-full rounded-3xl bg-white p-8 shadow-2xl text-center space-y-4">
+            <span
+              className="inline-block w-10 h-10 border-[3px] border-[#064e3b]/20 border-t-[#064e3b] rounded-full animate-spin"
+              aria-hidden
+            />
+            <div>
+              <p className="text-base font-bold text-gray-900">Adding to your cart</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {checkoutStatus || "Please wait a moment…"}
+              </p>
+            </div>
+            <p className="text-xs text-gray-400">
+              Keep this tab open — your cart will open automatically.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

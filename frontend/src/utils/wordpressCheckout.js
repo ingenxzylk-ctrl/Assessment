@@ -3,6 +3,7 @@ import { saveScalpImagesToIdb } from "./quizImageStore";
 import { getCheckoutWooProductIds } from "../config/bundles";
 
 const WP_SITE_URL = import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com";
+const CART_URL = `${WP_SITE_URL}/cart/`;
 
 /** Match CartDrawer UI: missing/undefined means Health Mix is included. */
 function wantsHealthMix(item) {
@@ -24,7 +25,7 @@ function resolveCheckoutProductIds(item) {
       gender: item.gender || null,
     });
     if (resolved.kitId) {
-      console.info("[zylk-checkout] v3-popup-mix", {
+      console.info("[zylk-checkout] v4-smooth-ux", {
         kitId: resolved.kitId,
         mixId: resolved.mixId,
         includeHealthMix,
@@ -45,7 +46,7 @@ function resolveCheckoutProductIds(item) {
         ? 8303
         : null;
 
-  console.info("[zylk-checkout] v3-popup-mix", { kitId, mixId, includeHealthMix });
+  console.info("[zylk-checkout] v4-smooth-ux", { kitId, mixId, includeHealthMix });
 
   return {
     kitId,
@@ -80,35 +81,50 @@ function waitForPopupLoad(popup, timeoutMs = 15000) {
     try {
       popup.onload = () => {
         clearTimeout(timer);
-        setTimeout(() => finish("load"), 1200);
+        setTimeout(() => finish("load"), 900);
       };
     } catch {
       clearTimeout(timer);
-      setTimeout(() => finish("error"), 2000);
+      setTimeout(() => finish("error"), 1600);
     }
   });
 }
 
-function writePopupPlaceholder(popup, message) {
+/** Keep focus on the assessment UI so the shop tab does not steal attention. */
+function refocusOpener() {
   try {
-    popup.document.open();
-    popup.document.write(`<!doctype html>
-<html><head><meta charset="utf-8"><title>Adding to cart…</title></head>
-<body style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f7f7f5;color:#064e3b;">
-  <p style="text-align:center;padding:1.5rem;font-size:1rem;line-height:1.5;">${message}</p>
-</body></html>`);
-    popup.document.close();
+    window.focus();
   } catch {
     // ignore
   }
 }
 
 /**
- * Woo cart cookies are SameSite=Lax — only top-level navigations can add items.
- * Store API / iframes from localhost or quiz.zylkhealth.com are blocked by CORS
- * and never update the shop session (that caused kit-only carts).
+ * Tiny helper window for top-level Woo add-to-cart (needed for SameSite cookies).
+ * Kept small so the customer stays on the quiz UI with an in-app spinner.
  */
-async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
+function openCheckoutHelper() {
+  const features = "popup=yes,width=80,height=80,left=0,top=0,noopener=no";
+  const popup = window.open("about:blank", "zylk_woo_add", features);
+  if (!popup) return null;
+  try {
+    popup.document.open();
+    popup.document.write(`<!doctype html>
+<html><head><meta charset="utf-8"><title>Zylk</title></head>
+<body style="margin:0;background:#064e3b;"></body></html>`);
+    popup.document.close();
+  } catch {
+    // ignore
+  }
+  refocusOpener();
+  return popup;
+}
+
+/**
+ * Add kit then Health Mix via top-level navigations in a tiny helper window,
+ * then send the MAIN window straight to /cart/ (no Woo “Adding ₹…” interstitial).
+ */
+async function addKitAndMixThenOpenCart(kitId, mixId, qty, popup, setStatus) {
   if (!popup || popup.closed) {
     alert(
       "Please allow popups for this site so Hair Health Mix can be added with your kit.\n\nOpening cart with the kit only for now."
@@ -117,8 +133,8 @@ async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
     return false;
   }
 
-  setStatus(`Adding kit ${kitId}…`);
-  writePopupPlaceholder(popup, `Adding kit ${kitId} to cart…`);
+  setStatus("Adding your kit…");
+  refocusOpener();
   try {
     popup.location.href = addToCartUrl(kitId, qty);
   } catch {
@@ -127,15 +143,17 @@ async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
   }
 
   await waitForPopupLoad(popup);
-  await sleep(1000);
+  await sleep(700);
+  refocusOpener();
 
   if (popup.closed) {
+    // Kit likely added — finish with a single cart add for mix
+    setStatus("Opening your cart…");
     window.location.href = cartWithAddUrl(mixId, 1);
     return true;
   }
 
-  setStatus(`Adding Hair Health Mix ${mixId}…`);
-  writePopupPlaceholder(popup, `Adding Hair Health Mix (${mixId})…`);
+  setStatus("Adding Hair Health Mix…");
   try {
     popup.location.href = addToCartUrl(mixId, 1);
   } catch {
@@ -144,12 +162,13 @@ async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
     } catch {
       // ignore
     }
+    setStatus("Opening your cart…");
     window.location.href = cartWithAddUrl(mixId, 1);
     return true;
   }
 
   await waitForPopupLoad(popup);
-  await sleep(1000);
+  await sleep(700);
 
   try {
     if (!popup.closed) popup.close();
@@ -157,13 +176,15 @@ async function addKitThenOpenCartWithMix(kitId, mixId, qty, popup, setStatus) {
     // ignore
   }
 
+  // Both products already in session — go straight to cart (no “Adding…” page)
   setStatus("Opening your cart…");
-  window.location.href = cartWithAddUrl(mixId, 1);
+  window.location.href = CART_URL;
   return true;
 }
 
 /**
  * Redirect to WordPress cart while preserving quiz progress.
+ * Main window stays on the assessment with spinner until the final cart open.
  */
 export async function redirectToWordPressCheckout(cartItems, quizState, options = {}) {
   if (!cartItems?.length) return;
@@ -183,22 +204,13 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
 
   const qty = item.quantity || 1;
 
-  // Open popup SYNCHRONOUSLY while we still have the user-gesture token.
-  const checkoutPopup = mixId ? window.open("about:blank", "zylk_woo_add") : null;
-  if (checkoutPopup) {
-    writePopupPlaceholder(
-      checkoutPopup,
-      "Preparing checkout…<br/><span style='color:#666;font-size:0.875rem'>Adding kit + Hair Health Mix</span>"
-    );
-  } else if (mixId) {
+  // Open helper SYNCHRONOUSLY under the user gesture (before any await).
+  const checkoutPopup = mixId ? openCheckoutHelper() : null;
+  if (mixId && !checkoutPopup) {
     console.warn("[zylk-checkout] popup blocked — Health Mix may be missing");
   }
 
-  setStatus(
-    mixId
-      ? `Adding kit ${kitId} + Hair Health Mix ${mixId}…`
-      : "Preparing checkout…"
-  );
+  setStatus(mixId ? "Adding kit + Hair Health Mix…" : "Opening your cart…");
 
   if (quizState) {
     persistQuizStateNow(quizState);
@@ -210,13 +222,14 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
   }
   markCheckoutReturn();
 
+  // Kit only — one navigation to cart with add-to-cart
   if (!mixId) {
     window.location.href = cartWithAddUrl(kitId, qty);
     return;
   }
 
   try {
-    await addKitThenOpenCartWithMix(kitId, mixId, qty, checkoutPopup, setStatus);
+    await addKitAndMixThenOpenCart(kitId, mixId, qty, checkoutPopup, setStatus);
   } catch (err) {
     console.warn("Kit + Health Mix checkout failed:", err);
     try {
