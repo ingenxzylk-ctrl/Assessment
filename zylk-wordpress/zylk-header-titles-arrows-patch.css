@@ -1,0 +1,205 @@
+/* =========================================================
+   ZYLK — APPEND at END of Additional CSS
+   1) Header title → bold serif (Roboto Serif), larger
+   2) Desktop product names → left-aligned, no mid-word clip
+   3) Value Kits arrows → same design as Blog arrows
+   ========================================================= */
+
+:root {
+  --zylk-green: #0B2B22;
+  --zylk-serif: "Roboto Serif", Arvo, Rockwell, Georgia, "Times New Roman", Times, serif;
+}
+
+/* ---------- 1) Header title: Zylk Health ---------- */
+#tbay-header .header-logo h1,
+#tbay-header .header-logo h2,
+#tbay-header.header-v2 .header-logo h1,
+#tbay-header.header-v2 .header-logo h2 {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: var(--zylk-serif) !important;
+  font-size: 44px !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.015em !important;
+  color: var(--zylk-green) !important;
+  white-space: nowrap !important;
+  text-transform: none !important;
+}
+@media (min-width: 992px) and (max-width: 1199px) {
+  #tbay-header .header-logo h1,
+  #tbay-header .header-logo h2,
+  #tbay-header.header-v2 .header-logo h1,
+  #tbay-header.header-v2 .header-logo h2 {
+    font-size: 36px !important;
+  }
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  #tbay-header .header-logo h1,
+  #tbay-header .header-logo h2,
+  #tbay-header.header-v2 .header-logo h1,
+  #tbay-header.header-v2 .header-logo h2 {
+    font-size: 30px !important;
+  }
+}
+
+@media only screen and (max-width: 767px) {
+  .topbar-device-mobile .mbl-logo,
+  .topbar-device-mobile h1.mbl-logo {
+    font-family: var(--zylk-serif) !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.015em !important;
+    line-height: 1 !important;
+    color: #ffffff !important;
+    white-space: nowrap !important;
+    text-transform: none !important;
+  }
+}
+
+/* ---------- 2) Desktop ONLY: product name alignment ---------- */
+@media only screen and (min-width: 768px) {
+  .product-block.grid,
+  .widget-categoriestabs.top-shop .product-block.grid,
+  .widget-products.new-feature .product-block.grid {
+    overflow: visible !important;
+  }
+  .product-block.grid .product-content,
+  .product-block.grid .caption {
+    overflow: visible !important;
+    text-align: left !important;
+    box-sizing: border-box !important;
+  }
+  .product-block.grid .caption {
+    padding: 14px 108px 18px 16px !important;
+  }
+  .product-block.grid .caption .name,
+  .product-block.grid .caption .name a,
+  .widget-categoriestabs.top-shop .product-block.grid .caption .name,
+  .widget-categoriestabs.top-shop .product-block.grid .caption .name a,
+  .widget-products.new-feature .product-block.grid .caption .name,
+  .widget-products.new-feature .product-block.grid .caption .name a {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 6px 0 0 !important;
+    padding: 0 !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    line-height: 1.4 !important;
+    color: #111 !important;
+    text-align: left !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    hyphens: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    height: auto !important;
+    max-height: none !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+  }
+  .widget-categoriestabs.top-shop .product-block.grid .caption .name,
+  .widget-products.new-feature .product-block.grid .caption .name {
+    min-height: 4.2em !important;
+  }
+  .widget-categoriestabs.top-shop .owl-carousel .owl-item,
+  .widget-products.new-feature .owl-carousel .owl-item {
+    display: flex !important;
+  }
+  .widget-categoriestabs.top-shop .owl-carousel .owl-item .product-block.grid,
+  .widget-products.new-feature .owl-carousel .owl-item .product-block.grid {
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
+/* ---------- 3) Value Kits arrows = Blog arrows ---------- */
+.widget-products.new-feature {
+  position: relative !important;
+  overflow: visible !important;
+}
+.widget-products.new-feature .widget-title {
+  padding-right: 100px !important;
+}
+.widget-products.new-feature .owl-carousel .owl-controls,
+.widget-products.new-feature .owl-carousel .owl-nav {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  top: -56px !important;
+  right: 12px !important;
+  left: auto !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: right !important;
+  transform: none !important;
+  z-index: 60 !important;
+  pointer-events: auto !important;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  width: 36px !important;
+  height: 36px !important;
+  margin: 0 0 0 8px !important;
+  padding: 0 !important;
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  color: #333 !important;
+  font-size: 0 !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  z-index: 61 !important;
+  float: none !important;
+  box-shadow: none !important;
+  background-image: none !important;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev *,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next *,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev i,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next i,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev span,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next span {
+  display: none !important;
+  visibility: hidden !important;
+  font-size: 0 !important;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next::before {
+  font-family: FontAwesome, "Font Awesome 5 Free", "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  color: #333 !important;
+  display: block !important;
+  visibility: visible !important;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before { content: "\f104" !important; } /* fa-angle-left */
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next::before { content: "\f105" !important; } /* fa-angle-right */
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev:hover,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next:hover {
+  background: #ffffff !important;
+  border-color: #aaa !important;
+}
+.widget-products.new-feature .owl-carousel .owl-dots { display: none !important; }
+
+@media only screen and (max-width: 767px) {
+  .widget-products.new-feature .owl-carousel .owl-controls,
+  .widget-products.new-feature .owl-carousel .owl-nav {
+    top: -50px !important;
+    right: 16px !important;
+  }
+}

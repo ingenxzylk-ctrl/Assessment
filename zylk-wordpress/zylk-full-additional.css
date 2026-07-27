@@ -35,7 +35,7 @@
   margin: 0 !important;
   padding: 0 !important;
   font-family: var(--zylk-serif) !important;
-  font-size: 42px !important;
+  font-size: 44px !important;
   font-weight: 700 !important;
   font-style: normal !important;
   line-height: 1.1 !important;
@@ -241,9 +241,9 @@ del { color: #ff0000 !important; }
     color: #111 !important;
     text-align: left !important;
     white-space: normal !important;
-    word-break: keep-all !important;
-    overflow-wrap: anywhere !important;
-    hyphens: manual !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    hyphens: none !important;
     overflow: visible !important;
     text-overflow: clip !important;
     height: auto !important;
@@ -1626,7 +1626,7 @@ span.counterUp.count-number {
     margin: 0 !important;
     padding: 0 !important;
     font-family: var(--zylk-serif) !important;
-    font-size: 22px !important;
+    font-size: 24px !important;
     font-weight: 700 !important;
     font-style: normal !important;
     line-height: 1 !important;
