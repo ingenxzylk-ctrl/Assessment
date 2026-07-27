@@ -368,7 +368,19 @@ del { color: #ff0000 !important; }
   position: relative !important;
   padding: 10px 12px 20px !important;
 }
-.widget-categoriestabs.top-shop > .widget-content { display: contents !important; }
+.widget-categoriestabs.top-shop > .widget-content {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-end !important;
+  justify-content: flex-end !important;
+  flex: 1 1 auto !important;
+  order: 2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative !important;
+  z-index: 20 !important;
+  pointer-events: auto !important;
+}
 .widget-categoriestabs.top-shop > .widget-title,
 .widget-categoriestabs.top-shop.title-center .widget-title {
   flex: 1 1 320px !important;
@@ -2987,5 +2999,272 @@ span.counterUp.count-number {
   #pcp_wrapper-6815,
   #sp-pcp-id-6815 {
     overflow: visible !important;
+  }
+}
+
+/* =========================================================
+   ZYLK — Restore clicks: tabs, Value Kits arrows, Blog arrows
+   ========================================================= */
+
+/* ----- Our Products tabs must stay clickable ----- */
+.widget-categoriestabs.top-shop > .widget-content {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-end !important;
+  justify-content: flex-end !important;
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: 100% !important;
+  order: 2 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative !important;
+  z-index: 20 !important;
+  pointer-events: auto !important;
+}
+.widget-categoriestabs.top-shop .product-categories-tabs-title.nav-tabs {
+  position: relative !important;
+  z-index: 30 !important;
+  order: 1 !important;
+  margin: 0 0 4px auto !important;
+  pointer-events: auto !important;
+}
+.widget-categoriestabs.top-shop .product-categories-tabs-title.nav-tabs > li,
+.widget-categoriestabs.top-shop .product-categories-tabs-title.nav-tabs > li > a {
+  position: relative !important;
+  z-index: 31 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+}
+.widget-categoriestabs.top-shop > .widget-title {
+  pointer-events: none !important; /* eyebrow/title don't steal tab clicks */
+  z-index: 1 !important;
+}
+.widget-categoriestabs.top-shop .widget-inner,
+.widget-categoriestabs.top-shop .tab-content-wrapper,
+.widget-categoriestabs.top-shop .tbay-addon-content {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  order: 3 !important;
+  position: relative !important;
+  z-index: 5 !important;
+  pointer-events: auto !important;
+}
+
+/* ----- Value Kits: pull arrows on-screen & clickable ----- */
+.widget-products.new-feature {
+  position: relative !important;
+  overflow: visible !important;
+}
+.widget-products.new-feature .widget-title {
+  position: relative !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  padding-right: 100px !important;
+  margin-bottom: 20px !important;
+}
+.widget-products.new-feature .widget-content,
+.widget-products.new-feature .carousel-wrapper {
+  position: relative !important;
+  overflow: visible !important;
+  z-index: 5 !important;
+}
+.widget-products.new-feature .owl-carousel {
+  position: relative !important;
+  overflow: visible !important;
+}
+.widget-products.new-feature .owl-carousel .owl-stage-outer {
+  overflow: hidden !important; /* keep slides clipped */
+}
+.widget-products.new-feature .owl-carousel .owl-controls,
+.widget-products.new-feature .owl-carousel .owl-nav {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  top: -56px !important;
+  right: 12px !important;
+  left: auto !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: right !important;
+  transform: none !important;
+  z-index: 40 !important;
+  pointer-events: auto !important;
+}
+.widget-products.new-feature .owl-carousel .owl-controls .owl-nav .owl-prev,
+.widget-products.new-feature .owl-carousel .owl-controls .owl-nav .owl-next,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  width: 36px !important;
+  height: 36px !important;
+  margin: 0 0 0 8px !important;
+  padding: 0 !important;
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  color: #333 !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  z-index: 41 !important;
+  float: none !important;
+}
+.widget-products.new-feature .owl-carousel .owl-dots {
+  display: none !important;
+}
+
+/* ----- Blog arrows: above heading stacking, always clickable ----- */
+.wpb_wrapper:has(> .widget.widget-text-heading.zylk-blog-heading) {
+  position: relative !important;
+  overflow: visible !important;
+}
+.widget.widget-text-heading.zylk-blog-heading {
+  position: relative !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  margin: 0 0 18px !important;
+  padding: 28px 100px 0 12px !important;
+}
+#index-news-content,
+#pcp_wrapper-6815,
+#pcp_wrapper-6815.pcp-carousel-wrapper,
+#sp-pcp-id-6815,
+#pcp_wrapper-6815 .sp-pcp-carousel.top_right {
+  position: relative !important;
+  overflow: visible !important;
+  z-index: 20 !important;
+  pointer-events: auto !important;
+}
+#pcp_wrapper-6815 .pcp-button-next.top_right,
+#pcp_wrapper-6815 .pcp-button-prev.top_right,
+#pcp_wrapper-6815 .swiper-button-next.top_right,
+#pcp_wrapper-6815 .swiper-button-prev.top_right {
+  position: absolute !important;
+  top: -58px !important;
+  bottom: auto !important;
+  width: 36px !important;
+  height: 36px !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  color: #333 !important;
+  z-index: 50 !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  box-shadow: none !important;
+}
+#pcp_wrapper-6815 .pcp-button-next.top_right,
+#pcp_wrapper-6815 .swiper-button-next.top_right {
+  right: 12px !important;
+  left: auto !important;
+}
+#pcp_wrapper-6815 .pcp-button-prev.top_right,
+#pcp_wrapper-6815 .swiper-button-prev.top_right {
+  right: 56px !important;
+  left: auto !important;
+}
+#pcp_wrapper-6815 .swiper-wrapper,
+#pcp_wrapper-6815 .swiper-slide,
+#pcp_wrapper-6815 .sp-pcp-post {
+  pointer-events: auto !important;
+}
+
+/* Try Now stays clickable */
+.zylkhealth-quoteframe,
+.zylkhealth-quoteframe a.vc_btn3 {
+  position: relative !important;
+  z-index: 10 !important;
+  pointer-events: auto !important;
+}
+
+/* Don't let decorative why overlays eat clicks outside */
+.vc_row:has(.zylk-why-heading)::before,
+.vc_row.zylk-why-section::before {
+  pointer-events: none !important;
+}
+
+@media only screen and (max-width: 767px) {
+  .widget-categoriestabs.top-shop {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .widget-categoriestabs.top-shop > .widget-title {
+    max-width: 100% !important;
+    width: 100% !important;
+    flex: 0 0 auto !important;
+    order: 1 !important;
+  }
+  .widget-categoriestabs.top-shop > .widget-content {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    order: 2 !important;
+  }
+  .widget-categoriestabs.top-shop .product-categories-tabs-title.nav-tabs {
+    width: 100% !important;
+    margin: 12px 0 0 !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+  .widget-categoriestabs.top-shop .product-categories-tabs-title.nav-tabs > li {
+    flex: 1 1 0 !important;
+  }
+  .widget-categoriestabs.top-shop .product-categories-tabs-title.nav-tabs > li > a {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Keep top-shop product owl nav hidden; NOT value kits */
+  .widget-categoriestabs.top-shop .owl-nav,
+  .widget-categoriestabs.top-shop .owl-dots {
+    display: none !important;
+  }
+
+  .widget-products.new-feature .widget-title {
+    padding: 28px 96px 0 16px !important;
+  }
+  .widget-products.new-feature .owl-carousel .owl-controls,
+  .widget-products.new-feature .owl-carousel .owl-nav {
+    top: -50px !important;
+    right: 16px !important;
+  }
+
+  .widget.widget-text-heading.zylk-blog-heading {
+    padding: 28px 96px 0 16px !important;
+  }
+  #pcp_wrapper-6815 .pcp-button-next.top_right,
+  #pcp_wrapper-6815 .pcp-button-prev.top_right,
+  #pcp_wrapper-6815 .swiper-button-next.top_right,
+  #pcp_wrapper-6815 .swiper-button-prev.top_right {
+    top: -52px !important;
+    z-index: 50 !important;
+  }
+  #pcp_wrapper-6815 .pcp-button-next.top_right,
+  #pcp_wrapper-6815 .swiper-button-next.top_right {
+    right: 16px !important;
+  }
+  #pcp_wrapper-6815 .pcp-button-prev.top_right,
+  #pcp_wrapper-6815 .swiper-button-prev.top_right {
+    right: 56px !important;
   }
 }

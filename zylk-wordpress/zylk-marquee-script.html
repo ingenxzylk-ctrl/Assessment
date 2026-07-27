@@ -235,14 +235,14 @@
     syncMobileMenuBtn();
     forceWhyBleed();
   });
-  document.addEventListener(
-    "click",
-    function () {
-      setTimeout(syncMobileMenuBtn, 30);
-      setTimeout(syncMobileMenuBtn, 200);
-      setTimeout(syncMobileMenuBtn, 500);
-    },
-    true
-  );
+  /* Do NOT capture all clicks — that broke tabs/carousel arrows */
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest(".topbar-device-mobile .active-mobile")) {
+      setTimeout(syncMobileMenuBtn, 50);
+      setTimeout(syncMobileMenuBtn, 350);
+    }
+  });
 })();
 </script>
