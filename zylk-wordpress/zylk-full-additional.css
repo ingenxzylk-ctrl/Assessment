@@ -1167,7 +1167,7 @@ a.added_to_cart.wc-forward {
     overflow: visible !important;
   }
 
-  /* LEFT — hamburger only (hide close until menu is open) */
+  /* LEFT — hamburger / close stacked in one spot */
   .topbar-device-mobile .active-mobile {
     position: relative !important;
     z-index: 3 !important;
@@ -1183,7 +1183,11 @@ a.added_to_cart.wc-forward {
   }
   .topbar-device-mobile .active-mobile .btn,
   .topbar-device-mobile .active-mobile .btn-danger {
-    display: none !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     width: 44px !important;
@@ -1195,22 +1199,29 @@ a.added_to_cart.wc-forward {
     box-shadow: none !important;
     color: #ffffff !important;
   }
-  /* show only the 3-line menu button */
+  /* default: show ☰, hide ✕ but keep it clickable when menu opens */
   .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
-    display: inline-flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 2 !important;
   }
-  /* hide X close by default */
   .topbar-device-mobile .active-mobile a[href="#page"] {
-    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
   }
-  /* when mmenu is open, swap to close */
-  html.mm-opened .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"],
-  body.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
-    display: none !important;
+  /* mmenu open class is html.mm-wrapper_opened */
+  html.mm-wrapper_opened .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"],
+  html.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
   }
-  html.mm-opened .topbar-device-mobile .active-mobile a[href="#page"],
-  body.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#page"] {
-    display: inline-flex !important;
+  html.mm-wrapper_opened .topbar-device-mobile .active-mobile a[href="#page"],
+  html.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#page"] {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 3 !important;
   }
   .topbar-device-mobile .active-mobile i,
   .topbar-device-mobile .active-mobile .icon-menu,
