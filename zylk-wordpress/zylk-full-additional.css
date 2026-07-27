@@ -1199,9 +1199,6 @@ a.added_to_cart.wc-forward {
     line-height: 1 !important;
     display: block !important;
   }
-  .topbar-device-mobile .active-mobile a[href="#page"] {
-    display: none !important; /* hide close until menu open if needed */
-  }
 
   /* Center brand name */
   .topbar-device-mobile .mobile-logo {
