@@ -163,10 +163,50 @@
     }
   }
 
+  /* ---------- Why Zylk mint full-bleed on mobile ---------- */
+  function forceWhyBleed() {
+    if (window.innerWidth > 767) return;
+    var heading = document.querySelector(".zylk-why-heading");
+    if (!heading) return;
+    var row = heading.closest(".vc_row");
+    if (!row || row.classList.contains("vc_inner")) {
+      row = heading.closest(".vc_row.wpb_row");
+    }
+    if (!row) return;
+
+    [
+      "#wrapper-container",
+      ".wrapper-container",
+      "#tbay-main-content",
+      "#main-container",
+      ".wpb-content-wrapper",
+      ".container",
+    ].forEach(function (sel) {
+      document.querySelectorAll(sel).forEach(function (el) {
+        el.style.setProperty("overflow", "visible", "important");
+        el.style.setProperty("overflow-x", "visible", "important");
+      });
+    });
+    document.documentElement.style.setProperty("overflow-x", "hidden", "important");
+    document.body.style.setProperty("overflow-x", "hidden", "important");
+
+    row.style.setProperty("background-color", "#e8f3ed", "important");
+    row.style.setProperty("width", "100vw", "important");
+    row.style.setProperty("max-width", "100vw", "important");
+    row.style.setProperty("margin-left", "calc(50% - 50vw)", "important");
+    row.style.setProperty("margin-right", "calc(50% - 50vw)", "important");
+    row.style.setProperty("padding-left", "16px", "important");
+    row.style.setProperty("padding-right", "16px", "important");
+    row.style.setProperty("box-sizing", "border-box", "important");
+    row.style.setProperty("position", "relative", "important");
+    row.classList.add("zylk-why-bleed");
+  }
+
   function boot() {
     runMarquee();
     bindMenuButtons();
     syncMobileMenuBtn();
+    forceWhyBleed();
     try {
       new MutationObserver(function () {
         syncMobileMenuBtn();
@@ -186,12 +226,14 @@
     moveMarquee();
     bindMenuButtons();
     syncMobileMenuBtn();
+    forceWhyBleed();
   });
   window.addEventListener("resize", function () {
     var marquee = document.querySelector(".container-marquee");
     clearPluginSpacers(marquee);
     forceFullBleed(marquee);
     syncMobileMenuBtn();
+    forceWhyBleed();
   });
   document.addEventListener(
     "click",
