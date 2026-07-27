@@ -2513,15 +2513,9 @@ span.counterUp.count-number {
     box-sizing: border-box !important;
   }
 
-  /* Stats spacing on mobile */
-  .counter-wrap .count-number,
-  .counterUp.count-number {
-    font-size: 72px !important;
-    line-height: 1 !important;
-  }
+  /* Stats spacing overridden at end of file — keep color only here */
   .counters h5,
   .counter-new h5 {
-    font-size: 18px !important;
     padding: 0 12px !important;
   }
 
@@ -2533,5 +2527,206 @@ span.counterUp.count-number {
   .zylk-quote {
     font-size: 18px !important;
     line-height: 1.35 !important;
+  }
+}
+
+/* =========================================================
+   ZYLK — Fix stats stack + Why full-bleed (mobile)
+   Keep theme-green numbers; restore spacing like before
+   ========================================================= */
+
+/* ---------- Stats: green color ONLY, restore stacking ---------- */
+.vc_row.vc_row-o-full-height:has(.counter-new),
+.vc_row.vc_row-flex:has(.counter-new) {
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+.counter-wrap {
+  display: block !important;
+  position: relative !important;
+  text-align: center !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  line-height: normal !important;
+}
+
+.counter-wrap .count-number,
+.counterUp.count-number,
+.counter-new .count-number,
+span.counterUp.count-number {
+  display: block !important;
+  position: static !important;
+  float: none !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  /* theme green — keep color, kill gradient clip that broke layout */
+  color: #0B2B22 !important;
+  -webkit-text-fill-color: #0B2B22 !important;
+  background: none !important;
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  /* restore readable size + space under number (was 150px / 218px) */
+  font-weight: 600 !important;
+  font-size: 120px !important;
+  line-height: 1.15 !important;
+  letter-spacing: normal !important;
+  transform: none !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+
+.counters {
+  display: block !important;
+  position: static !important;
+  clear: both !important;
+  text-align: center !important;
+  margin: 0 0 36px !important;
+  padding: 0 16px !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.counters h5,
+.counter-new h5 {
+  display: block !important;
+  position: static !important;
+  margin: 6px 0 0 !important;
+  padding: 0 !important;
+  font-size: 28px !important;
+  line-height: 1.3 !important;
+  font-weight: 700 !important;
+  color: #0a2522 !important;
+  text-align: center !important;
+}
+
+.counter-new .wpb_text_column,
+.counter-new .wpb_content_element {
+  margin-bottom: 10px !important;
+  overflow: visible !important;
+}
+
+/* ---------- Why: true edge-to-edge mint (beat overflow:hidden) ---------- */
+.vc_row.zylk-why-section,
+.vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading) {
+  background-color: #e8f3ed !important;
+  position: relative !important;
+  overflow: visible !important;
+}
+
+@media only screen and (max-width: 767px) {
+  /* Allow full-bleed to escape the theme wrapper clip */
+  #wrapper-container.wrapper-container,
+  .wrapper-container {
+    overflow: visible !important;
+  }
+  #tbay-main-content,
+  #main-container,
+  .wpb-content-wrapper,
+  .container,
+  .vc_column-inner {
+    overflow: visible !important;
+  }
+
+  .vc_row.zylk-why-section,
+  .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading) {
+    background-color: #e8f3ed !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: calc(50% - 50vw) !important;
+    margin-right: calc(50% - 50vw) !important;
+    padding: 28px 0 32px !important;
+    left: auto !important;
+    right: auto !important;
+    box-sizing: border-box !important;
+    /* belt-and-suspenders fill if anything still clips */
+    box-shadow: -100vw 0 0 #e8f3ed, 100vw 0 0 #e8f3ed !important;
+  }
+
+  .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading)::before {
+    content: "" !important;
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 50% !important;
+    width: 100vw !important;
+    transform: translateX(-50%) !important;
+    background-color: #e8f3ed !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading) > .wpb_column,
+  .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading) > .wpb_column > .vc_column-inner,
+  .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading) > .wpb_column > .vc_column-inner > .wpb_wrapper {
+    position: relative !important;
+    z-index: 1 !important;
+    background: transparent !important;
+    max-width: 100% !important;
+  }
+
+  .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading) > .wpb_column > .vc_column-inner {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Don't let inner cards row create its own white/bleed conflict */
+  .vc_row.vc_inner.whychoose-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .whychoose-content .feature-box,
+  .whychoose-content .widget-features .feature-box-group .feature-box {
+    width: calc(100% - 20px) !important;
+    max-width: calc(100% - 20px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* Stats mobile — same stack as before, green kept */
+  .vc_row.vc_row-o-full-height:has(.counter-new),
+  .vc_row.vc_row-flex:has(.counter-new) {
+    min-height: 0 !important;
+    height: auto !important;
+    display: block !important;
+    align-content: stretch !important;
+  }
+  .vc_row:has(.counter-new) > .vc_column_container,
+  .vc_row:has(.counter-new) > .wpb_column {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+  }
+  .vc_row:has(.counter-new) .vc_column-inner {
+    display: block !important;
+  }
+
+  .counter-wrap .count-number,
+  .counterUp.count-number {
+    font-size: 88px !important;
+    line-height: 1.1 !important;
+  }
+  .counters {
+    margin: 0 0 28px !important;
+  }
+  .counters h5,
+  .counter-new h5 {
+    font-size: 20px !important;
+    line-height: 1.35 !important;
+    margin-top: 4px !important;
   }
 }
