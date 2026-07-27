@@ -1370,11 +1370,13 @@ a.added_to_cart.wc-forward {
     flex: none !important;
   }
 
-  /* Content starts below fixed header — slight overlap kills hairline gap */
+  /* Content starts below fixed header — fill strip with green so no white gap */
   #wrapper-container.wrapper-container,
   .wrapper-container {
-    padding-top: 55px !important;
+    padding-top: 56px !important;
     margin-top: 0 !important;
+    background-image: linear-gradient(#0B2B22 0, #0B2B22 56px, #ffffff 56px) !important;
+    background-repeat: no-repeat !important;
   }
   #tbay-main-content,
   .wpb-content-wrapper > .vc_row:first-child {
