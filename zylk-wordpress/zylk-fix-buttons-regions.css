@@ -1,0 +1,185 @@
+/* =========================================================
+   ZYLK — paste into Appearance → Customize → Additional CSS
+   Fixes: Add button text, marquee full-bleed, Why Zylk full-bleed
+   (mobile + desktop)
+   ========================================================= */
+
+/* ---------- 1) MARQUEE — touch both edges ---------- */
+.container-marquee {
+  pointer-events: none;
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  z-index: 5 !important;
+  transform: none !important;
+  margin-top: 28px !important;
+  margin-bottom: 28px !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  display: block !important;
+  visibility: visible !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+.container-marquee > a {
+  display: block !important;
+  width: 100% !important;
+}
+.container-marquee .marquee3k {
+  padding: 8px 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+.wrapper-container,
+.container-marquee + * {
+  margin-top: 0 !important;
+}
+
+/* ---------- 2) ADD BUTTON — readable "Add" label ---------- */
+.product-block.grid .add-cart {
+  position: absolute !important;
+  right: 14px !important;
+  bottom: 14px !important;
+  width: auto !important;
+  margin: 0 !important;
+  opacity: 1 !important;
+  z-index: 8 !important;
+  background: transparent !important;
+}
+.product-block.grid .add-cart a.button,
+.product-block.grid .add-cart a.add_to_cart_button,
+.product-block.grid .add-cart a.button.product_type_simple,
+.product-block.grid .add-cart a.button.product_type_variable,
+.product-block.grid .add-cart a.ajax_add_to_cart {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  min-width: 96px !important;
+  height: 42px !important;
+  padding: 0 18px !important;
+  border: 1px solid #e5e5e5 !important;
+  border-bottom: 1px solid #e5e5e5 !important;
+  border-radius: 999px !important;
+  background: #f4f4f4 !important;
+  color: #111 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+}
+.product-block.grid .add-cart a.button i,
+.product-block.grid .add-cart .icon-bag {
+  color: #111 !important;
+  margin: 0 !important;
+}
+.product-block.grid .add-cart .title-cart {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  color: transparent !important;
+}
+.product-block.grid .add-cart .title-cart::after {
+  content: "Add" !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  font-weight: 600 !important;
+  color: #111 !important;
+}
+.product-block.grid .add-cart a.button:hover,
+.product-block.grid .add-cart a.add_to_cart_button:hover,
+.product-block.grid .add-cart a.ajax_add_to_cart:hover {
+  background: #004030 !important;
+  border-color: #004030 !important;
+  border-bottom-color: #004030 !important;
+  color: #fff !important;
+}
+.product-block.grid .add-cart a.button:hover .title-cart,
+.product-block.grid .add-cart a.button:hover .title-cart::after,
+.product-block.grid .add-cart a.add_to_cart_button:hover .title-cart::after {
+  color: #fff !important;
+}
+.product-block.grid .add-cart a.button:hover i,
+.product-block.grid .add-cart a.button:hover .icon-bag {
+  color: #fff !important;
+}
+.product-block a.added_to_cart,
+a.added_to_cart.wc-forward {
+  display: none !important;
+}
+
+/* ---------- 3) WHY ZYLK — mint band edge to edge ---------- */
+.vc_row.zylk-why-section,
+.vc_row.wpb_row:has(.zylk-why-heading) {
+  background-color: #e8f3ed !important;
+  padding: 40px 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+}
+
+/* ---------- 4) MOBILE ---------- */
+@media only screen and (max-width: 991px) {
+  .container-marquee {
+    margin-top: 20px !important;
+    margin-bottom: 20px !important;
+    margin-left: calc(50% - 50vw) !important;
+    margin-right: calc(50% - 50vw) !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+
+  .product-block.grid .add-cart a.button,
+  .product-block.grid .add-cart a.add_to_cart_button,
+  .product-block.grid .add-cart a.ajax_add_to_cart {
+    min-width: 0 !important;
+    height: 30px !important;
+    padding: 0 12px !important;
+    background: #f4f4f4 !important;
+    border: 1px solid #e5e5e5 !important;
+    color: #111 !important;
+  }
+  .product-block.grid .add-cart .title-cart {
+    font-size: 0 !important;
+  }
+  .product-block.grid .add-cart .title-cart::after {
+    content: "Add" !important;
+    font-size: 12px !important;
+    color: #111 !important;
+  }
+  .product-block.grid .add-cart a.button:hover .title-cart::after {
+    color: #fff !important;
+  }
+
+  .vc_row.zylk-why-section,
+  .vc_row.wpb_row:has(.zylk-why-heading) {
+    padding: 28px 0 32px !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: calc(50% - 50vw) !important;
+    margin-right: calc(50% - 50vw) !important;
+  }
+}
+
+@media only screen and (max-width: 767px) {
+  .container-marquee {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: 5 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-left: calc(50% - 50vw) !important;
+    margin-right: calc(50% - 50vw) !important;
+  }
+}
