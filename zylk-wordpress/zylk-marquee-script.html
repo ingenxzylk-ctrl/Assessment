@@ -1,0 +1,49 @@
+<!-- ZYLK: move marquee between banner & Our Products (outside padded .container when possible) -->
+<script>
+(function () {
+  function moveMarquee() {
+    var marquee = document.querySelector(".container-marquee");
+    var products = document.querySelector(".widget-categoriestabs.top-shop");
+    if (!marquee || !products) return false;
+
+    var row = products.closest(".vc_row");
+    if (!row || !row.parentNode) return false;
+
+    // Prefer placing before the outer row that wraps the padded .container,
+    // so the bar can sit edge-to-edge without fighting parent padding.
+    var container = row.closest(".container");
+    var anchor = row;
+    if (container) {
+      var outerRow = container.closest(".vc_row");
+      if (outerRow && outerRow.parentNode) {
+        anchor = outerRow;
+      } else if (container.parentNode) {
+        anchor = container;
+      }
+    }
+
+    if (marquee.nextElementSibling === anchor) return true;
+
+    anchor.parentNode.insertBefore(marquee, anchor);
+
+    // clear plugin top spacing
+    document.querySelectorAll(".wrapper-container").forEach(function (el) {
+      el.style.setProperty("margin-top", "0", "important");
+    });
+    return true;
+  }
+
+  function runMove() {
+    if (moveMarquee()) return;
+    setTimeout(moveMarquee, 400);
+    setTimeout(moveMarquee, 1200);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runMove);
+  } else {
+    runMove();
+  }
+  window.addEventListener("load", moveMarquee);
+})();
+</script>
