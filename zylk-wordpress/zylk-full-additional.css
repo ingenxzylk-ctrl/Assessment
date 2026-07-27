@@ -3268,3 +3268,176 @@ span.counterUp.count-number {
     right: 56px !important;
   }
 }
+
+/* =========================================================
+   ZYLK — MOBILE CLICK UNLOCK (append LAST)
+   Invisible cart/menu overlays were eating every tap
+   ========================================================= */
+
+@media only screen and (max-width: 767px) {
+
+  /* 1) Sticky header stays a thin bar — never a full-screen shield */
+  .topbar-device-mobile,
+  .topbar-device-mobile.visible-xxs {
+    height: 56px !important;
+    max-height: 56px !important;
+    min-height: 56px !important;
+    overflow: visible !important;
+  }
+
+  /* 2) Cart drawer: OFF and untouchable unless body.active-cart */
+  .topbar-device-mobile .tbay-dropdown-cart,
+  .topbar-device-mobile .tbay-dropdown-cart.v2,
+  .topbar-device-mobile .tbay-topcart .tbay-dropdown-cart {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    width: 320px !important;
+    max-width: 90vw !important;
+    height: 100vh !important;
+    z-index: 100000 !important;
+    /* HIDDEN by default — this was blocking page taps */
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateX(110%) !important;
+    transition: transform 0.35s ease, opacity 0.2s ease, visibility 0.2s !important;
+  }
+  body.active-cart .topbar-device-mobile .tbay-dropdown-cart,
+  body.active-cart .topbar-device-mobile .tbay-dropdown-cart.v2,
+  .topbar-device-mobile .tbay-dropdown-cart.active,
+  .topbar-device-mobile .tbay-dropdown-cart.show,
+  .topbar-device-mobile .tbay-topcart.active .tbay-dropdown-cart {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateX(0) !important;
+    z-index: 100000 !important;
+  }
+
+  /* Cart icon itself must stay clickable */
+  .topbar-device-mobile .tbay-topcart,
+  .topbar-device-mobile .tbay-topcart .cart-dropdown,
+  .topbar-device-mobile .tbay-topcart .mini-cart,
+  .topbar-device-mobile .tbay-topcart a {
+    position: relative !important;
+    z-index: 100001 !important;
+    pointer-events: auto !important;
+  }
+
+  /* 3) mmenu blocker must not linger when menu is closed */
+  html:not(.mm-wrapper_opened):not(.mm-wrapper_opening) .mm-page__blocker,
+  html:not(.mm-wrapper_opened):not(.mm-wrapper_opening) .mm-wrapper__blocker,
+  html:not(.mm-wrapper_opened):not(.mm-wrapper_opening) .mm-blocker {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 4) Page content always receives taps */
+  html body,
+  html body #wrapper-container,
+  html body .wrapper-container,
+  html body #tbay-main-content,
+  html body #main-container,
+  html body .wpb-content-wrapper,
+  html body .container,
+  html body .vc_row,
+  html body .mm-page,
+  html body .mm-slideout {
+    pointer-events: auto !important;
+  }
+
+  /* 5) All common controls — force clickable */
+  .product-categories-tabs-title.nav-tabs,
+  .product-categories-tabs-title.nav-tabs > li,
+  .product-categories-tabs-title.nav-tabs > li > a,
+  .widget-categoriestabs.top-shop .product-categories-tabs-title a,
+  .widget-products.new-feature .owl-nav,
+  .widget-products.new-feature .owl-prev,
+  .widget-products.new-feature .owl-next,
+  .widget-products.new-feature .owl-controls,
+  #pcp_wrapper-6815 .swiper-button-next,
+  #pcp_wrapper-6815 .swiper-button-prev,
+  #pcp_wrapper-6815 .pcp-button-next,
+  #pcp_wrapper-6815 .pcp-button-prev,
+  .zylkhealth-quoteframe a.vc_btn3,
+  a.vc_btn3,
+  a.button,
+  button,
+  .add_to_cart_button,
+  .footer-device-mobile a,
+  .tbay-to-top a,
+  .wa__btn_popup,
+  .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    cursor: pointer !important;
+  }
+
+  /* Titles: don't use pointer-events:none (can confuse hit-testing) */
+  .widget-categoriestabs.top-shop > .widget-title,
+  .widget-products.new-feature .widget-title,
+  .widget.widget-text-heading.zylk-blog-heading {
+    pointer-events: auto !important;
+  }
+
+  /* Value Kits arrows on-screen */
+  .widget-products.new-feature {
+    position: relative !important;
+    overflow: visible !important;
+    z-index: 5 !important;
+  }
+  .widget-products.new-feature .owl-carousel .owl-controls,
+  .widget-products.new-feature .owl-carousel .owl-nav {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: absolute !important;
+    top: -50px !important;
+    right: 12px !important;
+    left: auto !important;
+    width: auto !important;
+    z-index: 60 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+  .widget-products.new-feature .owl-carousel .owl-nav .owl-prev,
+  .widget-products.new-feature .owl-carousel .owl-nav .owl-next {
+    position: relative !important;
+    display: inline-flex !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    width: 36px !important;
+    height: 36px !important;
+    margin-left: 8px !important;
+    pointer-events: auto !important;
+    z-index: 61 !important;
+  }
+
+  /* Blog arrows above heading, clickable */
+  #pcp_wrapper-6815,
+  #sp-pcp-id-6815 {
+    position: relative !important;
+    z-index: 30 !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+  }
+  #pcp_wrapper-6815 .swiper-button-next,
+  #pcp_wrapper-6815 .swiper-button-prev,
+  #pcp_wrapper-6815 .pcp-button-next,
+  #pcp_wrapper-6815 .pcp-button-prev {
+    z-index: 70 !important;
+    pointer-events: auto !important;
+  }
+
+  /* Shop tabs above everything nearby */
+  .widget-categoriestabs.top-shop .product-categories-tabs-title {
+    position: relative !important;
+    z-index: 40 !important;
+    pointer-events: auto !important;
+  }
+}

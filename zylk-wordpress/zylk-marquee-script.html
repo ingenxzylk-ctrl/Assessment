@@ -1,4 +1,4 @@
-<!-- ZYLK: marquee + mobile header menu open/close (API) -->
+<!-- ZYLK: marquee + mobile menu + click unlock -->
 <script>
 (function () {
   function $() {
@@ -11,6 +11,76 @@
     var $menu = jq("#tbay-mobile-menu-navbar");
     if (!$menu.length) return null;
     return $menu.data("mmenu") || null;
+  }
+
+  /* ---------- Unlock stuck overlays that eat every tap ---------- */
+  function unlockClicks() {
+    var html = document.documentElement;
+
+    /* Close mmenu if left half-open */
+    try {
+      var api = getMmenuApi();
+      if (api && typeof api.close === "function") {
+        if (
+          html.classList.contains("mm-wrapper_opened") ||
+          html.classList.contains("mm-wrapper_opening") ||
+          html.classList.contains("mm-wrapper_blocking")
+        ) {
+          api.close();
+        }
+      }
+    } catch (err) {}
+
+    html.classList.remove(
+      "mm-wrapper_opened",
+      "mm-wrapper_opening",
+      "mm-wrapper_blocking"
+    );
+
+    document
+      .querySelectorAll(
+        ".mm-page__blocker, .mm-wrapper__blocker, .mm-blocker"
+      )
+      .forEach(function (el) {
+        el.style.setProperty("display", "none", "important");
+        el.style.setProperty("pointer-events", "none", "important");
+        el.style.setProperty("opacity", "0", "important");
+      });
+
+    /* Hide inactive cart drawers so they can't sit on top of the page */
+    document.querySelectorAll(".tbay-dropdown-cart").forEach(function (el) {
+      var open =
+        el.classList.contains("active") ||
+        el.classList.contains("show") ||
+        document.body.classList.contains("active-cart");
+      if (!open) {
+        el.style.setProperty("pointer-events", "none", "important");
+        el.style.setProperty("visibility", "hidden", "important");
+        el.style.setProperty("opacity", "0", "important");
+        el.style.setProperty("transform", "translateX(110%)", "important");
+      } else {
+        el.style.setProperty("pointer-events", "auto", "important");
+        el.style.setProperty("visibility", "visible", "important");
+        el.style.setProperty("opacity", "1", "important");
+        el.style.setProperty("transform", "translateX(0)", "important");
+      }
+    });
+
+    /* Ensure main page receives taps */
+    [
+      "body",
+      "#wrapper-container",
+      ".wrapper-container",
+      "#tbay-main-content",
+      "#main-container",
+      ".wpb-content-wrapper",
+      ".mm-page",
+      ".mm-slideout",
+    ].forEach(function (sel) {
+      document.querySelectorAll(sel).forEach(function (el) {
+        el.style.setProperty("pointer-events", "auto", "important");
+      });
+    });
   }
 
   /* ---------- Marquee ---------- */
@@ -42,6 +112,7 @@
     marquee.style.setProperty("background-color", "#0B2B22", "important");
     marquee.style.setProperty("overflow", "hidden", "important");
     marquee.style.setProperty("transform", "none", "important");
+    marquee.style.setProperty("pointer-events", "none", "important");
   }
 
   function moveMarquee() {
@@ -68,7 +139,7 @@
     setTimeout(moveMarquee, 1500);
   }
 
-  /* ---------- Mobile menu: ☰ open / ✕ close via mmenu API ---------- */
+  /* ---------- Mobile menu open / close ---------- */
   function isMenuOpen() {
     var html = document.documentElement;
     return (
@@ -104,6 +175,8 @@
       closeBtn.style.setProperty("opacity", "0", "important");
       closeBtn.style.setProperty("pointer-events", "none", "important");
       closeBtn.style.setProperty("z-index", "1", "important");
+      /* menu closed → make sure blocker is gone */
+      unlockClicks();
     }
   }
 
@@ -120,38 +193,31 @@
 
     if (!menuBtn.dataset.zylkBound) {
       menuBtn.dataset.zylkBound = "1";
-      menuBtn.addEventListener(
-        "click",
-        function (e) {
-          var api = getMmenuApi();
-          if (api && typeof api.open === "function") {
-            e.preventDefault();
-            e.stopPropagation();
-            api.open();
-            setTimeout(syncMobileMenuBtn, 50);
-            setTimeout(syncMobileMenuBtn, 350);
-          }
-        },
-        true
-      );
+      menuBtn.addEventListener("click", function (e) {
+        var api = getMmenuApi();
+        if (api && typeof api.open === "function") {
+          e.preventDefault();
+          api.open();
+          setTimeout(syncMobileMenuBtn, 50);
+          setTimeout(syncMobileMenuBtn, 350);
+        }
+      });
     }
 
     if (!closeBtn.dataset.zylkBound) {
       closeBtn.dataset.zylkBound = "1";
-      closeBtn.addEventListener(
-        "click",
-        function (e) {
-          e.preventDefault();
-          e.stopPropagation();
-          var api = getMmenuApi();
-          if (api && typeof api.close === "function") {
-            api.close();
-          }
-          setTimeout(syncMobileMenuBtn, 50);
-          setTimeout(syncMobileMenuBtn, 350);
-        },
-        true
-      );
+      closeBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        var api = getMmenuApi();
+        if (api && typeof api.close === "function") {
+          api.close();
+        }
+        setTimeout(function () {
+          syncMobileMenuBtn();
+          unlockClicks();
+        }, 50);
+        setTimeout(unlockClicks, 400);
+      });
     }
 
     var jq = $();
@@ -159,7 +225,10 @@
       jq("#tbay-mobile-menu-navbar")
         .off(".zylkmenu")
         .on("open:finish.zylkmenu open:start.zylkmenu", syncMobileMenuBtn)
-        .on("close:finish.zylkmenu close:start.zylkmenu", syncMobileMenuBtn);
+        .on("close:finish.zylkmenu close:start.zylkmenu", function () {
+          syncMobileMenuBtn();
+          unlockClicks();
+        });
     }
   }
 
@@ -174,22 +243,6 @@
     }
     if (!row) return;
 
-    [
-      "#wrapper-container",
-      ".wrapper-container",
-      "#tbay-main-content",
-      "#main-container",
-      ".wpb-content-wrapper",
-      ".container",
-    ].forEach(function (sel) {
-      document.querySelectorAll(sel).forEach(function (el) {
-        el.style.setProperty("overflow", "visible", "important");
-        el.style.setProperty("overflow-x", "visible", "important");
-      });
-    });
-    document.documentElement.style.setProperty("overflow-x", "hidden", "important");
-    document.body.style.setProperty("overflow-x", "hidden", "important");
-
     row.style.setProperty("background-color", "#e8f3ed", "important");
     row.style.setProperty("width", "100vw", "important");
     row.style.setProperty("max-width", "100vw", "important");
@@ -199,18 +252,28 @@
     row.style.setProperty("padding-right", "16px", "important");
     row.style.setProperty("box-sizing", "border-box", "important");
     row.style.setProperty("position", "relative", "important");
+    row.style.setProperty("pointer-events", "auto", "important");
     row.classList.add("zylk-why-bleed");
   }
 
   function boot() {
+    unlockClicks();
     runMarquee();
     bindMenuButtons();
     syncMobileMenuBtn();
     forceWhyBleed();
+    setTimeout(unlockClicks, 500);
+    setTimeout(unlockClicks, 1500);
     try {
       new MutationObserver(function () {
         syncMobileMenuBtn();
       }).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+      new MutationObserver(function () {
+        unlockClicks();
+      }).observe(document.body, {
         attributes: true,
         attributeFilter: ["class"],
       });
@@ -223,6 +286,7 @@
     boot();
   }
   window.addEventListener("load", function () {
+    unlockClicks();
     moveMarquee();
     bindMenuButtons();
     syncMobileMenuBtn();
@@ -234,15 +298,7 @@
     forceFullBleed(marquee);
     syncMobileMenuBtn();
     forceWhyBleed();
-  });
-  /* Do NOT capture all clicks — that broke tabs/carousel arrows */
-  document.addEventListener("click", function (e) {
-    var t = e.target;
-    if (!t || !t.closest) return;
-    if (t.closest(".topbar-device-mobile .active-mobile")) {
-      setTimeout(syncMobileMenuBtn, 50);
-      setTimeout(syncMobileMenuBtn, 350);
-    }
+    unlockClicks();
   });
 })();
 </script>
