@@ -49,7 +49,7 @@
   #tbay-header .header-logo h2,
   #tbay-header.header-v2 .header-logo h1,
   #tbay-header.header-v2 .header-logo h2 {
-    font-size: 36px !important;
+    font-size: 38px !important;
   }
 }
 @media (min-width: 768px) and (max-width: 991px) {
@@ -57,7 +57,7 @@
   #tbay-header .header-logo h2,
   #tbay-header.header-v2 .header-logo h1,
   #tbay-header.header-v2 .header-logo h2 {
-    font-size: 30px !important;
+    font-size: 32px !important;
   }
 }
 
