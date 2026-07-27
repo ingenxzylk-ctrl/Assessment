@@ -11,8 +11,27 @@
   --zylk-teal: #005f6b;
   --zylk-mint: #e8f3ed;
   --zylk-muted: #5f6f6a;
-  --zylk-serif: Georgia, "Times New Roman", Times, serif;
+  --zylk-serif: "Roboto Serif", Georgia, "Times New Roman", Times, serif;
   --zylk-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+/* ---------- Desktop header title: Roboto Serif brand ---------- */
+#tbay-header .header-main .header-logo {
+  display: flex !important;
+  align-items: center !important;
+  line-height: normal !important;
+}
+#tbay-header .header-logo h2,
+#tbay-header.header-v2 .header-logo h2 {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: var(--zylk-serif) !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--zylk-green) !important;
+  white-space: nowrap !important;
 }
 
 /* ---------- Legacy: cart / checkout / misc ---------- */
@@ -159,6 +178,46 @@ del { color: #ff0000 !important; }
     float: right;
     margin-top: -52px !important;
     z-index: 40;
+  }
+
+  /* Desktop: product titles — no mid-word clip, consistent left align */
+  .product-block.grid .caption {
+    padding: 14px 96px 18px 16px !important;
+    overflow: visible !important;
+    text-align: left !important;
+  }
+  .product-block.grid .caption .name,
+  .product-block.grid .caption .name a,
+  .widget-categoriestabs.top-shop .product-block.grid .caption .name,
+  .widget-categoriestabs.top-shop .product-block.grid .caption .name a,
+  .widget-products.new-feature .product-block.grid .caption .name,
+  .widget-products.new-feature .product-block.grid .caption .name a {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 6px 0 0 !important;
+    padding: 0 !important;
+    font-family: var(--zylk-serif) !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    line-height: 1.35 !important;
+    color: #111 !important;
+    text-align: left !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: break-word !important;
+    hyphens: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    height: auto !important;
+    max-height: none !important;
+    -webkit-line-clamp: unset !important;
+    line-clamp: unset !important;
+  }
+  /* Align title blocks across a row (≈3 lines) */
+  .widget-categoriestabs.top-shop .product-block.grid .caption .name,
+  .widget-products.new-feature .product-block.grid .caption .name {
+    min-height: 4.05em !important;
   }
 }
 @media only screen and (max-width: 767px) {
@@ -436,6 +495,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   z-index: 60 !important;
   pointer-events: auto !important;
 }
+/* Value Kits arrows — match blog (fa-angle in bordered square) */
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next {
   position: relative !important;
@@ -452,13 +512,39 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   border-radius: 6px !important;
   background: #fff !important;
   color: #333 !important;
-  font-size: 18px !important;
+  font-size: 0 !important;
   line-height: 1 !important;
   cursor: pointer !important;
   pointer-events: auto !important;
   touch-action: manipulation !important;
   z-index: 61 !important;
   float: none !important;
+  box-shadow: none !important;
+  text-indent: 0 !important;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev *,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next * {
+  display: none !important;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next::before {
+  font-family: FontAwesome !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  color: #333 !important;
+  speak: none;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before { content: "\f104" !important; }
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next::before { content: "\f105" !important; }
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev:hover,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next:hover {
+  background: #ffc557 !important;
+  border-color: #ffc557 !important;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev:hover::before,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next:hover::before {
+  color: #fff !important;
 }
 .widget-products.new-feature .owl-carousel .owl-dots { display: none !important; }
 
@@ -468,7 +554,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   border-radius: 18px !important;
   background: #fff !important;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08) !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   margin: 10px !important;
 }
 .product-block.grid:hover {
@@ -482,6 +568,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   flex-direction: column !important;
   background: #fff !important;
   border-radius: 18px !important;
+  overflow: visible !important;
 }
 .product-block.grid .block-inner { position: static !important; margin: 0 !important; padding: 0 !important; }
 .product-block.grid .block-inner .name { display: none !important; }
@@ -495,6 +582,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   position: relative !important;
   padding: 14px 120px 16px 16px !important;
   text-align: left !important;
+  overflow: visible !important;
 }
 .product-block.grid .caption .rating { order: -1 !important; margin: 0 0 8px !important; }
 .product-block.grid .star-rating { color: #0b6b5e !important; }
@@ -503,11 +591,16 @@ body > .container-marquee:not(.zylk-marquee-placed) {
 .product-block.grid .caption .rating .count span::after { content: " Reviews)" !important; font-size: 13px !important; }
 .product-block.grid .caption .name,
 .product-block.grid .caption .name a {
+  font-family: var(--zylk-serif) !important;
   font-size: 15px !important;
   font-weight: 700 !important;
   color: #111 !important;
   line-height: 1.35 !important;
   text-align: left !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  hyphens: none !important;
 }
 .product-block.grid .caption .price,
 .product-block.grid .caption > .price { display: none !important; }
@@ -1474,13 +1567,14 @@ span.counterUp.count-number {
   .topbar-device-mobile h1.mbl-logo {
     margin: 0 !important;
     padding: 0 !important;
-    font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif !important;
-    font-size: 18px !important;
+    font-family: var(--zylk-serif) !important;
+    font-size: 20px !important;
     font-weight: 700 !important;
     line-height: 1 !important;
     color: #fff !important;
     white-space: nowrap !important;
     background: transparent !important;
+    letter-spacing: -0.01em !important;
   }
 
   .topbar-device-mobile .tbay-topcart {
