@@ -1,0 +1,185 @@
+/* =========================================================
+   ZYLK — Fix white gap under header + menu close
+   Paste at the END of Additional CSS
+   ========================================================= */
+
+@media only screen and (max-width: 767px) {
+  .topbar-device-mobile,
+  .topbar-device-mobile.visible-xxs {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 99999 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    min-height: 56px !important;
+    height: 56px !important;
+    padding: 0 12px !important;
+    margin: 0 !important;
+    background: #0B2B22 !important;
+    border: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+  /* Cover hairline white gap under green bar */
+  .topbar-device-mobile::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: -3px !important;
+    height: 4px !important;
+    background: #0B2B22 !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+  }
+
+  /* LEFT — stack ☰ and ✕ in same spot */
+  .topbar-device-mobile .active-mobile {
+    position: relative !important;
+    z-index: 3 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex: 0 0 48px !important;
+    width: 48px !important;
+    height: 56px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    order: 1 !important;
+  }
+  .topbar-device-mobile .active-mobile .btn,
+  .topbar-device-mobile .active-mobile .btn-danger {
+    position: absolute !important;
+    left: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #ffffff !important;
+  }
+  .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 2 !important;
+  }
+  .topbar-device-mobile .active-mobile a[href="#page"] {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+  /* Correct mmenu open class */
+  html.mm-wrapper_opened .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"],
+  html.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+  html.mm-wrapper_opened .topbar-device-mobile .active-mobile a[href="#page"],
+  html.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#page"] {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 3 !important;
+  }
+  .topbar-device-mobile .active-mobile i {
+    color: #ffffff !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+    display: block !important;
+  }
+
+  /* CENTER brand */
+  .topbar-device-mobile .mobile-logo {
+    position: absolute !important;
+    left: 50% !important;
+    top: 0 !important;
+    transform: translateX(-50%) !important;
+    z-index: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 56px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: calc(100% - 120px) !important;
+  }
+  .topbar-device-mobile .mbl-logo,
+  .topbar-device-mobile h1.mbl-logo {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    color: #ffffff !important;
+    white-space: nowrap !important;
+  }
+
+  /* RIGHT cart */
+  .topbar-device-mobile .tbay-topcart {
+    position: relative !important;
+    z-index: 3 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex: 0 0 48px !important;
+    width: 48px !important;
+    height: 56px !important;
+    margin: 0 0 0 auto !important;
+    order: 3 !important;
+  }
+  .topbar-device-mobile .cart-icon i,
+  .topbar-device-mobile .icon-bag {
+    color: #ffffff !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+  }
+  .topbar-device-mobile .mini-cart-items {
+    position: absolute !important;
+    top: -6px !important;
+    right: -10px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    border-radius: 999px !important;
+    background: #e85a3c !important;
+    color: #fff !important;
+    border: 2px solid #0B2B22 !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    line-height: 14px !important;
+    text-align: center !important;
+  }
+
+  .topbar-device-mobile .tbay-dropdown-cart {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 320px !important;
+    max-width: 90vw !important;
+    height: 100vh !important;
+    z-index: 100000 !important;
+    order: 99 !important;
+    flex: none !important;
+  }
+
+  #wrapper-container.wrapper-container,
+  .wrapper-container {
+    padding-top: 55px !important;
+    margin-top: 0 !important;
+  }
+}
