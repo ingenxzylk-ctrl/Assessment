@@ -2730,3 +2730,262 @@ span.counterUp.count-number {
     margin-top: 4px !important;
   }
 }
+
+/* =========================================================
+   ZYLK — Why side bleed, Try Now icon, Blog arrows
+   ========================================================= */
+
+/* ----- Try Now: icon left of text, not overlapping ----- */
+.zylkhealth-quoteframe .vc_btn3-container {
+  display: flex !important;
+  justify-content: center !important;
+  margin: 8px 0 0 !important;
+}
+.zylkhealth-quoteframe a.vc_general.vc_btn3,
+.zylkhealth-quoteframe a.vc_btn3 {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  position: relative !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  margin: 0 auto !important;
+  padding: 12px 26px !important;
+  background-color: #1f6b5a !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 999px !important;
+  color: #ffffff !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+.zylkhealth-quoteframe a.vc_btn3.vc_btn3-icon-left,
+.zylkhealth-quoteframe a.vc_btn3.vc_btn3-icon-right {
+  padding-left: 26px !important;
+  padding-right: 26px !important;
+}
+.zylkhealth-quoteframe a.vc_btn3 .vc_btn3-icon,
+.zylkhealth-quoteframe a.vc_btn3 i.vc_btn3-icon,
+.zylkhealth-quoteframe a.vc_btn3 i.fas {
+  position: static !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  color: #ffffff !important;
+  float: none !important;
+}
+.zylkhealth-quoteframe a.vc_btn3:hover,
+.zylkhealth-quoteframe a.vc_btn3:focus {
+  background-color: #164f43 !important;
+  color: #ffffff !important;
+}
+
+/* ----- Blog: arrows on the right of "Science, simplified." ----- */
+.wpb_wrapper:has(> .widget.widget-text-heading.zylk-blog-heading) {
+  position: relative !important;
+}
+.widget.widget-text-heading.zylk-blog-heading {
+  position: relative !important;
+  z-index: 2 !important;
+  margin: 0 0 18px !important;
+  padding: 28px 100px 0 12px !important;
+}
+.widget.widget-text-heading.zylk-blog-heading .widget-title {
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: 100% !important;
+}
+
+#pcp_wrapper-6815.pcp-carousel-wrapper,
+#pcp_wrapper-6815 .sp-pcp-carousel.top_right,
+#sp-pcp-id-6815.swiper-container {
+  position: relative !important;
+  overflow: visible !important;
+}
+#pcp_wrapper-6815 .pcp-button-next.top_right,
+#pcp_wrapper-6815 .pcp-button-prev.top_right,
+#pcp_wrapper-6815 .swiper-button-next.top_right,
+#pcp_wrapper-6815 .swiper-button-prev.top_right {
+  position: absolute !important;
+  top: -58px !important;
+  bottom: auto !important;
+  width: 36px !important;
+  height: 36px !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid #d0d0d0 !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  color: #333 !important;
+  z-index: 6 !important;
+  box-shadow: none !important;
+}
+#pcp_wrapper-6815 .pcp-button-next.top_right,
+#pcp_wrapper-6815 .swiper-button-next.top_right {
+  right: 12px !important;
+  left: auto !important;
+}
+#pcp_wrapper-6815 .pcp-button-prev.top_right,
+#pcp_wrapper-6815 .swiper-button-prev.top_right {
+  right: 56px !important;
+  left: auto !important;
+}
+#pcp_wrapper-6815 .pcp-button-next i,
+#pcp_wrapper-6815 .pcp-button-prev i,
+#pcp_wrapper-6815 .swiper-button-next i,
+#pcp_wrapper-6815 .swiper-button-prev i {
+  margin: 0 !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  color: #333 !important;
+}
+
+@media only screen and (max-width: 767px) {
+  /* Let Why mint reach the screen edge; hide page-level horizontal scroll */
+  html,
+  body {
+    overflow-x: hidden !important;
+  }
+  html body #wrapper-container.wrapper-container,
+  html body .wrapper-container,
+  html body #tbay-main-content,
+  html body #main-container,
+  html body .wpb-content-wrapper,
+  html body .container {
+    overflow: visible !important;
+    overflow-x: visible !important;
+  }
+
+  /* Why Zylk — true edge-to-edge mint, content padded inside */
+  html body .vc_row.zylk-why-section,
+  html body .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading) {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: calc(50% - 50vw) !important;
+    margin-right: calc(50% - 50vw) !important;
+    padding: 28px 16px 32px !important;
+    background-color: #e8f3ed !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+  html body .vc_row.zylk-why-section::before,
+  html body .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading)::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  html body .vc_row.wpb_row:not(.vc_inner):has(.zylk-why-heading) > .wpb_column > .vc_column-inner {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .widget.widget-text-heading.zylk-why-heading {
+    margin: 0 0 18px !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .widget.widget-text-heading.zylk-why-heading .widget-title,
+  .widget.widget-text-heading.zylk-why-heading h3.widget-title {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  .widget.widget-text-heading.zylk-why-heading .widget-title > span {
+    font-size: 26px !important;
+    line-height: 1.25 !important;
+    padding-top: 22px !important;
+    max-width: 100% !important;
+    overflow-wrap: break-word !important;
+  }
+  .widget.widget-text-heading.zylk-why-heading .widget-title > span::after {
+    max-width: 100% !important;
+  }
+
+  .vc_row.vc_inner.whychoose-content,
+  .whychoose-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 8px 0 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .whychoose-content .feature-box,
+  .whychoose-content .widget-features .feature-box-group .feature-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Quote CTA full width of content column */
+  .zylkhealth-quoteframe {
+    margin: 12px 0 !important;
+    padding: 18px 16px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Blog arrows beside heading */
+  .widget.widget-text-heading.zylk-blog-heading {
+    padding: 28px 96px 0 16px !important;
+    margin-bottom: 14px !important;
+  }
+  .widget.widget-text-heading.zylk-blog-heading .widget-title > span {
+    font-size: 26px !important;
+    line-height: 1.25 !important;
+  }
+  #pcp_wrapper-6815 .pcp-button-next.top_right,
+  #pcp_wrapper-6815 .pcp-button-prev.top_right,
+  #pcp_wrapper-6815 .swiper-button-next.top_right,
+  #pcp_wrapper-6815 .swiper-button-prev.top_right {
+    top: -52px !important;
+    width: 34px !important;
+    height: 34px !important;
+  }
+  #pcp_wrapper-6815 .pcp-button-next.top_right,
+  #pcp_wrapper-6815 .swiper-button-next.top_right {
+    right: 16px !important;
+  }
+  #pcp_wrapper-6815 .pcp-button-prev.top_right,
+  #pcp_wrapper-6815 .swiper-button-prev.top_right {
+    right: 56px !important;
+  }
+  #index-news-content,
+  #pcp_wrapper-6815,
+  #sp-pcp-id-6815 {
+    overflow: visible !important;
+  }
+}
