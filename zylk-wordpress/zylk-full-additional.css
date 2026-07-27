@@ -509,17 +509,44 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   line-height: 1.35 !important;
   text-align: left !important;
 }
+.product-block.grid .caption .price,
 .product-block.grid .caption > .price { display: none !important; }
-.product-block.grid .caption .onsale {
+.product-block.grid .caption > span[style*="font-weight"] {
+  order: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-top: 8px !important;
+  min-height: 44px !important;
+}
+.product-block.grid .caption > span[style*="font-weight"] ins {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #111 !important;
+  text-decoration: none !important;
+}
+.product-block.grid .caption > span[style*="font-weight"] del,
+.product-block.grid .caption > span[style*="font-weight"] del .amount {
+  font-size: 13px !important;
+  color: #9a9a9a !important;
+}
+.product-block.grid figure.image > .onsale { display: none !important; }
+.product-block.grid .caption > .onsale {
   position: absolute !important;
-  top: 12px !important;
-  left: 16px !important;
+  top: 10px !important;
+  left: 10px !important;
+  z-index: 6 !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+.product-block.grid .caption > .onsale .saled {
+  display: inline-block !important;
   background: #e53935 !important;
   color: #fff !important;
-  border-radius: 999px !important;
-  padding: 2px 8px !important;
   font-size: 11px !important;
-  z-index: 6 !important;
+  font-weight: 700 !important;
+  padding: 5px 10px !important;
+  border-radius: 999px !important;
 }
 .product-block.grid .add-cart {
   position: absolute !important;
