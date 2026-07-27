@@ -1,0 +1,92 @@
+/* =========================================================
+   ZYLK — fix white gap under green header + menu close
+   Paste at the VERY END of Additional CSS
+   ========================================================= */
+
+@media only screen and (max-width: 767px) {
+  /* Kill white hairline under green bar */
+  .topbar-device-mobile,
+  .topbar-device-mobile.visible-xxs {
+    background: #0B2B22 !important;
+    border-bottom: 0 !important;
+    box-shadow: none !important;
+    margin-bottom: 0 !important;
+  }
+  .topbar-device-mobile::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: -4px !important;
+    height: 5px !important;
+    background: #0B2B22 !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+  #wrapper-container.wrapper-container,
+  .wrapper-container {
+    padding-top: 56px !important;
+    margin-top: 0 !important;
+    /* fill any leftover strip under the fixed header with green */
+    background-image: linear-gradient(#0B2B22 0, #0B2B22 56px, #ffffff 56px) !important;
+    background-repeat: no-repeat !important;
+  }
+  #tbay-main-content,
+  #main-container,
+  .wpb-content-wrapper,
+  .wpb-content-wrapper > .vc_row:first-child {
+    margin-top: 0 !important;
+  }
+
+  /* Menu close: stack ☰ and ✕; swap with correct mmenu class */
+  .topbar-device-mobile .active-mobile {
+    position: relative !important;
+    width: 48px !important;
+    height: 56px !important;
+  }
+  .topbar-device-mobile .active-mobile .btn,
+  .topbar-device-mobile .active-mobile .btn-danger {
+    position: absolute !important;
+    left: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    color: #fff !important;
+  }
+  .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
+    display: inline-flex !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 2 !important;
+  }
+  .topbar-device-mobile .active-mobile a[href="#page"] {
+    display: inline-flex !important; /* NOT display:none — that blocks closing */
+    opacity: 0 !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+  html.mm-wrapper_opened .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"],
+  html.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+  html.mm-wrapper_opened .topbar-device-mobile .active-mobile a[href="#page"],
+  html.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#page"] {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: 3 !important;
+  }
+  .topbar-device-mobile .active-mobile i {
+    color: #ffffff !important;
+    font-size: 22px !important;
+  }
+}
