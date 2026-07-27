@@ -11,27 +11,54 @@
   --zylk-teal: #005f6b;
   --zylk-mint: #e8f3ed;
   --zylk-muted: #5f6f6a;
-  --zylk-serif: "Roboto Serif", Georgia, "Times New Roman", Times, serif;
+  /* Brand wordmark — slab/serif stack (Roboto Serif already enqueued on site) */
+  --zylk-serif: "Roboto Serif", Arvo, Rockwell, Georgia, "Times New Roman", Times, serif;
   --zylk-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
-/* ---------- Desktop header title: Roboto Serif brand ---------- */
-#tbay-header .header-main .header-logo {
+/* ---------- Header title: brand serif, larger ---------- */
+#tbay-header .header-main .header-logo,
+#tbay-header.header-v2 .header-logo {
   display: flex !important;
   align-items: center !important;
   line-height: normal !important;
 }
+#tbay-header .header-logo a,
+#tbay-header.header-v2 .header-logo a {
+  text-decoration: none !important;
+  color: inherit !important;
+}
+#tbay-header .header-logo h1,
 #tbay-header .header-logo h2,
+#tbay-header.header-v2 .header-logo h1,
 #tbay-header.header-v2 .header-logo h2 {
   margin: 0 !important;
   padding: 0 !important;
   font-family: var(--zylk-serif) !important;
-  font-size: 36px !important;
+  font-size: 42px !important;
   font-weight: 700 !important;
-  line-height: 1.15 !important;
-  letter-spacing: -0.01em !important;
+  font-style: normal !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.015em !important;
   color: var(--zylk-green) !important;
   white-space: nowrap !important;
+  text-transform: none !important;
+}
+@media (min-width: 992px) and (max-width: 1199px) {
+  #tbay-header .header-logo h1,
+  #tbay-header .header-logo h2,
+  #tbay-header.header-v2 .header-logo h1,
+  #tbay-header.header-v2 .header-logo h2 {
+    font-size: 36px !important;
+  }
+}
+@media (min-width: 768px) and (max-width: 991px) {
+  #tbay-header .header-logo h1,
+  #tbay-header .header-logo h2,
+  #tbay-header.header-v2 .header-logo h1,
+  #tbay-header.header-v2 .header-logo h2 {
+    font-size: 30px !important;
+  }
 }
 
 /* ---------- Legacy: cart / checkout / misc ---------- */
@@ -180,11 +207,21 @@ del { color: #ff0000 !important; }
     z-index: 40;
   }
 
-  /* Desktop: product titles — no mid-word clip, consistent left align */
+  /* Desktop ONLY: product titles — left-aligned, no mid-word clip */
+  .product-block.grid,
+  .widget-categoriestabs.top-shop .product-block.grid,
+  .widget-products.new-feature .product-block.grid {
+    overflow: visible !important;
+  }
+  .product-block.grid .product-content,
   .product-block.grid .caption {
-    padding: 14px 96px 18px 16px !important;
     overflow: visible !important;
     text-align: left !important;
+  }
+  .product-block.grid .caption {
+    /* Leave room for Add, but don't crush the title column */
+    padding: 14px 108px 18px 16px !important;
+    box-sizing: border-box !important;
   }
   .product-block.grid .caption .name,
   .product-block.grid .caption .name a,
@@ -200,24 +237,34 @@ del { color: #ff0000 !important; }
     font-family: var(--zylk-serif) !important;
     font-size: 15px !important;
     font-weight: 700 !important;
-    line-height: 1.35 !important;
+    line-height: 1.4 !important;
     color: #111 !important;
     text-align: left !important;
     white-space: normal !important;
-    word-break: normal !important;
-    overflow-wrap: break-word !important;
-    hyphens: none !important;
+    word-break: keep-all !important;
+    overflow-wrap: anywhere !important;
+    hyphens: manual !important;
     overflow: visible !important;
     text-overflow: clip !important;
     height: auto !important;
     max-height: none !important;
     -webkit-line-clamp: unset !important;
     line-clamp: unset !important;
+    -webkit-box-orient: unset !important;
   }
-  /* Align title blocks across a row (≈3 lines) */
+  /* Even title blocks across a desktop row */
   .widget-categoriestabs.top-shop .product-block.grid .caption .name,
   .widget-products.new-feature .product-block.grid .caption .name {
-    min-height: 4.05em !important;
+    min-height: 4.2em !important;
+  }
+  .widget-categoriestabs.top-shop .owl-carousel .owl-item,
+  .widget-products.new-feature .owl-carousel .owl-item {
+    display: flex !important;
+  }
+  .widget-categoriestabs.top-shop .owl-carousel .owl-item .product-block.grid,
+  .widget-products.new-feature .owl-carousel .owl-item .product-block.grid {
+    width: 100% !important;
+    height: 100% !important;
   }
 }
 @media only screen and (max-width: 767px) {
@@ -495,7 +542,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   z-index: 60 !important;
   pointer-events: auto !important;
 }
-/* Value Kits arrows — match blog (fa-angle in bordered square) */
+/* Value Kits arrows — same design as blog (fa-angle in bordered square) */
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next {
   position: relative !important;
@@ -508,6 +555,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   width: 36px !important;
   height: 36px !important;
   margin: 0 0 0 8px !important;
+  padding: 0 !important;
   border: 1px solid #d0d0d0 !important;
   border-radius: 6px !important;
   background: #fff !important;
@@ -521,30 +569,40 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   float: none !important;
   box-shadow: none !important;
   text-indent: 0 !important;
+  background-image: none !important;
 }
+/* Hide theme icons; draw blog-style fa-angle */
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev *,
-.widget-products.new-feature .owl-carousel .owl-nav .owl-next * {
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next *,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev i,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next i,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev span,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next span {
   display: none !important;
+  font-size: 0 !important;
+  visibility: hidden !important;
 }
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next::before {
-  font-family: FontAwesome !important;
+  font-family: FontAwesome, "Font Awesome 5 Free", "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;
   font-size: 18px !important;
-  font-weight: 400 !important;
   line-height: 1 !important;
   color: #333 !important;
   speak: none;
+  display: block !important;
+  visibility: visible !important;
 }
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before { content: "\f104" !important; }
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next::before { content: "\f105" !important; }
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev:hover,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next:hover {
-  background: #ffc557 !important;
-  border-color: #ffc557 !important;
+  background: #fff !important;
+  border-color: #aaa !important;
 }
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev:hover::before,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next:hover::before {
-  color: #fff !important;
+  color: #111 !important;
 }
 .widget-products.new-feature .owl-carousel .owl-dots { display: none !important; }
 
@@ -1568,13 +1626,15 @@ span.counterUp.count-number {
     margin: 0 !important;
     padding: 0 !important;
     font-family: var(--zylk-serif) !important;
-    font-size: 20px !important;
+    font-size: 22px !important;
     font-weight: 700 !important;
+    font-style: normal !important;
     line-height: 1 !important;
     color: #fff !important;
     white-space: nowrap !important;
     background: transparent !important;
-    letter-spacing: -0.01em !important;
+    letter-spacing: -0.015em !important;
+    text-transform: none !important;
   }
 
   .topbar-device-mobile .tbay-topcart {
