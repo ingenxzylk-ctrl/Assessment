@@ -1,12 +1,28 @@
-<!-- ZYLK: marquee move + mobile menu close helper -->
+<!-- ZYLK: marquee + mobile header menu open/close (API) -->
 <script>
 (function () {
+  function $() {
+    return window.jQuery;
+  }
+
+  function getMmenuApi() {
+    var jq = $();
+    if (!jq) return null;
+    var $menu = jq("#tbay-mobile-menu-navbar");
+    if (!$menu.length) return null;
+    return $menu.data("mmenu") || null;
+  }
+
   /* ---------- Marquee ---------- */
   function clearPluginSpacers(marquee) {
     document.querySelectorAll(".wrapper-container").forEach(function (el) {
       el.style.setProperty("margin-top", "0", "important");
     });
-    if (marquee && marquee.nextElementSibling && marquee.classList.contains("zylk-marquee-placed")) {
+    if (
+      marquee &&
+      marquee.nextElementSibling &&
+      marquee.classList.contains("zylk-marquee-placed")
+    ) {
       marquee.nextElementSibling.style.setProperty("margin-top", "0", "important");
     }
   }
@@ -52,13 +68,46 @@
     setTimeout(moveMarquee, 1500);
   }
 
-  /* ---------- Mobile menu close (☰ ↔ ✕) ---------- */
-  function syncMobileMenuBtn() {
+  /* ---------- Mobile menu: ☰ open / ✕ close via mmenu API ---------- */
+  function isMenuOpen() {
     var html = document.documentElement;
-    var opened =
+    return (
       html.classList.contains("mm-wrapper_opened") ||
-      html.classList.contains("mm-wrapper_opening");
+      html.classList.contains("mm-wrapper_opening")
+    );
+  }
 
+  function syncMobileMenuBtn() {
+    var opened = isMenuOpen();
+    var menuBtn = document.querySelector(
+      '.topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"]'
+    );
+    var closeBtn = document.querySelector(
+      '.topbar-device-mobile .active-mobile a[href="#page"], .topbar-device-mobile .active-mobile a.zylk-menu-close'
+    );
+    if (!menuBtn || !closeBtn) return;
+
+    menuBtn.style.setProperty("display", "inline-flex", "important");
+    closeBtn.style.setProperty("display", "inline-flex", "important");
+
+    if (opened) {
+      menuBtn.style.setProperty("opacity", "0", "important");
+      menuBtn.style.setProperty("pointer-events", "none", "important");
+      menuBtn.style.setProperty("z-index", "1", "important");
+      closeBtn.style.setProperty("opacity", "1", "important");
+      closeBtn.style.setProperty("pointer-events", "auto", "important");
+      closeBtn.style.setProperty("z-index", "3", "important");
+    } else {
+      menuBtn.style.setProperty("opacity", "1", "important");
+      menuBtn.style.setProperty("pointer-events", "auto", "important");
+      menuBtn.style.setProperty("z-index", "2", "important");
+      closeBtn.style.setProperty("opacity", "0", "important");
+      closeBtn.style.setProperty("pointer-events", "none", "important");
+      closeBtn.style.setProperty("z-index", "1", "important");
+    }
+  }
+
+  function bindMenuButtons() {
     var menuBtn = document.querySelector(
       '.topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"]'
     );
@@ -67,34 +116,65 @@
     );
     if (!menuBtn || !closeBtn) return;
 
-    if (opened) {
-      menuBtn.style.setProperty("opacity", "0", "important");
-      menuBtn.style.setProperty("pointer-events", "none", "important");
-      menuBtn.style.setProperty("z-index", "1", "important");
-      closeBtn.style.setProperty("display", "inline-flex", "important");
-      closeBtn.style.setProperty("opacity", "1", "important");
-      closeBtn.style.setProperty("pointer-events", "auto", "important");
-      closeBtn.style.setProperty("z-index", "3", "important");
-    } else {
-      menuBtn.style.setProperty("opacity", "1", "important");
-      menuBtn.style.setProperty("pointer-events", "auto", "important");
-      menuBtn.style.setProperty("z-index", "2", "important");
-      closeBtn.style.setProperty("display", "inline-flex", "important");
-      closeBtn.style.setProperty("opacity", "0", "important");
-      closeBtn.style.setProperty("pointer-events", "none", "important");
-      closeBtn.style.setProperty("z-index", "1", "important");
+    closeBtn.classList.add("zylk-menu-close");
+
+    if (!menuBtn.dataset.zylkBound) {
+      menuBtn.dataset.zylkBound = "1";
+      menuBtn.addEventListener(
+        "click",
+        function (e) {
+          var api = getMmenuApi();
+          if (api && typeof api.open === "function") {
+            e.preventDefault();
+            e.stopPropagation();
+            api.open();
+            setTimeout(syncMobileMenuBtn, 50);
+            setTimeout(syncMobileMenuBtn, 350);
+          }
+        },
+        true
+      );
+    }
+
+    if (!closeBtn.dataset.zylkBound) {
+      closeBtn.dataset.zylkBound = "1";
+      closeBtn.addEventListener(
+        "click",
+        function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var api = getMmenuApi();
+          if (api && typeof api.close === "function") {
+            api.close();
+          }
+          setTimeout(syncMobileMenuBtn, 50);
+          setTimeout(syncMobileMenuBtn, 350);
+        },
+        true
+      );
+    }
+
+    var jq = $();
+    if (jq) {
+      jq("#tbay-mobile-menu-navbar")
+        .off(".zylkmenu")
+        .on("open:finish.zylkmenu open:start.zylkmenu", syncMobileMenuBtn)
+        .on("close:finish.zylkmenu close:start.zylkmenu", syncMobileMenuBtn);
     }
   }
 
   function boot() {
     runMarquee();
+    bindMenuButtons();
     syncMobileMenuBtn();
     try {
-      new MutationObserver(syncMobileMenuBtn).observe(document.documentElement, {
+      new MutationObserver(function () {
+        syncMobileMenuBtn();
+      }).observe(document.documentElement, {
         attributes: true,
         attributeFilter: ["class"],
       });
-    } catch (e) {}
+    } catch (err) {}
   }
 
   if (document.readyState === "loading") {
@@ -104,6 +184,7 @@
   }
   window.addEventListener("load", function () {
     moveMarquee();
+    bindMenuButtons();
     syncMobileMenuBtn();
   });
   window.addEventListener("resize", function () {
@@ -112,10 +193,14 @@
     forceFullBleed(marquee);
     syncMobileMenuBtn();
   });
-  document.addEventListener("click", function () {
-    setTimeout(syncMobileMenuBtn, 30);
-    setTimeout(syncMobileMenuBtn, 200);
-    setTimeout(syncMobileMenuBtn, 500);
-  });
+  document.addEventListener(
+    "click",
+    function () {
+      setTimeout(syncMobileMenuBtn, 30);
+      setTimeout(syncMobileMenuBtn, 200);
+      setTimeout(syncMobileMenuBtn, 500);
+    },
+    true
+  );
 })();
 </script>
