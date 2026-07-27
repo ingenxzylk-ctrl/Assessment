@@ -1136,8 +1136,7 @@ a.added_to_cart.wc-forward {
 }
 
 /* =========================================================
-   MOBILE ONLY: sticky top header — brand green, aligned, clear type
-   Marquee does NOT stick — never overlaps logo
+   MOBILE ONLY: sticky header — menu | Zylk Health | cart
    ========================================================= */
 @media only screen and (max-width: 767px) {
   body.tbay-body-mobile-product-one,
@@ -1153,33 +1152,38 @@ a.added_to_cart.wc-forward {
     right: 0 !important;
     width: 100% !important;
     z-index: 99999 !important;
-    display: grid !important;
-    grid-template-columns: 56px 1fr 56px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
     align-items: center !important;
-    justify-items: center !important;
-    column-gap: 0 !important;
+    justify-content: space-between !important;
     min-height: 56px !important;
     height: 56px !important;
-    padding: 0 8px !important;
+    padding: 0 12px !important;
     margin: 0 !important;
     background: #0B2B22 !important;
     border: none !important;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18) !important;
+    overflow: visible !important;
   }
 
-  /* Hamburger */
+  /* LEFT — hamburger only (hide close until menu is open) */
   .topbar-device-mobile .active-mobile {
+    position: relative !important;
+    z-index: 3 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    width: 100% !important;
+    flex: 0 0 48px !important;
+    width: 48px !important;
     height: 56px !important;
     margin: 0 !important;
     padding: 0 !important;
+    order: 1 !important;
   }
   .topbar-device-mobile .active-mobile .btn,
   .topbar-device-mobile .active-mobile .btn-danger {
-    display: inline-flex !important;
+    display: none !important;
     align-items: center !important;
     justify-content: center !important;
     width: 44px !important;
@@ -1191,6 +1195,23 @@ a.added_to_cart.wc-forward {
     box-shadow: none !important;
     color: #ffffff !important;
   }
+  /* show only the 3-line menu button */
+  .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
+    display: inline-flex !important;
+  }
+  /* hide X close by default */
+  .topbar-device-mobile .active-mobile a[href="#page"] {
+    display: none !important;
+  }
+  /* when mmenu is open, swap to close */
+  html.mm-opened .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"],
+  body.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#tbay-mobile-menu-navbar"] {
+    display: none !important;
+  }
+  html.mm-opened .topbar-device-mobile .active-mobile a[href="#page"],
+  body.mm-wrapper_opening .topbar-device-mobile .active-mobile a[href="#page"] {
+    display: inline-flex !important;
+  }
   .topbar-device-mobile .active-mobile i,
   .topbar-device-mobile .active-mobile .icon-menu,
   .topbar-device-mobile .active-mobile .icon-close {
@@ -1200,16 +1221,24 @@ a.added_to_cart.wc-forward {
     display: block !important;
   }
 
-  /* Center brand name */
+  /* CENTER — brand name truly centered */
   .topbar-device-mobile .mobile-logo {
+    position: absolute !important;
+    left: 50% !important;
+    top: 0 !important;
+    transform: translateX(-50%) !important;
+    z-index: 2 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 100% !important;
+    width: auto !important;
+    max-width: calc(100% - 120px) !important;
     height: 56px !important;
     margin: 0 !important;
     padding: 0 !important;
     text-align: center !important;
+    order: 2 !important;
+    pointer-events: auto !important;
   }
   .topbar-device-mobile .mobile-logo .logo-theme {
     display: flex !important;
@@ -1238,17 +1267,22 @@ a.added_to_cart.wc-forward {
     color: #ffffff !important;
     text-align: center !important;
     text-transform: none !important;
+    white-space: nowrap !important;
   }
 
-  /* Cart */
+  /* RIGHT — cart icon inside green bar */
   .topbar-device-mobile .tbay-topcart {
+    position: relative !important;
+    z-index: 3 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
-    width: 100% !important;
+    flex: 0 0 48px !important;
+    width: 48px !important;
     height: 56px !important;
-    margin: 0 !important;
+    margin: 0 0 0 auto !important;
     padding: 0 !important;
+    order: 3 !important;
   }
   .topbar-device-mobile .cart-dropdown,
   .topbar-device-mobile .mini-cart {
@@ -1259,6 +1293,7 @@ a.added_to_cart.wc-forward {
     padding: 0 !important;
     line-height: 1 !important;
     height: 44px !important;
+    width: 44px !important;
   }
   .topbar-device-mobile .cart-dropdown .mini-cart .cart-icon,
   .topbar-device-mobile .cart-icon {
@@ -1277,12 +1312,40 @@ a.added_to_cart.wc-forward {
     display: block !important;
   }
   .topbar-device-mobile .mini-cart-items {
+    position: absolute !important;
+    top: -6px !important;
+    right: -10px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    padding: 0 4px !important;
+    border-radius: 999px !important;
     background: #e85a3c !important;
     color: #ffffff !important;
     border: 2px solid #0B2B22 !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    line-height: 14px !important;
+    text-align: center !important;
   }
 
-  /* Content starts below fixed header — prevents hero/headline clip */
+  /* Cart drawer must NOT sit in the header flex row */
+  .topbar-device-mobile > .tbay-dropdown-cart,
+  .topbar-device-mobile .tbay-dropdown-cart {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    left: auto !important;
+    bottom: 0 !important;
+    width: 320px !important;
+    max-width: 90vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    z-index: 100000 !important;
+    order: 99 !important;
+    flex: none !important;
+  }
+
+  /* Content starts below fixed header */
   #wrapper-container.wrapper-container,
   .wrapper-container {
     padding-top: 56px !important;
