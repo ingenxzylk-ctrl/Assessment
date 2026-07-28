@@ -1,0 +1,107 @@
+/* =========================================================
+   ZYLK — SINGLE PRODUCT desktop spacing fix
+   Append at the END of Additional CSS
+   Fixes empty space under product image + gap before Description tabs
+   ========================================================= */
+
+@media only screen and (min-width: 768px) {
+  body.single-product #main-content.singular-shop {
+    padding-top: 10px !important;
+    padding-bottom: 40px !important;
+  }
+
+  .singular-shop div.product > .row.row-active-full > [class*="col-"] > .row,
+  .singular-shop div.product .row.row-active-full .row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+  }
+  .singular-shop div.product .image-mains,
+  .singular-shop div.product .information {
+    float: none !important;
+    align-self: flex-start !important;
+  }
+
+  .singular-shop div.product .image-mains .woocommerce-product-gallery,
+  .singular-shop div.product .image-mains .woocommerce-product-gallery.images,
+  .singular-shop div.product .image-mains .woocommerce-product-gallery.no-gallery-image {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    opacity: 1 !important;
+  }
+  .singular-shop div.product .image-mains .flex-viewport,
+  .singular-shop div.product .woocommerce-product-gallery .flex-viewport {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    border-radius: 13px !important;
+    overflow: hidden !important;
+  }
+  .singular-shop div.product .woocommerce-product-gallery__wrapper,
+  .singular-shop div.product .woocommerce-product-gallery__image,
+  .singular-shop div.product .woocommerce-product-gallery__image a {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    line-height: 0 !important;
+  }
+  .singular-shop div.product .woocommerce-product-gallery__image img,
+  .singular-shop div.product .woocommerce-product-gallery img.wp-post-image,
+  .singular-shop div.product div.images img {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+  .singular-shop div.product .image-mains .flex-control-thumbs,
+  .singular-shop div.product .image-mains .flex-control-nav {
+    margin: 10px 0 0 !important;
+    padding: 0 !important;
+  }
+  .singular-shop div.product .image-mains .details-btn-wrapper {
+    margin: 8px 0 0 !important;
+  }
+
+  .singular-shop div.product .information .summary.entry-summary,
+  .singular-shop div.product .information .summary {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .singular-shop div.product .information .woocommerce-product-details__short-description {
+    margin-bottom: 12px !important;
+  }
+  .singular-shop div.product .information #shop-now {
+    padding: 12px 0 !important;
+    margin: 0 !important;
+  }
+  .singular-shop div.product .information .tbay-button-popup-wrap {
+    margin: 0 !important;
+    padding: 10px 0 !important;
+  }
+  .singular-shop div.product .information .product_meta,
+  .singular-shop div.product .information .tbay-social-share {
+    margin: 8px 0 0 !important;
+    padding-top: 12px !important;
+  }
+  .singular-shop div.product .information .widget.widget-text-safe-checkout {
+    margin: 12px 0 0 !important;
+    padding: 0 !important;
+  }
+  .singular-shop div.product .information .safe-checkout__content {
+    margin-top: 14px !important;
+  }
+
+  .single-product #main-content .wc-tabs-wrapper,
+  .singular-shop div.product .woocommerce-tabs,
+  .singular-shop #woocommerce-tabs {
+    margin-top: 18px !important;
+    margin-bottom: 28px !important;
+    clear: both !important;
+  }
+  .single-product #main-content .wc-tabs-wrapper .panel {
+    padding-top: 16px !important;
+  }
+}
