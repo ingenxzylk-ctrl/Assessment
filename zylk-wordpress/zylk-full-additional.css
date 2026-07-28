@@ -323,12 +323,16 @@ del { color: #ff0000 !important; }
   }
 }
 
-/* ---------- Marquee (top of page, under header) ---------- */
+/* ---------- Marquee: TOP of page (under header, ABOVE banner)
+   Do NOT use the old “between banner & products” CSS — JS + this block
+   put the strip first in main content. Hidden while still body-child. ---------- */
 html body .container-marquee {
   pointer-events: none;
   position: relative !important;
   top: auto !important;
   left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
   width: 100vw !important;
   max-width: 100vw !important;
   z-index: 20 !important;
@@ -347,6 +351,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   left: 0 !important;
   width: 100% !important;
   height: 0 !important;
+  min-height: 0 !important;
   margin: 0 !important;
   padding: 0 !important;
   opacity: 0 !important;
@@ -357,7 +362,8 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   background: transparent !important;
 }
 .container-marquee.zylk-marquee-placed,
-.container-marquee.zylk-marquee-top {
+.container-marquee.zylk-marquee-top,
+.container-marquee[data-zylk-marquee="top"] {
   opacity: 1 !important;
   visibility: visible !important;
   height: auto !important;
@@ -370,6 +376,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   display: block !important;
   width: 100% !important;
   margin: 0 !important;
+  padding: 0 !important;
   background-color: var(--zylk-green) !important;
 }
 .container-marquee .marquee3k {
@@ -381,7 +388,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
 .wrapper-container,
 .container-marquee + * { margin-top: 0 !important; }
 
-/* Keep first banner/slider flush under the top marquee */
+/* Banner/slider flush under the top marquee */
 #tbay-main-content > .container-marquee.zylk-marquee-top + *,
 .wpb-content-wrapper > .container-marquee.zylk-marquee-top + .vc_row,
 .wpb-content-wrapper > .container-marquee.zylk-marquee-top + .wpb_row {

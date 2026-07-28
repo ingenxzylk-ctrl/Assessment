@@ -68,7 +68,7 @@
     unlockTimer = setTimeout(unlockClicks, 50);
   }
 
-  /* ---------- Marquee (top of page, under header) ---------- */
+  /* ---------- Marquee (TOP of page — under header, ABOVE banner) ---------- */
   function clearPluginSpacers(marquee) {
     document.querySelectorAll(".wrapper-container").forEach(function (el) {
       el.style.setProperty("margin-top", "0", "important");
@@ -87,6 +87,8 @@
     marquee.style.setProperty("position", "relative", "important");
     marquee.style.setProperty("top", "auto", "important");
     marquee.style.setProperty("left", "50%", "important");
+    marquee.style.setProperty("right", "auto", "important");
+    marquee.style.setProperty("bottom", "auto", "important");
     marquee.style.setProperty("width", "100vw", "important");
     marquee.style.setProperty("max-width", "100vw", "important");
     marquee.style.setProperty("margin-left", "-50vw", "important");
@@ -103,11 +105,15 @@
     marquee.style.setProperty("z-index", "20", "important");
   }
 
+  /**
+   * Place marquee as the first homepage content under the header.
+   * Prefer the page builder wrapper so it sits above the banner/slider.
+   */
   function getMarqueeTopTarget() {
     return (
       document.querySelector("#tbay-main-content .wpb-content-wrapper") ||
-      document.querySelector("#tbay-main-content") ||
       document.querySelector("#main-container .wpb-content-wrapper") ||
+      document.querySelector("#tbay-main-content") ||
       document.querySelector("#main-container") ||
       document.querySelector("#wrapper-container")
     );
@@ -121,13 +127,14 @@
     var target = getMarqueeTopTarget();
     if (!target) return false;
 
-    /* Place as the first content under the header */
+    /* Always first child = top (above banner / products) */
     if (target.firstElementChild !== marquee) {
       target.insertBefore(marquee, target.firstElementChild);
     }
 
     marquee.classList.add("zylk-marquee-placed");
     marquee.classList.add("zylk-marquee-top");
+    marquee.setAttribute("data-zylk-marquee", "top");
     forceFullBleed(marquee);
     clearPluginSpacers(marquee);
     return true;
