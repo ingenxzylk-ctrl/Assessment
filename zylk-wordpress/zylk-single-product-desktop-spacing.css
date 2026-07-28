@@ -1,7 +1,6 @@
 /* =========================================================
-   ZYLK — fix product page gap (desktop)
-   Paste at the VERY END of Additional CSS (replace older
-   single-product spacing patch if you already added one)
+   ZYLK — product page: larger image + no gap before tabs
+   Paste at the VERY END of Additional CSS
    ========================================================= */
 
 @media only screen and (min-width: 768px) {
@@ -10,22 +9,19 @@
     padding-bottom: 40px !important;
   }
 
-  /*
-    Cause: tabs sit BELOW the full [image|summary] row.
-    Tall image → huge white gap under Buy Now / Ask a Question.
-    Fix: put tabs under the summary column, beside the image.
-  */
+  /* Wider gallery column (~65%) so the product photo reads larger */
   .singular-shop div.product .row.row-active-full > .col-md-12.col-xlg-9,
   .singular-shop div.product .row.row-active-full > .col-md-12 {
     display: grid !important;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr) !important;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr) !important;
     grid-template-areas:
       "gallery summary"
       "gallery tabs" !important;
-    column-gap: 28px !important;
+    column-gap: 32px !important;
     row-gap: 12px !important;
     align-items: start !important;
     width: 100% !important;
+    max-width: 100% !important;
     float: none !important;
   }
 
@@ -41,6 +37,7 @@
     float: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    min-width: 0 !important;
   }
   .singular-shop div.product .information {
     grid-area: summary !important;
@@ -81,6 +78,7 @@
   .singular-shop div.product div.images img {
     display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
     height: auto !important;
     object-fit: contain !important;
   }
@@ -102,5 +100,25 @@
   }
   .singular-shop div.product .information .safe-checkout__content {
     margin-top: 12px !important;
+  }
+}
+
+/* Mobile: use full width for a bigger product photo */
+@media only screen and (max-width: 767px) {
+  .singular-shop div.product .image-mains {
+    width: 100% !important;
+    margin: 0 0 12px !important;
+    padding: 0 !important;
+  }
+  .singular-shop div.product .image-mains .woocommerce-product-gallery,
+  .singular-shop div.product .woocommerce-product-gallery .flex-viewport {
+    height: auto !important;
+    opacity: 1 !important;
+  }
+  .singular-shop div.product .woocommerce-product-gallery__image img,
+  .singular-shop div.product div.images img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
   }
 }

@@ -1770,17 +1770,19 @@ span.counterUp.count-number {
     Tall image → huge white gap under the shorter summary.
     Fix: CSS grid so tabs sit under summary, beside the image.
   */
+  /* Give the product block full desktop width so the image can grow */
   .singular-shop div.product .row.row-active-full > .col-md-12.col-xlg-9,
   .singular-shop div.product .row.row-active-full > .col-md-12 {
     display: grid !important;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr) !important;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr) !important;
     grid-template-areas:
       "gallery summary"
       "gallery tabs" !important;
-    column-gap: 28px !important;
+    column-gap: 32px !important;
     row-gap: 12px !important;
     align-items: start !important;
     width: 100% !important;
+    max-width: 100% !important;
     float: none !important;
   }
 
@@ -1798,6 +1800,7 @@ span.counterUp.count-number {
     margin: 0 !important;
     padding: 0 !important;
     position: relative !important;
+    min-width: 0 !important;
   }
   .singular-shop div.product .information {
     grid-area: summary !important;
@@ -1853,6 +1856,7 @@ span.counterUp.count-number {
     max-width: 100% !important;
     height: auto !important;
     object-fit: contain !important;
+    object-position: center center !important;
   }
   .singular-shop div.product .image-mains .flex-control-thumbs,
   .singular-shop div.product .image-mains .flex-control-nav {
