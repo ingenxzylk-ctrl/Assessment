@@ -1,6 +1,14 @@
 /* =========================================================
-   ZYLK HEALTH — Additional CSS (optimized)
-   Appearance → Customize → Additional CSS (replace ALL)
+   ZYLK HEALTH — Additional CSS (optimized, single source)
+   Paste ALL of this into: Appearance → Customize → Additional CSS
+   Replaces the stacked/duplicated Customizer paste (do not append).
+
+   Kept: marquee top/full-bleed, Our Products tabs, Value Kits arrows,
+   product cards + Add label, Blog, Why Zylk mint bleed, stats/quote,
+   mobile green header (menu|brand|cart), click unlock, single-product
+   gallery/tabs layout, serif brand + product titles.
+   Removed: repeated override blocks, broken mid-rule fragments,
+   conflicting cart/menu hide rules that stacked on each other.
    ========================================================= */
 
 :root {
@@ -219,9 +227,15 @@ del { color: #ff0000 !important; }
     text-align: left !important;
   }
   .product-block.grid .caption {
-    /* Leave room for Add, but don't crush the title column */
-    padding: 14px 108px 18px 16px !important;
+    /* Add sits in bottom padding — title gets full width */
+    padding: 14px 16px 58px !important;
     box-sizing: border-box !important;
+    align-items: flex-start !important;
+  }
+  .product-block.grid .caption .rating {
+    min-height: 18px !important;
+    width: 100% !important;
+    margin: 0 !important;
   }
   .product-block.grid .caption .name,
   .product-block.grid .caption .name a,
@@ -232,13 +246,13 @@ del { color: #ff0000 !important; }
     display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    margin: 6px 0 0 !important;
+    margin: 8px 0 0 !important;
     padding: 0 !important;
     font-family: var(--zylk-serif) !important;
-    font-size: 15px !important;
+    font-size: 16px !important;
     font-weight: 700 !important;
     line-height: 1.4 !important;
-    color: #111 !important;
+    color: #0a2522 !important;
     text-align: left !important;
     white-space: normal !important;
     word-break: normal !important;
@@ -251,6 +265,10 @@ del { color: #ff0000 !important; }
     -webkit-line-clamp: unset !important;
     line-clamp: unset !important;
     -webkit-box-orient: unset !important;
+  }
+  .product-block.grid .add-cart {
+    right: 14px !important;
+    bottom: 14px !important;
   }
   /* Even title blocks across a desktop row */
   .widget-categoriestabs.top-shop .product-block.grid .caption .name,
@@ -552,7 +570,7 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   z-index: 60 !important;
   pointer-events: auto !important;
 }
-/* Value Kits arrows — same design as blog (fa-angle in bordered square) */
+/* Value Kits arrows — square chrome matching Blog */
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next {
   position: relative !important;
@@ -562,8 +580,11 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   top: auto !important;
   left: auto !important;
   right: auto !important;
+  bottom: auto !important;
   width: 36px !important;
   height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
   margin: 0 0 0 8px !important;
   padding: 0 !important;
   border: 1px solid #d0d0d0 !important;
@@ -579,9 +600,9 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   float: none !important;
   box-shadow: none !important;
   text-indent: 0 !important;
+  overflow: hidden !important;
   background-image: none !important;
 }
-/* Hide theme icons; draw blog-style fa-angle */
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev *,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next *,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev i,
@@ -590,29 +611,46 @@ body > .container-marquee:not(.zylk-marquee-placed) {
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next span {
   display: none !important;
   font-size: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
   visibility: hidden !important;
+  overflow: hidden !important;
+}
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev::after,
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next::after {
+  display: none !important;
+  content: none !important;
 }
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next::before {
-  font-family: FontAwesome, "Font Awesome 5 Free", "Font Awesome 6 Free" !important;
-  font-weight: 900 !important;
-  font-size: 18px !important;
+  display: block !important;
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  font-family: Georgia, "Times New Roman", Times, serif !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
   line-height: 1 !important;
   color: #333 !important;
   speak: none;
-  display: block !important;
   visibility: visible !important;
 }
-.widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before { content: "\f104" !important; }
-.widget-products.new-feature .owl-carousel .owl-nav .owl-next::before { content: "\f105" !important; }
+.widget-products.new-feature .owl-carousel .owl-nav .owl-prev::before { content: "‹" !important; }
+.widget-products.new-feature .owl-carousel .owl-nav .owl-next::before { content: "›" !important; }
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev:hover,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next:hover {
   background: #fff !important;
-  border-color: #aaa !important;
+  border-color: #004030 !important;
+  color: #004030 !important;
 }
 .widget-products.new-feature .owl-carousel .owl-nav .owl-prev:hover::before,
 .widget-products.new-feature .owl-carousel .owl-nav .owl-next:hover::before {
-  color: #111 !important;
+  color: #004030 !important;
 }
 .widget-products.new-feature .owl-carousel .owl-dots { display: none !important; }
 
@@ -648,9 +686,13 @@ body > .container-marquee:not(.zylk-marquee-placed) {
 .product-block.grid .image .onsale { display: none !important; }
 .product-block.grid .caption {
   position: relative !important;
-  padding: 14px 120px 16px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px;
+  padding: 14px 16px 58px !important;
   text-align: left !important;
   overflow: visible !important;
+  background: #fff !important;
 }
 .product-block.grid .caption .rating { order: -1 !important; margin: 0 0 8px !important; }
 .product-block.grid .star-rating { color: #0b6b5e !important; }
@@ -1369,7 +1411,7 @@ span.counterUp.count-number {
     -webkit-box-orient: vertical !important;
     overflow: hidden !important;
   }
-  .product-block.grid .caption { padding-right: 96px !important; }
+  .product-block.grid .caption { padding: 14px 16px 48px !important; }
   .product-block.grid .add-cart a.button,
   .product-block.grid .add-cart a.add_to_cart_button,
   .product-block.grid .add-cart a.ajax_add_to_cart {
