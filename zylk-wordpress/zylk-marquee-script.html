@@ -68,7 +68,7 @@
     unlockTimer = setTimeout(unlockClicks, 50);
   }
 
-  /* ---------- Marquee ---------- */
+  /* ---------- Marquee (top of page, under header) ---------- */
   function clearPluginSpacers(marquee) {
     document.querySelectorAll(".wrapper-container").forEach(function (el) {
       el.style.setProperty("margin-top", "0", "important");
@@ -91,6 +91,8 @@
     marquee.style.setProperty("max-width", "100vw", "important");
     marquee.style.setProperty("margin-left", "-50vw", "important");
     marquee.style.setProperty("margin-right", "0", "important");
+    marquee.style.setProperty("margin-top", "0", "important");
+    marquee.style.setProperty("margin-bottom", "0", "important");
     marquee.style.setProperty("height", "auto", "important");
     marquee.style.setProperty("opacity", "1", "important");
     marquee.style.setProperty("visibility", "visible", "important");
@@ -98,20 +100,34 @@
     marquee.style.setProperty("overflow", "hidden", "important");
     marquee.style.setProperty("transform", "none", "important");
     marquee.style.setProperty("pointer-events", "none", "important");
+    marquee.style.setProperty("z-index", "20", "important");
+  }
+
+  function getMarqueeTopTarget() {
+    return (
+      document.querySelector("#tbay-main-content .wpb-content-wrapper") ||
+      document.querySelector("#tbay-main-content") ||
+      document.querySelector("#main-container .wpb-content-wrapper") ||
+      document.querySelector("#main-container") ||
+      document.querySelector("#wrapper-container")
+    );
   }
 
   function moveMarquee() {
     var marquee = document.querySelector(".container-marquee");
-    var products = document.querySelector(".widget-categoriestabs.top-shop");
     if (!marquee) return false;
     clearPluginSpacers(marquee);
-    if (!products) return false;
-    var row = products.closest(".vc_row");
-    if (!row || !row.parentNode) return false;
-    if (marquee.nextElementSibling !== row) {
-      row.parentNode.insertBefore(marquee, row);
+
+    var target = getMarqueeTopTarget();
+    if (!target) return false;
+
+    /* Place as the first content under the header */
+    if (target.firstElementChild !== marquee) {
+      target.insertBefore(marquee, target.firstElementChild);
     }
+
     marquee.classList.add("zylk-marquee-placed");
+    marquee.classList.add("zylk-marquee-top");
     forceFullBleed(marquee);
     clearPluginSpacers(marquee);
     return true;

@@ -305,7 +305,7 @@ del { color: #ff0000 !important; }
   }
 }
 
-/* ---------- Marquee ---------- */
+/* ---------- Marquee (top of page, under header) ---------- */
 html body .container-marquee {
   pointer-events: none;
   position: relative !important;
@@ -313,9 +313,9 @@ html body .container-marquee {
   left: 50% !important;
   width: 100vw !important;
   max-width: 100vw !important;
-  z-index: 5 !important;
+  z-index: 20 !important;
   transform: none !important;
-  margin: 28px 0 28px -50vw !important;
+  margin: 0 0 0 -50vw !important;
   padding: 0 !important;
   display: block !important;
   visibility: visible !important;
@@ -338,10 +338,13 @@ body > .container-marquee:not(.zylk-marquee-placed) {
   pointer-events: none !important;
   background: transparent !important;
 }
-.container-marquee.zylk-marquee-placed {
+.container-marquee.zylk-marquee-placed,
+.container-marquee.zylk-marquee-top {
   opacity: 1 !important;
   visibility: visible !important;
   height: auto !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
   background-color: var(--zylk-green) !important;
 }
 .container-marquee > a,
@@ -359,6 +362,13 @@ body > .container-marquee:not(.zylk-marquee-placed) {
 #wrapper-container.wrapper-container,
 .wrapper-container,
 .container-marquee + * { margin-top: 0 !important; }
+
+/* Keep first banner/slider flush under the top marquee */
+#tbay-main-content > .container-marquee.zylk-marquee-top + *,
+.wpb-content-wrapper > .container-marquee.zylk-marquee-top + .vc_row,
+.wpb-content-wrapper > .container-marquee.zylk-marquee-top + .wpb_row {
+  margin-top: 0 !important;
+}
 
 /* ---------- Shared section heading helpers ---------- */
 .widget-categoriestabs.top-shop .widget-title::before,
@@ -1284,8 +1294,12 @@ span.counterUp.count-number {
 @media only screen and (max-width: 767px) {
   html, body { overflow-x: hidden !important; }
 
-  /* Marquee */
-  .container-marquee.zylk-marquee-placed { margin-top: 20px !important; margin-bottom: 20px !important; }
+  /* Marquee — flush under sticky green header */
+  .container-marquee.zylk-marquee-placed,
+  .container-marquee.zylk-marquee-top {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
 
   /* Our Products */
   .widget-categoriestabs.top-shop {
