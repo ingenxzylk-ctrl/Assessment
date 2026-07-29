@@ -5,8 +5,14 @@ import { buildAssessmentPdf, PDF_FORMAT_VERSION } from "../services/pdfService.j
 import {
   saveReportArtifacts,
   loadReportJson,
+  loadReportPdf,
 } from "../services/storageService.js";
 import { sendReportToOrganisation } from "../services/emailService.js";
+import {
+  appendLeadToGoogleSheet,
+  buildPublicPdfUrl,
+  isSheetsConfigured,
+} from "../services/googleSheetsService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COUNTER_DIR =
@@ -335,6 +341,28 @@ export async function submitAssessmentReport(req, res) {
 
     await writeContentHashMapping(contentHash, reportId, reportDate);
 
+    // Prefer a stable VPS/API PDF link for the calling team Sheet
+    const publicPdfUrl =
+      buildPublicPdfUrl(reportId) ||
+      storageInfo.pdfUrl ||
+      null;
+
+    let sheetsResult = { skipped: true, reason: "not_attempted" };
+    try {
+      sheetsResult = await appendLeadToGoogleSheet({
+        reportId,
+        reportDate,
+        aboutMe,
+        scalpAnalysis,
+        reportMeta: reportMeta || {},
+        resultPageUrl,
+        pdfUrl: publicPdfUrl,
+      });
+    } catch (sheetsErr) {
+      console.error("[report] sheets append failed:", sheetsErr.message);
+      sheetsResult = { ok: false, skipped: false, error: sheetsErr.message };
+    }
+
     let emailResult;
     try {
       // Notification only — never pass pdfBuffer (Drive link is in storageInfo)
@@ -343,7 +371,10 @@ export async function submitAssessmentReport(req, res) {
         reportDate,
         aboutMe,
         scalpAnalysis,
-        storageInfo,
+        storageInfo: {
+          ...storageInfo,
+          pdfUrl: publicPdfUrl || storageInfo.pdfUrl,
+        },
         resultPageUrl,
       });
     } catch (emailErr) {
@@ -358,8 +389,10 @@ export async function submitAssessmentReport(req, res) {
       resultPageUrl,
       storage: storageInfo.storage,
       pdfPath: storageInfo.pdfPath,
-      pdfUrl: storageInfo.pdfUrl,
+      pdfUrl: publicPdfUrl || storageInfo.pdfUrl,
       drive: storageInfo.drive || null,
+      sheets: sheetsResult,
+      sheetsConfigured: isSheetsConfigured(),
       email: emailResult,
       pdfFormatVersion: PDF_FORMAT_VERSION,
     });
@@ -403,6 +436,35 @@ export async function getAssessmentReport(req, res) {
     console.error("[report] get failed:", err);
     return res.status(500).json({
       error: err.message || "Failed to load assessment report.",
+    });
+  }
+}
+
+/**
+ * Stream the archived assessment PDF for team / Sheet links.
+ * GET /api/report/:reportId/pdf
+ */
+export async function getAssessmentReportPdf(req, res) {
+  try {
+    const { reportId } = req.params;
+    const loaded = await loadReportPdf(reportId);
+    const filename = `${loaded.reportId}_assessment.pdf`;
+
+    res.setHeader("Content-Type", loaded.contentType || "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${filename}"`
+    );
+    res.setHeader("Cache-Control", "private, max-age=300");
+    return res.status(200).send(loaded.buffer);
+  } catch (err) {
+    const status = err.status || 500;
+    if (status === 404 || status === 400) {
+      return res.status(status).json({ error: err.message });
+    }
+    console.error("[report] pdf get failed:", err);
+    return res.status(500).json({
+      error: err.message || "Failed to load assessment PDF.",
     });
   }
 }

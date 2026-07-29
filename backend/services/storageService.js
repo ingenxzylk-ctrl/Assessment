@@ -132,6 +132,65 @@ export async function loadReportJson(reportId) {
 }
 
 /**
+ * Load archived assessment PDF by report id (local first, then S3 if configured).
+ * @returns {Promise<{ storage: string, reportId: string, buffer: Buffer, contentType: string }>}
+ */
+export async function loadReportPdf(reportId) {
+  const safeId = String(reportId || "").trim();
+  if (!/^TR-\d{8}-\d{2,}$/i.test(safeId)) {
+    const err = new Error("Invalid report id.");
+    err.status = 400;
+    throw err;
+  }
+
+  const localPdf = path.join(LOCAL_ROOT, safeId, "assessment.pdf");
+  try {
+    const buffer = await fs.readFile(localPdf);
+    return {
+      storage: "local",
+      reportId: safeId,
+      buffer,
+      contentType: "application/pdf",
+    };
+  } catch {
+    // fall through to S3
+  }
+
+  if (useS3()) {
+    const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const bucket = process.env.AWS_S3_BUCKET;
+    const region = process.env.AWS_REGION || "ap-south-1";
+    const prefix = (process.env.AWS_S3_PREFIX || "assessment-reports").replace(
+      /\/$/,
+      ""
+    );
+    const client = new S3Client({ region });
+    const pdfKey = `${prefix}/${safeId}/assessment.pdf`;
+    try {
+      const out = await client.send(
+        new GetObjectCommand({ Bucket: bucket, Key: pdfKey })
+      );
+      const chunks = [];
+      for await (const chunk of out.Body) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      }
+      return {
+        storage: "s3",
+        reportId: safeId,
+        buffer: Buffer.concat(chunks),
+        contentType: "application/pdf",
+      };
+    } catch (err) {
+      console.error("[storage] S3 PDF load failed:", err.message);
+    }
+  }
+
+  const notFound = new Error("Report PDF not found.");
+  notFound.status = 404;
+  throw notFound;
+}
+
+/**
  * Persist PDF + JSON.
  * Priority: Google Drive (if configured) → S3 → local disk.
  * When Drive is used, also keep a local backup copy.
