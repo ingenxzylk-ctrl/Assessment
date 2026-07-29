@@ -152,6 +152,34 @@ function getRequestOrigin(req) {
   return null;
 }
 
+function getApiPublicBase(req) {
+  const envBase =
+    process.env.PUBLIC_API_URL ||
+    process.env.API_PUBLIC_BASE_URL ||
+    null;
+  if (envBase && /^https?:\/\//i.test(envBase)) {
+    return String(envBase).replace(/\/$/, "");
+  }
+
+  // Localhost / same-host requests: build from the incoming API request
+  try {
+    const host = req?.get?.("host");
+    if (host) {
+      const protoHeader = String(req.get("x-forwarded-proto") || "")
+        .split(",")[0]
+        .trim();
+      const proto =
+        protoHeader ||
+        (isLoopbackHost(host.split(":")[0]) ? "http" : req.protocol || "http");
+      return `${proto}://${host}`.replace(/\/$/, "");
+    }
+  } catch {
+    // ignore
+  }
+
+  return "https://api.zylkhealth.com";
+}
+
 /**
  * Build an org-shareable Result page URL.
  * Prefer RESULT_APP_BASE_URL / FRONTEND_ORIGIN / production default so emailed PDFs
@@ -341,9 +369,9 @@ export async function submitAssessmentReport(req, res) {
 
     await writeContentHashMapping(contentHash, reportId, reportDate);
 
-    // Prefer a stable VPS/API PDF link for the calling team Sheet
+    // Prefer a stable API PDF link for the calling team Sheet
     const publicPdfUrl =
-      buildPublicPdfUrl(reportId) ||
+      buildPublicPdfUrl(reportId, getApiPublicBase(req)) ||
       storageInfo.pdfUrl ||
       null;
 
