@@ -113,7 +113,7 @@ export default function CartDrawer() {
                     </button>
                   </div>
 
-                  {item.bundleNumber && !item.isTestBundle && (
+                  {item.bundleNumber && !item.isTestBundle && item.usesSeparateHealthMix && (
                     <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
                       <input
                         type="checkbox"

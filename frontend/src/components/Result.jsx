@@ -1183,9 +1183,8 @@ export default function Result() {
     : state?.hairHealth?.norwood_stage;
   const hasDandruff = resolveHasDandruff(state);
 
-  // Health Mix is ON by default for every kit (including 8393 + separate 8303).
-  // User can still Remove / uncheck before checkout.
-  const [includeHealthMix, setIncludeHealthMix] = useState(true);
+  // New stage kits are fixed WooCommerce SKUs — no separate Health Mix add-on.
+  const [includeHealthMix, setIncludeHealthMix] = useState(false);
   const mixDefaultKeyRef = useRef("");
 
   useEffect(() => {
@@ -1195,7 +1194,7 @@ export default function Result() {
     const key = `${gender}:${bundleNumber}:${hasDandruff ? 1 : 0}:${separate ? 1 : 0}`;
     if (mixDefaultKeyRef.current === key) return;
     mixDefaultKeyRef.current = key;
-    setIncludeHealthMix(true);
+    setIncludeHealthMix(Boolean(separate));
   }, [aiPredictedStageNumber, gender, hasDandruff]);
 
   const extractImageUrl = (img) => {
@@ -1279,26 +1278,6 @@ export default function Result() {
   }, [hasDandruff, recommendedBundle, rootCauseTags]);
 
   const kitProducts = kitSourceItems
-    .filter((prod) => {
-      const id = String(prod.id || "").toLowerCase();
-      const name = String(prod.name || "").toLowerCase();
-      const isDerma =
-        id.includes("derma") ||
-        id.includes("roller") ||
-        name.includes("derma") ||
-        name.includes("roller") ||
-        name.includes("micro-needling");
-      // Dandruff kits (2 / 5): never show dermaroller (including legacy prod-derma)
-      if (
-        (hasDandruff ||
-          recommendedBundle?.bundleNumber === 2 ||
-          recommendedBundle?.bundleNumber === 5) &&
-        isDerma
-      ) {
-        return false;
-      }
-      return true;
-    })
     .map((prod) => {
       const formatted = formatBundleProduct(prod, isFemale);
       if (!formatted) return null;
@@ -1306,12 +1285,13 @@ export default function Result() {
         prod.id === "zylk-hair-health-mix" ||
         formatted.catalogId === "zylk-hair-health-mix" ||
         String(prod.id || "").startsWith("prod-supplements") ||
-        /vitality|health mix|supplement/i.test(String(prod.name || ""));
+        /vitality|health mix/i.test(String(prod.name || ""));
       return {
         ...formatted,
         id: formatted.catalogId || prod.id,
         subtitle: prod.subtitle || null,
         price: prod.price ?? null,
+        originalPrice: prod.originalPrice ?? null,
         isHealthMix,
       };
     })
@@ -1319,8 +1299,6 @@ export default function Result() {
 
   const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
   const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
-  // Always show Zylk sheet list price ₹1799 (never bundle delta / stale product price)
-  const healthMixPrice = HAIR_HEALTH_MIX_PRICE;
   const kitDisplayName = recommendedBundle
     ? getBundleDisplayName(
         recommendedBundle.bundleNumber,
@@ -1372,9 +1350,8 @@ export default function Result() {
       stage: aiPredictedStageNumber,
       hasDandruff,
       usesSeparateHealthMix: separateMix,
-      // Primary kit (8393 when dandruff; 8315/8325 when not)
+      // Single WooCommerce kit ID (8588 / 8594–8597 male, 8590 female)
       wooProductId: kitWooId || getWooProductId(bundleNumber, includeHealthMix, hasDandruff, gender),
-      // Separate Health Mix line item from config.healthMixProductId (8303)
       wooHealthMixProductId: mixWooId || getSeparateHealthMixWooId(
         bundleNumber,
         includeHealthMix,
@@ -1508,19 +1485,7 @@ export default function Result() {
                   const isHealthMix =
                     p.id === "zylk-hair-health-mix" ||
                     String(p.id || "").startsWith("prod-supplements");
-                  if (!(includeHealthMix || !isHealthMix)) return false;
-                  const id = String(p.id || "").toLowerCase();
-                  const name = String(p.name || "").toLowerCase();
-                  if (
-                    hasDandruff &&
-                    (id.includes("derma") ||
-                      id.includes("roller") ||
-                      name.includes("derma") ||
-                      name.includes("roller"))
-                  ) {
-                    return false;
-                  }
-                  return true;
+                  return includeHealthMix || !isHealthMix;
                 })
                 .map((p) => {
                   const formatted = formatBundleProduct(p, isFemale);
@@ -1885,62 +1850,42 @@ export default function Result() {
                           {product.subtitle}
                         </p>
                       )}
+                      {(product.price != null || product.originalPrice != null) && (
+                        <p className="text-xs font-semibold text-[#064e3b] mt-1">
+                          {Number(product.price) === 0 ? (
+                            <>
+                              <span className="text-[#52b788]">FREE</span>
+                              {product.originalPrice > 0 && (
+                                <span className="text-gray-400 line-through font-medium ml-1.5">
+                                  ₹{product.originalPrice}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              ₹{product.price}
+                              {product.originalPrice > product.price && (
+                                <span className="text-gray-400 line-through font-medium ml-1.5">
+                                  ₹{product.originalPrice}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border text-emerald-800 bg-emerald-50 border-emerald-100/40">
-                    Included
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border ${
+                      Number(product.price) === 0
+                        ? "text-white bg-[#52b788] border-[#52b788]"
+                        : "text-emerald-800 bg-emerald-50 border-emerald-100/40"
+                    }`}
+                  >
+                    {Number(product.price) === 0 ? "FREE" : "Included"}
                   </span>
                 </div>
               ))}
-
-              {healthMixProduct && (
-                <div
-                  className={`p-4 border rounded-2xl transition-all flex items-center justify-between gap-4 group ${
-                    includeHealthMix
-                      ? "border-[#064e3b]/30 bg-[#f4f6f0] shadow-[0_2px_12px_rgba(0,0,0,0.01)]"
-                      : "border-dashed border-gray-200 bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
-                      <ProductImage
-                        src={healthMixProduct.imgUrl}
-                        fallbacks={healthMixProduct.imgFallbacks}
-                        alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
-                          includeHealthMix ? "" : "opacity-60"
-                        }`}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
-                        {healthMixProduct.shortName}
-                      </h3>
-                      {healthMixProduct.subtitle && (
-                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
-                          {healthMixProduct.subtitle}
-                        </p>
-                      )}
-                      <p className="text-xs font-semibold text-[#064e3b] mt-1">
-                        {includeHealthMix
-                          ? `Included · ₹${healthMixPrice}`
-                          : `Add for ₹${healthMixPrice}`}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIncludeHealthMix(!includeHealthMix)}
-                    className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${
-                      includeHealthMix
-                        ? "text-emerald-800 bg-emerald-50 border-emerald-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-                        : "text-white bg-[#064e3b] border-[#064e3b] hover:bg-[#043427]"
-                    }`}
-                  >
-                    {includeHealthMix ? "Remove" : "Add"}
-                  </button>
-                </div>
-              )}
             </div>
 
             <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
@@ -2165,62 +2110,42 @@ export default function Result() {
                           {product.subtitle}
                         </p>
                       )}
+                      {(product.price != null || product.originalPrice != null) && (
+                        <p className="text-xs font-semibold text-[#064e3b] mt-1">
+                          {Number(product.price) === 0 ? (
+                            <>
+                              <span className="text-[#52b788]">FREE</span>
+                              {product.originalPrice > 0 && (
+                                <span className="text-gray-400 line-through font-medium ml-1.5">
+                                  ₹{product.originalPrice}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              ₹{product.price}
+                              {product.originalPrice > product.price && (
+                                <span className="text-gray-400 line-through font-medium ml-1.5">
+                                  ₹{product.originalPrice}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap shrink-0 border text-emerald-800 bg-emerald-50 border-emerald-100/40">
-                    Included
+                  <span
+                    className={`text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap shrink-0 border ${
+                      Number(product.price) === 0
+                        ? "text-white bg-[#52b788] border-[#52b788]"
+                        : "text-emerald-800 bg-emerald-50 border-emerald-100/40"
+                    }`}
+                  >
+                    {Number(product.price) === 0 ? "FREE" : "Included"}
                   </span>
                 </div>
               ))}
-
-              {healthMixProduct && (
-                <div
-                  className={`p-3 border rounded-2xl transition-all flex items-center justify-between gap-3 group ${
-                    includeHealthMix
-                      ? "border-[#064e3b]/30 bg-[#f4f6f0] shadow-[0_2px_12px_rgba(0,0,0,0.01)]"
-                      : "border-dashed border-gray-200 bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-16 h-16 xl:w-[72px] xl:h-[72px] rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
-                      <ProductImage
-                        src={healthMixProduct.imgUrl}
-                        fallbacks={healthMixProduct.imgFallbacks}
-                        alt={healthMixProduct.shortName}
-                        className={`w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105 ${
-                          includeHealthMix ? "" : "opacity-60"
-                        }`}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h3 className="text-xs font-bold text-gray-800 leading-snug tracking-tight break-words">
-                        {healthMixProduct.shortName}
-                      </h3>
-                      {healthMixProduct.subtitle && (
-                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
-                          {healthMixProduct.subtitle}
-                        </p>
-                      )}
-                      <p className="text-xs font-semibold text-[#064e3b] mt-1">
-                        {includeHealthMix
-                          ? `Included · ₹${healthMixPrice}`
-                          : `Add for ₹${healthMixPrice}`}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIncludeHealthMix(!includeHealthMix)}
-                    className={`text-[10px] font-bold px-2 py-1.5 rounded-full whitespace-nowrap shrink-0 border cursor-pointer transition-colors ${
-                      includeHealthMix
-                        ? "text-emerald-800 bg-emerald-50 border-emerald-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-                        : "text-white bg-[#064e3b] border-[#064e3b] hover:bg-[#043427]"
-                    }`}
-                  >
-                    {includeHealthMix ? "Remove" : "Add"}
-                  </button>
-                </div>
-              )}
             </div>
 
             <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
@@ -2251,23 +2176,6 @@ export default function Result() {
                       )}
                       <span className="text-xs text-gray-400 line-through font-medium">₹{recommendedBundle.originalPrice}</span>
                     </div>
-
-                    <label className="flex items-center gap-2 mt-2 cursor-pointer bg-gray-50 p-2 rounded-md border border-gray-100">
-                      <input
-                        type="checkbox"
-                        checked={includeHealthMix}
-                        onChange={(e) => setIncludeHealthMix(e.target.checked)}
-                        className="rounded border-gray-300 w-3.5 h-3.5 accent-[#2e7d32]"
-                      />
-                      <span className="text-[11px] text-gray-600 font-medium">
-                        Include Hair Health Mix
-                        {healthMixPrice > 0 && (
-                          <span className="font-bold text-[#1b5e20]">
-                            {" "}(₹{healthMixPrice})
-                          </span>
-                        )}
-                      </span>
-                    </label>
                   </div>
 
                   <button
@@ -2345,23 +2253,6 @@ export default function Result() {
                   )}
                   <span className="text-[11px] text-gray-400 line-through font-medium">₹{recommendedBundle.originalPrice}</span>
                 </div>
-
-                <label className="flex items-center gap-2 mt-1.5 cursor-pointer bg-gray-50 p-2 rounded-md border border-gray-100">
-                  <input
-                    type="checkbox"
-                    checked={includeHealthMix}
-                    onChange={(e) => setIncludeHealthMix(e.target.checked)}
-                    className="rounded border-gray-300 w-3.5 h-3.5 accent-[#2e7d32]"
-                  />
-                  <span className="text-[11px] text-gray-600 font-medium">
-                    Include Hair Health Mix
-                    {healthMixPrice > 0 && (
-                      <span className="font-bold text-[#1b5e20]">
-                        {" "}(₹{healthMixPrice})
-                      </span>
-                    )}
-                  </span>
-                </label>
               </div>
 
               <button

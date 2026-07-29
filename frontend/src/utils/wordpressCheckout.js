@@ -42,9 +42,7 @@ function resolveCheckoutProductIds(item) {
   const mixId =
     includeHealthMix && Number(item.wooHealthMixProductId)
       ? Number(item.wooHealthMixProductId)
-      : includeHealthMix
-        ? 8303
-        : null;
+      : null;
 
   console.info("[zylk-checkout] v4-smooth-ux", { kitId, mixId, includeHealthMix });
 

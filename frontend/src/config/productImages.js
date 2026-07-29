@@ -31,6 +31,18 @@ const PRODUCT_CANDIDATE_BASES = {
   "prod-massager": ["scalp-massager"],
   "prod-oil-mct-dandruff": ["progro-oil"],
   "prod-oil-jojoba-clear": ["progro-oil"],
+  "zylk-minoxidil-finasteride": ["minoxidil-5"],
+  "zylk-antidandruff-shampoo": ["antidandruff-shampoo"],
+  "zylk-dermaroller": ["dermaroller"],
+  "zylk-pumpkin-seed": ["health-mix"],
+  "zylk-serum": ["progro-oil"],
+  "zylk-advanced-serum": ["progro-oil"],
+  "zylk-scalp-massager": ["scalp-massager"],
+  "zylk-scalp-massager-complimentary": ["scalp-massager"],
+  "zylk-rosemary-oil": ["rosemary-oil"],
+  "zylk-rosemary-mist": ["rosemary-mist"],
+  "zylk-salicylic-shampoo": ["detox-shampoo"],
+  "zylk-hair-health-mix": ["health-mix"],
 };
 
 const KEYWORD_BASES = [
@@ -119,10 +131,16 @@ export function shortenProductName(name = "", isFemale = false) {
   if (isFemale && lower.includes("finasteride")) return null;
 
   // Names must match the official Zylk Health products sheet (most-specific first)
+  if (lower.includes("minoxidil") && lower.includes("finasteride")) {
+    return "5% Minoxidil + 0.1% Finasteride";
+  }
   if (lower.includes("minoxidil")) {
     if (lower.includes("2%")) return "Zylk Minoxidil 2% Solution";
     return isFemale ? "Zylk Minoxidil 2% Solution" : "Zylk Minoxidil 5% Solution";
   }
+  if (lower.includes("advanced serum")) return "Advanced Serum";
+  if (lower.includes("serum")) return "Serum";
+  if (lower.includes("pumpkin")) return "Pumpkin Seed Softgel";
   if (lower.includes("tea tree mist") || lower.includes("tea-tree mist")) {
     return "Zylk Tea Tree Mist Spray";
   }

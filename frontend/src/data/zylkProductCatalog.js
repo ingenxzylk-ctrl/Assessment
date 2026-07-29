@@ -1,159 +1,166 @@
 /**
- * Zylk Health product catalog — from official Sheet 1 (bundle allocation).
+ * Zylk Health product catalog — Hair Regrowth kits (Jul 2026).
  *
- * Bundle-1: pattern hair loss, male stage 2–5 (no dandruff)
- * Bundle-2: pattern hair loss + dandruff, male stage 2–5  ← NO dermaroller
- * Bundle-5: stage 1 men/women, overall thinning
- * Bundle-7: female stage 2–3
+ * Sale / MRP shown as price / originalPrice.
  */
 export const ZYLK_PRODUCTS = {
-  "zylk-minoxidil-5": {
-    id: "zylk-minoxidil-5",
-    name: "Zylk Minoxidil 5% Solution",
-    subtitle: "Pattern hair loss treatment for men stage 2–5",
-    price: 599,
+  "zylk-minoxidil-finasteride": {
+    id: "zylk-minoxidil-finasteride",
+    name: "5% Minoxidil + 0.1% Finasteride",
+    subtitle: "Topical hair regrowth solution for men",
+    price: 499,
+    originalPrice: 599,
     imgUrl: "/products/minoxidil-5.jpg",
-  },
-  "zylk-minoxidil-2": {
-    id: "zylk-minoxidil-2",
-    name: "Zylk Minoxidil 2% Solution",
-    subtitle: "Gentle formula for female stage 2–3",
-    price: 499,
-    imgUrl: "/products/minoxidil-2.jpg",
-  },
-  "zylk-rosemary-oil": {
-    id: "zylk-rosemary-oil",
-    name: "Zylk Rosemary Hair Oil",
-    subtitle:
-      "2% Rosemary Oil, 2% Peppermint Oil, 48% Jojoba Oil, 48% Grapeseed Oil, 0.1% Vitamin E",
-    price: 299,
-    imgUrl: "/products/rosemary-oil.jpg",
-  },
-  "zylk-progro-oil": {
-    id: "zylk-progro-oil",
-    name: "Zylk ProGro Oil",
-    subtitle:
-      "94% CCTG, 2% Tea Tree Oil, 2% Rosemary Oil, 2% Peppermint Oil, 0.1% Vitamin E",
-    price: 499,
-    imgUrl: "/products/progro-oil.jpg",
-  },
-  "zylk-detox-shampoo": {
-    id: "zylk-detox-shampoo",
-    name: "Zylk Detox Salicylic Acid Shampoo",
-    subtitle: "Clarifying scalp cleanser",
-    price: 299,
-    imgUrl: "/products/detox-shampoo.jpg",
   },
   "zylk-antidandruff-shampoo": {
     id: "zylk-antidandruff-shampoo",
-    name: "Zylk Antidandruff Shampoo",
-    subtitle: "For dandruff + pattern hair loss",
-    price: 349,
+    name: "Anti Dandruff Shampoo",
+    subtitle: "Clears flakes while supporting scalp health",
+    price: 152,
+    originalPrice: 199,
     imgUrl: "/products/antidandruff-shampoo.jpg",
   },
   "zylk-dermaroller": {
     id: "zylk-dermaroller",
-    name: "Zylk 0.5 mm Dermaroller",
-    subtitle: "Scalp micro-needling tool",
-    price: 199,
+    name: "Dermaroller",
+    subtitle: "0.5 mm scalp micro-needling tool",
+    price: 149,
+    originalPrice: 199,
     imgUrl: "/products/dermaroller.jpg",
+  },
+  "zylk-pumpkin-seed": {
+    id: "zylk-pumpkin-seed",
+    name: "Pumpkin Seed Softgel",
+    subtitle: "Nutritional support for hair health",
+    price: 199,
+    originalPrice: 299,
+    imgUrl: "/products/health-mix.jpg",
+  },
+  "zylk-serum": {
+    id: "zylk-serum",
+    name: "Serum",
+    subtitle: "Targeted scalp serum for density support",
+    price: 200,
+    originalPrice: 299,
+    imgUrl: "/products/progro-oil.jpg",
+  },
+  "zylk-advanced-serum": {
+    id: "zylk-advanced-serum",
+    name: "Advanced Serum",
+    subtitle: "Advanced formula for later-stage regrowth",
+    price: 300,
+    originalPrice: 399,
+    imgUrl: "/products/progro-oil.jpg",
   },
   "zylk-scalp-massager": {
     id: "zylk-scalp-massager",
-    name: "Zylk Scalp Massager",
+    name: "Scalp Massager",
     subtitle: "Boosts circulation during treatment",
-    price: 129,
+    price: 99,
+    originalPrice: 129,
     imgUrl: "/products/scalp-massager.jpg",
   },
-  "zylk-tea-tree-conditioner": {
-    id: "zylk-tea-tree-conditioner",
-    name: "Zylk Tea Tree Conditioner",
-    subtitle: "Scalp-soothing conditioner",
-    price: 299,
-    imgUrl: "/products/tea-tree-conditioner.jpg",
+  "zylk-scalp-massager-complimentary": {
+    id: "zylk-scalp-massager-complimentary",
+    name: "Scalp Massager",
+    subtitle: "Included complimentary with this kit",
+    price: 0,
+    originalPrice: 129,
+    imgUrl: "/products/scalp-massager.jpg",
   },
-  "zylk-tea-tree-mist": {
-    id: "zylk-tea-tree-mist",
-    name: "Zylk Tea Tree Mist Spray",
-    subtitle: "Refreshing scalp mist for dandruff care",
-    price: 249,
-    imgUrl: "/products/rosemary-mist.jpg",
-    imgFallbacks: ["/products/tea-tree-mist.jpg"],
+  "zylk-rosemary-oil": {
+    id: "zylk-rosemary-oil",
+    name: "Rosemary Hair Oil",
+    subtitle: "Rosemary, peppermint & jojoba scalp oil",
+    price: 199,
+    originalPrice: 299,
+    imgUrl: "/products/rosemary-oil.jpg",
   },
   "zylk-rosemary-mist": {
     id: "zylk-rosemary-mist",
-    name: "Zylk Rosemary Mist Spray",
+    name: "Rosemary Mist Spray",
     subtitle: "Lightweight rosemary scalp mist",
-    price: 249,
+    price: 149,
+    originalPrice: 249,
     imgUrl: "/products/rosemary-mist.jpg",
+  },
+  "zylk-salicylic-shampoo": {
+    id: "zylk-salicylic-shampoo",
+    name: "Salicylic Acid Shampoo",
+    subtitle: "Clarifying detox shampoo for the scalp",
+    price: 153,
+    originalPrice: 249,
+    imgUrl: "/products/detox-shampoo.jpg",
   },
   "zylk-hair-health-mix": {
     id: "zylk-hair-health-mix",
     name: "Zylk Hair Health Mix",
     subtitle: "Nutrition shake + supplement blend",
     price: 1799,
+    originalPrice: 1799,
     imgUrl: "/products/health-mix.jpg",
   },
 };
 
 /**
- * Official Sheet 1 allocation (quiz bundle numbers → PDF bundle numbers):
- * 1 → Bundle-1 (male 2–5, no dandruff)
- * 2 → Bundle-2 (male 2–5, dandruff)
- * 3 → Bundle-5 (stage 1 / overall thinning)
- * 4 → Bundle-7 (female 2–3, no dandruff — includes dermaroller)
- * 5 → Female 2–3 WITH dandruff (Minoxidil 2% + ProGro Scalp-Clear items, no dermaroller)
+ * Bundle numbers → product lists
+ * 1 Men Advance (stage 1)
+ * 2–5 Male stage kits
+ * 6 Women Advance (all stages)
  */
 export const BUNDLE_PRODUCT_IDS = {
-  // Bundle-1 — male pattern loss stage 2–5, no dandruff
+  // Men Advance Hair Regrowth Kit (stage 1 / overall thinning)
   1: [
-    "zylk-minoxidil-5",
-    "zylk-rosemary-oil",
-    "zylk-detox-shampoo",
-    "zylk-dermaroller",
-    "zylk-scalp-massager",
-    "zylk-tea-tree-conditioner",
-  ],
-  // Bundle-2 — male pattern loss stage 2–5 WITH dandruff (no dermaroller)
-  2: [
-    "zylk-minoxidil-5",
-    "zylk-progro-oil",
-    "zylk-tea-tree-mist",
-    "zylk-antidandruff-shampoo",
-    "zylk-scalp-massager",
-  ],
-  // Bundle-5 — stage 1 / overall thinning
-  3: [
     "zylk-rosemary-oil",
     "zylk-rosemary-mist",
-    "zylk-detox-shampoo",
     "zylk-dermaroller",
     "zylk-scalp-massager",
-    "zylk-tea-tree-conditioner",
+    "zylk-salicylic-shampoo",
   ],
-  // Bundle-7 — female stage 2–3, NO dandruff (includes dermaroller)
-  4: [
-    "zylk-minoxidil-2",
-    "zylk-rosemary-oil",
-    "zylk-detox-shampoo",
-    "zylk-dermaroller",
-    "zylk-scalp-massager",
-    "zylk-tea-tree-conditioner",
-  ],
-  // Female stage 2–3 WITH dandruff — no dermaroller
-  // Antidandruff shampoo, Minoxidil 2%, scalp massager, ProGro oil, tea-tree mist (+ Health Mix optional)
-  5: [
-    "zylk-minoxidil-2",
-    "zylk-progro-oil",
-    "zylk-tea-tree-mist",
+  // Stage 2 Hair Regrowth Kit
+  2: [
+    "zylk-minoxidil-finasteride",
     "zylk-antidandruff-shampoo",
+    "zylk-dermaroller",
+    "zylk-pumpkin-seed",
+  ],
+  // Stage 3 Hair Regrowth Kit
+  3: [
+    "zylk-minoxidil-finasteride",
+    "zylk-antidandruff-shampoo",
+    "zylk-dermaroller",
+    "zylk-pumpkin-seed",
+    "zylk-serum",
+  ],
+  // Stage 4 Hair Regrowth Kit
+  4: [
+    "zylk-minoxidil-finasteride",
+    "zylk-antidandruff-shampoo",
+    "zylk-dermaroller",
+    "zylk-pumpkin-seed",
+    "zylk-serum",
+    "zylk-scalp-massager-complimentary",
+  ],
+  // Stage 5 Hair Regrowth Kit
+  5: [
+    "zylk-minoxidil-finasteride",
+    "zylk-antidandruff-shampoo",
+    "zylk-dermaroller",
+    "zylk-pumpkin-seed",
+    "zylk-advanced-serum",
+    "zylk-scalp-massager-complimentary",
+  ],
+  // Women Advance Hair Regrowth Kit (all stages)
+  6: [
+    "zylk-rosemary-oil",
+    "zylk-rosemary-mist",
+    "zylk-dermaroller",
     "zylk-scalp-massager",
+    "zylk-salicylic-shampoo",
   ],
 };
 
 export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
-
-/** List price from Zylk Health product sheet (₹1799) */
 export const HAIR_HEALTH_MIX_PRICE = 1799;
 
 export function getProductById(id) {
@@ -162,25 +169,10 @@ export function getProductById(id) {
 
 /**
  * @param {number} bundleNumber
- * @param {boolean} includeHealthMix
- * @param {boolean} [hasDandruff=false] — Sheet rule: never include dermaroller when dandruff is present
+ * @param {boolean} [_includeHealthMix=true] — unused; new kits are fixed SKUs
+ * @param {boolean} [_hasDandruff=false] — unused; stage kits already include the right shampoo
  */
-export function getBundleItems(bundleNumber, includeHealthMix = true, hasDandruff = false) {
+export function getBundleItems(bundleNumber, _includeHealthMix = true, _hasDandruff = false) {
   const ids = [...(BUNDLE_PRODUCT_IDS[bundleNumber] || [])];
-
-  // Never recommend a dermaroller when the user has dandruff
-  // (Bundles 2 and 5 already omit it; also strip from other kits if dandruff)
-  const filteredIds =
-    hasDandruff || Number(bundleNumber) === 2 || Number(bundleNumber) === 5
-      ? ids.filter((id) => id !== "zylk-dermaroller")
-      : ids;
-
-  const items = filteredIds.map((id) => getProductById(id)).filter(Boolean);
-
-  if (includeHealthMix) {
-    const mix = getProductById(HAIR_HEALTH_MIX_ID);
-    if (mix) items.push({ ...mix, included: true });
-  }
-
-  return items;
+  return ids.map((id) => getProductById(id)).filter(Boolean);
 }
