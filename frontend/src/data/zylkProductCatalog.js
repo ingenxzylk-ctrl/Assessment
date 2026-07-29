@@ -34,7 +34,7 @@ export const ZYLK_PRODUCTS = {
     subtitle: "Nutritional support for hair health",
     price: 199,
     originalPrice: 299,
-    imgUrl: "/products/health-mix.jpg",
+    imgUrl: "/products/pumpkin.jpg",
   },
   "zylk-serum": {
     id: "zylk-serum",
@@ -42,7 +42,7 @@ export const ZYLK_PRODUCTS = {
     subtitle: "Targeted scalp serum for density support",
     price: 200,
     originalPrice: 299,
-    imgUrl: "/products/progro-oil.jpg",
+    imgUrl: "/products/serum.jpg",
   },
   "zylk-advanced-serum": {
     id: "zylk-advanced-serum",
@@ -50,7 +50,7 @@ export const ZYLK_PRODUCTS = {
     subtitle: "Advanced formula for later-stage regrowth",
     price: 300,
     originalPrice: 399,
-    imgUrl: "/products/progro-oil.jpg",
+    imgUrl: "/products/serum.jpg",
   },
   "zylk-scalp-massager": {
     id: "zylk-scalp-massager",

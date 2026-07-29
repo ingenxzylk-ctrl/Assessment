@@ -1,7 +1,7 @@
 {
   "name": "hair-scalp-quiz-backend",
   "version": "1.0.0",
-  "description": "Backend for Zaftan Media Hair & Scalp Assessment Quiz",
+  "description": "Backend for Zylk Health Hair & Scalp Assessment Quiz",
   "main": "app.js",
   "type": "module",
   "scripts": {
