@@ -12,7 +12,7 @@ function wantsHealthMix(item) {
 
 /**
  * Build WooCommerce product IDs for checkout.
- * Re-resolve from bundleNumber so Health Mix 8303 is never dropped.
+ * New stage kits are single SKUs (8588 / 8590 / 8594–8597) — mixId is unused.
  */
 function resolveCheckoutProductIds(item) {
   const includeHealthMix = wantsHealthMix(item);
@@ -25,12 +25,10 @@ function resolveCheckoutProductIds(item) {
       gender: item.gender || null,
     });
     if (resolved.kitId) {
-      console.info("[zylk-checkout] v4-smooth-ux", {
+      console.info("[zylk-checkout] kit", {
         kitId: resolved.kitId,
         mixId: resolved.mixId,
-        includeHealthMix,
         bundleNumber: item.bundleNumber,
-        hasDandruff: Boolean(item.hasDandruff),
       });
       return resolved;
     }
@@ -39,12 +37,13 @@ function resolveCheckoutProductIds(item) {
   const kitId = item?.wooProductId ? Number(item.wooProductId) : null;
   if (!kitId) return { kitId: null, mixId: null, productIds: [] };
 
+  // Legacy cart rows may still carry a mix ID; new kits leave this null.
   const mixId =
     includeHealthMix && Number(item.wooHealthMixProductId)
       ? Number(item.wooHealthMixProductId)
       : null;
 
-  console.info("[zylk-checkout] v4-smooth-ux", { kitId, mixId, includeHealthMix });
+  console.info("[zylk-checkout] kit", { kitId, mixId });
 
   return {
     kitId,
