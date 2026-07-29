@@ -153,6 +153,7 @@ function getRequestOrigin(req) {
 }
 
 function getApiPublicBase(req) {
+  // Sheet PDF links should always hit the VPS API when configured.
   const envBase =
     process.env.PUBLIC_API_URL ||
     process.env.API_PUBLIC_BASE_URL ||
@@ -161,22 +162,7 @@ function getApiPublicBase(req) {
     return String(envBase).replace(/\/$/, "");
   }
 
-  // Localhost / same-host requests: build from the incoming API request
-  try {
-    const host = req?.get?.("host");
-    if (host) {
-      const protoHeader = String(req.get("x-forwarded-proto") || "")
-        .split(",")[0]
-        .trim();
-      const proto =
-        protoHeader ||
-        (isLoopbackHost(host.split(":")[0]) ? "http" : req.protocol || "http");
-      return `${proto}://${host}`.replace(/\/$/, "");
-    }
-  } catch {
-    // ignore
-  }
-
+  // Fallback only when PUBLIC_API_URL is missing (prefer production VPS).
   return "https://api.zylkhealth.com";
 }
 
