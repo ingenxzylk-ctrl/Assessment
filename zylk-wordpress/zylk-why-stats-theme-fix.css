@@ -1,0 +1,146 @@
+/* =========================================================
+   ZYLK — Why mobile full-bleed + narrower cards
+   + Stats / quote / button → theme green #0B2B22
+   ========================================================= */
+
+/* ---------- Stats numbers → theme green ---------- */
+.counter-wrap .count-number,
+.counterUp.count-number,
+.counter-new .count-number,
+span.counterUp.count-number {
+  color: #0B2B22 !important;
+  background: none !important;
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  -webkit-text-fill-color: #0B2B22 !important;
+}
+
+.counters h5,
+.counter-new h5 {
+  color: #0a2522 !important;
+}
+
+/* ---------- Quote box + Try Now button → theme green ---------- */
+.zylkhealth-quoteframe {
+  background-color: #0B2B22 !important;
+  background: #0B2B22 !important;
+  padding: 20px !important;
+  border-radius: 20px !important;
+  text-align: center !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+.zylkhealth-quoteframe .zylk-quote,
+.zylk-quote {
+  color: #ffffff !important;
+}
+.zylkhealth-quoteframe .vc_btn3-container {
+  margin-bottom: 0 !important;
+}
+.zylkhealth-quoteframe a.vc_btn3,
+.zylkhealth-quoteframe a.vc_general.vc_btn3,
+.zylkhealth-quoteframe a.vc_btn3-color-orange,
+.zylkhealth-quoteframe .vc_btn3.vc_btn3-color-orange {
+  background-color: #1f6b5a !important;
+  background-image: none !important;
+  border-color: #1f6b5a !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+.zylkhealth-quoteframe a.vc_btn3:hover,
+.zylkhealth-quoteframe a.vc_btn3:focus,
+.zylkhealth-quoteframe a.vc_btn3-color-orange:hover {
+  background-color: #164f43 !important;
+  border-color: #164f43 !important;
+  color: #ffffff !important;
+}
+.zylkhealth-quoteframe a.vc_btn3 .vc_btn3-icon {
+  color: #ffffff !important;
+}
+
+@media only screen and (max-width: 767px) {
+  /* ---------- Why: cover left/right white with mint ---------- */
+  .vc_row.zylk-why-section,
+  .vc_row.wpb_row:has(.zylk-why-heading),
+  .vc_row.wpb_row:has(.whychoose-content) {
+    position: relative !important;
+    background-color: #e8f3ed !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-top: 28px !important;
+    padding-bottom: 32px !important;
+    overflow: visible !important;
+    z-index: 1 !important;
+  }
+
+  /* Pseudo full-bleed — fills white gutters even inside .container */
+  .vc_row.zylk-why-section::before,
+  .vc_row.wpb_row:has(.zylk-why-heading)::before {
+    content: "" !important;
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 50% !important;
+    width: 100vw !important;
+    transform: translateX(-50%) !important;
+    background-color: #e8f3ed !important;
+    z-index: -1 !important;
+    pointer-events: none !important;
+  }
+
+  .vc_row.wpb_row:has(.zylk-why-heading) > .wpb_column,
+  .vc_row.wpb_row:has(.zylk-why-heading) > .wpb_column > .vc_column-inner,
+  .vc_row.wpb_row:has(.zylk-why-heading) > .wpb_column > .vc_column-inner > .wpb_wrapper {
+    background: transparent !important;
+    position: relative !important;
+    z-index: 1 !important;
+  }
+
+  .vc_row.wpb_row:has(.zylk-why-heading) > .wpb_column > .vc_column-inner {
+    max-width: 100% !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* ---------- Why cards: a bit narrower ---------- */
+  .whychoose-content {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .whychoose-content .widget.widget-features {
+    margin-bottom: 12px !important;
+  }
+  .whychoose-content .feature-box,
+  .whychoose-content .widget-features .feature-box-group .feature-box {
+    width: calc(100% - 20px) !important;
+    max-width: calc(100% - 20px) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Stats spacing on mobile */
+  .counter-wrap .count-number,
+  .counterUp.count-number {
+    font-size: 72px !important;
+    line-height: 1 !important;
+  }
+  .counters h5,
+  .counter-new h5 {
+    font-size: 18px !important;
+    padding: 0 12px !important;
+  }
+
+  .zylkhealth-quoteframe {
+    margin: 12px 16px !important;
+    padding: 18px 16px !important;
+  }
+  .zylkhealth-quoteframe .zylk-quote,
+  .zylk-quote {
+    font-size: 18px !important;
+    line-height: 1.35 !important;
+  }
+}

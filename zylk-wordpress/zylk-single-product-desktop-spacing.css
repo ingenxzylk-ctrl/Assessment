@@ -1,0 +1,124 @@
+/* =========================================================
+   ZYLK — product page: larger image + no gap before tabs
+   Paste at the VERY END of Additional CSS
+   ========================================================= */
+
+@media only screen and (min-width: 768px) {
+  body.single-product #main-content.singular-shop {
+    padding-top: 10px !important;
+    padding-bottom: 40px !important;
+  }
+
+  /* Wider gallery column (~65%) so the product photo reads larger */
+  .singular-shop div.product .row.row-active-full > .col-md-12.col-xlg-9,
+  .singular-shop div.product .row.row-active-full > .col-md-12 {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr) !important;
+    grid-template-areas:
+      "gallery summary"
+      "gallery tabs" !important;
+    column-gap: 32px !important;
+    row-gap: 12px !important;
+    align-items: start !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+  }
+
+  .singular-shop div.product .row.row-active-full > .col-md-12 > .row,
+  .singular-shop div.product .row.row-active-full > .col-md-12.col-xlg-9 > .row {
+    display: contents !important;
+  }
+
+  .singular-shop div.product .image-mains {
+    grid-area: gallery !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+  }
+  .singular-shop div.product .information {
+    grid-area: summary !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .singular-shop div.product #woocommerce-tabs,
+  .singular-shop div.product .woocommerce-tabs.wc-tabs-wrapper,
+  .single-product #main-content .wc-tabs-wrapper {
+    grid-area: tabs !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+    clear: none !important;
+    margin: 8px 0 20px !important;
+    padding: 0 !important;
+  }
+
+  .singular-shop div.product .image-mains .woocommerce-product-gallery,
+  .singular-shop div.product .image-mains .woocommerce-product-gallery.images {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    opacity: 1 !important;
+  }
+  .singular-shop div.product .image-mains .flex-viewport,
+  .singular-shop div.product .woocommerce-product-gallery .flex-viewport {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    border-radius: 13px !important;
+  }
+  .singular-shop div.product .woocommerce-product-gallery__image img,
+  .singular-shop div.product div.images img {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  .singular-shop div.product .information .summary {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .singular-shop div.product .information #shop-now {
+    padding: 10px 0 !important;
+    margin: 0 !important;
+  }
+  .singular-shop div.product .information .tbay-button-popup-wrap {
+    margin: 0 !important;
+    padding: 8px 0 !important;
+  }
+  .singular-shop div.product .information .widget.widget-text-safe-checkout {
+    margin: 10px 0 0 !important;
+  }
+  .singular-shop div.product .information .safe-checkout__content {
+    margin-top: 12px !important;
+  }
+}
+
+/* Mobile: use full width for a bigger product photo */
+@media only screen and (max-width: 767px) {
+  .singular-shop div.product .image-mains {
+    width: 100% !important;
+    margin: 0 0 12px !important;
+    padding: 0 !important;
+  }
+  .singular-shop div.product .image-mains .woocommerce-product-gallery,
+  .singular-shop div.product .woocommerce-product-gallery .flex-viewport {
+    height: auto !important;
+    opacity: 1 !important;
+  }
+  .singular-shop div.product .woocommerce-product-gallery__image img,
+  .singular-shop div.product div.images img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+  }
+}
