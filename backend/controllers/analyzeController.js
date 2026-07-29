@@ -430,24 +430,30 @@ WORKFLOW (per labeled image):
 4. Set aiPredictedStage consistent with observations
 5. Set aiConfidence from IMAGE QUALITY + how clearly stage features are visible (not a fixed 0.85)
 
-Norwood scale — be conservative; do NOT over-stage:
+Norwood scale — be conservative on TEMPLES, but do NOT under-stage visible CROWN/CENTER loss:
 - 1: Full hairline, no recession, full crown
 - 2: MINOR temple recession ONLY (slight M start). Crown FULL. Bridge FULL. Most of hairline still intact.
-- 3: Clear deep M-shape temples. Crown still relatively FULL (no large bald patch on top).
-- 4: Temple recession PLUS visible crown thinning starting (both areas affected).
+- 3: Clear deep M-shape temples with crown still relatively FULL, OR early vertex/center thinning (Norwood 3V) with temples intact/mild
+- 4: Temple recession PLUS visible crown/center thinning, OR clear crown/vertex balding even if temples look mild
 - 5: LARGE bald areas at front AND crown, with only a THIN bridge of hair between them.
 - 6: Bridge largely GONE; horseshoe forming; extensive top baldness
 - 7: Narrow band on sides/back only; top completely bald
 - overall-thinning: diffuse thinning without classic Norwood pattern
 
-CRITICAL EARLY-STAGE RULES (avoid false stage 3/4/5):
-- Prefer the LOWER stage when unsure between 2 and 3
-- Stage 2: slight temple recession / soft M / adult hairline with minor corners — crown FULL
-- Stage 3: DEEP clear triangular temple recession (obvious M), still with full crown
-- Do NOT call stage 3 for mild or borderline temple recession
+CRITICAL CROWN / CENTER RULES (avoid false stage 2):
+- Visible scalp or thinning at the CROWN, VERTEX, or CENTER of the top view is NOT stage 2
+- Clear center/vertex balding with intact or mild temples → at least "3" (3V); if scalp is clearly visible / crown moderate → "4"
+- Do NOT label obvious center balding as crownThinning=mild — use moderate/severe when scalp is clearly seen at the vertex
+- If FRONT temples/hairline are not visible in the photos, set those fields to "not_visible" and stage from the TOP/CROWN evidence — never invent stage 2 from missing temples
+- Prefer LOWER stage only when unsure between temple-only 2 vs 3 AND the crown is FULL
+
+CRITICAL EARLY-STAGE RULES (temple-focused; crown must be full):
+- Stage 2: slight temple recession / soft M — crown FULL (no center thinning)
+- Stage 3 (temples): DEEP clear triangular temple recession (obvious M), still with full crown
+- Do NOT call stage 3 for mild temple recession alone when crown is full
 - If only the front hairline looks slightly recessed and crown is full → "2"
-- If crown thinning is absent/none → never above "3"
-- Stage "4" requires BOTH temple recession AND real crown thinning visible in the TOP view
+- If crown thinning is absent/none → never above "3" from temples alone
+- Stage "4" when BOTH temple recession AND real crown thinning are visible, OR clear crown/center loss alone
 - Stage "5" requires LARGE front baldness AND LARGE crown baldness with thin bridge
 - Do NOT call stage 5 just because temples look recessed in a front selfie
 - Front-only photos without clear crown baldness should stay at 2 (or 3 only if deep M)
@@ -456,12 +462,14 @@ CONSISTENCY RULES (mandatory):
 - midscalpBridge=absent OR (visibleScalp=extensive AND frontalHairline=receding_severe) → "6" or "7"
 - crownThinning=severe AND temples moderate/severe AND bridge thinning → at least "5"
 - temples mild/none + crown none + bridge full → "1" or "2"
+- temples mild/none + crown mild/moderate with visible center/vertex thinning → "3" or "4" (NOT "2")
 - temples moderate on only one side OR hairline receding_mild/receding_moderate with full crown → "2" (not 3)
-- Never output "4"/"5" if crownThinning is none/mild and visibleScalp is minimal
-- crownThinning=mild with full bridge is NOT stage 4 — treat mild crown as noise
+- Never output "4"/"5" if crownThinning is none and visibleScalp is minimal AND temples are assessable
+- crownThinning=mild with full bridge AND assessable full temples may stay early — but crownThinning=mild with temples not_visible → at least "3"
 - Front hairline recession alone (no crown bald patch) = stage 2, or 3 only if deep bilateral M
-- When uncertain between "2" and "3", output "2"
+- When uncertain between temple-only "2" and "3" with a FULL crown, output "2"
 - If midscalpBridge cannot be seen, set midscalpBridge="not_visible" and do not invent bridge loss
+- If the same photo was reused for multiple views, say so in aiReasoning and lower aiConfidence
 
 CONFIDENCE CALIBRATION (aiConfidence 0.0–1.0):
 - 0.90–0.98: sharp, well-lit front + crown; bridge assessable; stage features unambiguous
@@ -593,8 +601,35 @@ function buildPhotoQualityAssessment(parsed = {}) {
 
 const level = (value) => SEVERITY[String(value || "none").toLowerCase()] ?? 0;
 
+const isUnknownObservation = (value) => {
+  const s = String(value || "")
+    .toLowerCase()
+    .trim();
+  return (
+    !s ||
+    s === "not_visible" ||
+    s === "unknown" ||
+    s === "n/a" ||
+    s === "na" ||
+    s === "unclear" ||
+    s.includes("not visible") ||
+    s.includes("not_visible")
+  );
+};
+
 const maxTempleRecession = (front = {}) =>
-  Math.max(level(front.templeRecessionLeft), level(front.templeRecessionRight));
+  Math.max(
+    isUnknownObservation(front.templeRecessionLeft) ? 0 : level(front.templeRecessionLeft),
+    isUnknownObservation(front.templeRecessionRight) ? 0 : level(front.templeRecessionRight)
+  );
+
+/** True when front temples/hairline can actually be judged from the photos. */
+const templesAssessable = (front = {}) => {
+  const leftOk = !isUnknownObservation(front.templeRecessionLeft);
+  const rightOk = !isUnknownObservation(front.templeRecessionRight);
+  const hairlineOk = !isUnknownObservation(front.frontalHairline);
+  return leftOk || rightOk || hairlineOk;
+};
 
 const hasCompleteMaleObservations = (observations = {}) => {
   const front = observations.frontView || {};
@@ -607,6 +642,20 @@ const hasCompleteMaleObservations = (observations = {}) => {
   const hasTop = Boolean(top.crownThinning || top.visibleScalp || observations.midscalpBridge);
   // Require both angles so partial Gemini output cannot drive stage alone
   return hasFront && hasTop;
+};
+
+/** Crown/vertex-only staging when the hairline cannot be judged. */
+const stageFromCrownOnly = (observations = {}) => {
+  const top = observations.topView || {};
+  const bridge = String(observations.midscalpBridge || "not_visible").toLowerCase();
+  const scalp = String(top.visibleScalp || "minimal").toLowerCase();
+  const crown = isUnknownObservation(top.crownThinning) ? 0 : level(top.crownThinning);
+
+  if (crown >= 3 || scalp === "extensive" || bridge === "absent") return "5";
+  if (crown >= 2 || scalp === "partial" || bridge === "thinning") return "4";
+  // Any visible crown/center thinning with missing hairline → at least Norwood 3V
+  if (crown >= 1) return "3";
+  return null;
 };
 
 const hasCompleteFemaleObservations = (observations = {}) => {
@@ -622,9 +671,17 @@ const hasClearCrownLoss = (observations = {}) => {
   const top = observations.topView || {};
   const bridge = String(observations.midscalpBridge || "not_visible").toLowerCase();
   const scalp = String(top.visibleScalp || "minimal").toLowerCase();
-  const crown = level(top.crownThinning);
-  // Mild crown alone is noise — need real thinning / visible scalp / bridge change
+  const crown = isUnknownObservation(top.crownThinning) ? 0 : level(top.crownThinning);
+  // Moderate+ crown, visible scalp, or bridge change = clear loss.
+  // Mild crown alone is usually noise WHEN temples are assessable — handled by callers.
   return crown >= 2 || scalp === "partial" || scalp === "extensive" || bridge === "thinning" || bridge === "absent";
+};
+
+/** Mild crown/center thinning counts when hairline cannot be judged from photos. */
+const hasAnyCrownThinning = (observations = {}) => {
+  const top = observations.topView || {};
+  const crown = isUnknownObservation(top.crownThinning) ? 0 : level(top.crownThinning);
+  return crown >= 1 || hasClearCrownLoss(observations);
 };
 
 const hasStrongAdvancedEvidence = (observations = {}) => {
@@ -644,11 +701,15 @@ const hasStrongAdvancedEvidence = (observations = {}) => {
 
 /** Full/near-full crown + intact bridge = early Norwood (1–3), regardless of temple labels */
 const hasEarlyStageEvidence = (observations = {}) => {
+  const front = observations.frontView || {};
   const top = observations.topView || {};
   const bridge = String(observations.midscalpBridge || "not_visible").toLowerCase();
   const scalp = String(top.visibleScalp || "minimal").toLowerCase();
-  const crown = level(top.crownThinning);
-  return crown <= 1 && scalp === "minimal" && bridge !== "absent" && bridge !== "thinning";
+  const crown = isUnknownObservation(top.crownThinning) ? 0 : level(top.crownThinning);
+  // Cannot claim "early" if temples aren't visible or crown already shows thinning
+  if (!templesAssessable(front)) return false;
+  if (crown >= 1) return false;
+  return scalp === "minimal" && bridge !== "absent" && bridge !== "thinning";
 };
 
 /** Map temples-only when crown is still full — never returns 4+.
@@ -775,13 +836,20 @@ const computeMaleNorwoodFromObservations = (observations = {}) => {
   const hairline = String(front.frontalHairline || "").toLowerCase();
 
   const temples = maxTempleRecession(front);
-  const crown = level(top.crownThinning);
+  const crown = isUnknownObservation(top.crownThinning) ? 0 : level(top.crownThinning);
   const scalp = String(top.visibleScalp || "minimal").toLowerCase();
-  const severeHairline = hairline.includes("severe");
+  const severeHairline = !isUnknownObservation(front.frontalHairline) && hairline.includes("severe");
+  const canJudgeTemples = templesAssessable(front);
+
+  // Hairline not visible (e.g. duplicate crown photos used for Front + Top) → stage from crown
+  if (!canJudgeTemples) {
+    return stageFromCrownOnly(observations) || "3";
+  }
 
   // HARD RULE: no clear crown/bridge loss → stage 1–3 from temples only
   // Fixes stage-2 hairlines wrongly labeled 4/5 because crown was marked "mild"
-  if (!hasClearCrownLoss(observations)) {
+  if (!hasClearCrownLoss(observations) && crown <= 1) {
+    // Mild crown WITH assessable temples and full bridge stays temple-only
     return stageFromTemplesOnly(observations);
   }
 
@@ -809,11 +877,16 @@ const computeMaleNorwoodFromObservations = (observations = {}) => {
   }
   if (temples >= 2 && crown >= 3 && bridge === "thinning") return "5";
 
+  // Crown-dominant / vertex pattern (mild temples + clear center loss) → 4+, not 2/3
+  if (temples <= 1 && crown >= 3) return "5";
+  if (temples <= 1 && (crown >= 2 || scalp === "partial" || bridge === "thinning")) return "4";
+  if (temples <= 1 && crown >= 1 && (scalp === "partial" || bridge === "thinning")) return "4";
+
   // Stage 4: needs REAL crown thinning (moderate+), not mild noise
   if (temples >= 2 && crown >= 2) return "4";
   if (temples >= 2 && crown >= 2 && scalp === "partial") return "4";
 
-  // Crown mild + temples → still early
+  // Crown mild + temples assessable → still early
   if (crown <= 1) return stageFromTemplesOnly(observations);
 
   if (temples >= 2 && crown === 0) return "3";
@@ -905,10 +978,29 @@ const reconcileStage = (
   const imagePrimary = obsComplete && rule ? rule : null;
 
   // HARD CAP: no clear crown/bridge loss → temples-only stage (1–3).
-  // Runs even when AI and rule agree on an inflated stage 4/5.
-  if (gender === "male" && !hasClearCrownLoss(observations) && !hasStrongAdvancedEvidence(observations)) {
+  // Skip when temples/hairline are not assessable — stage from crown instead.
+  if (
+    gender === "male" &&
+    templesAssessable(observations?.frontView || {}) &&
+    !hasClearCrownLoss(observations) &&
+    !hasStrongAdvancedEvidence(observations) &&
+    !hasAnyCrownThinning(observations)
+  ) {
     const templeStage = stageFromTemplesOnly(observations);
     return pickConservativeEarlyStage(templeStage, ai || imagePrimary);
+  }
+
+  // Crown-only photos (temples not_visible): never collapse to stage 2 via temple rules
+  if (gender === "male" && !templesAssessable(observations?.frontView || {}) && hasAnyCrownThinning(observations)) {
+    const crownStage = stageFromCrownOnly(observations) || rule || "3";
+    if (ai) {
+      const aiNum = parseInt(ai, 10);
+      const crownNum = parseInt(crownStage, 10);
+      if (!Number.isNaN(aiNum) && !Number.isNaN(crownNum) && aiNum > crownNum && aiNum <= 5) {
+        return String(Math.min(5, aiNum));
+      }
+    }
+    return crownStage;
   }
 
   if (!ai && !imagePrimary) return null;
@@ -1001,6 +1093,49 @@ const parseLabeledImages = (images) => {
   }));
 };
 
+/** Fingerprint uploaded photos so we can flag the same image reused across slots. */
+function fingerprintDataUrl(dataUrl) {
+  const s = String(dataUrl || "");
+  if (!s) return "";
+  const mid = Math.floor(s.length / 2);
+  return `${s.length}:${s.slice(22, 86)}:${s.slice(mid, mid + 64)}:${s.slice(-48)}`;
+}
+
+function detectDuplicateLabeledImages(labeledImages = []) {
+  const present = (Array.isArray(labeledImages) ? labeledImages : []).filter((img) =>
+    Boolean(img?.dataUrl)
+  );
+  if (present.length < 2) {
+    return { duplicateImagesDetected: false, duplicateImagesWarning: null, duplicatePairs: [] };
+  }
+
+  const prints = present.map((img) => ({
+    type: String(img.type || img.label || "photo"),
+    print: fingerprintDataUrl(img.dataUrl),
+  }));
+
+  const pairs = [];
+  for (let i = 0; i < prints.length; i += 1) {
+    for (let j = i + 1; j < prints.length; j += 1) {
+      if (prints[i].print && prints[i].print === prints[j].print) {
+        pairs.push([prints[i].type, prints[j].type]);
+      }
+    }
+  }
+
+  if (!pairs.length) {
+    return { duplicateImagesDetected: false, duplicateImagesWarning: null, duplicatePairs: [] };
+  }
+
+  const pairText = pairs.map(([a, b]) => `${a} & ${b}`).join(", ");
+
+  return {
+    duplicateImagesDetected: true,
+    duplicatePairs: pairs,
+    duplicateImagesWarning: `The same photo was uploaded for multiple angles (${pairText}). This may affect the AI result — please upload a distinct photo for each view for a more accurate assessment.`,
+  };
+}
+
 const VIEW_FOCUS = {
   front: "Focus on hairline shape and left/right temple recession only. Do not invent crown baldness from this angle.",
   side: "Focus on temple/side density and hairline profile. Note lighting/angle limits.",
@@ -1029,7 +1164,7 @@ const buildGeminiParts = (gender, labeledImages) => {
   }
 
   parts.push({
-    text: `\nAfter reviewing all views above, fill observations from the PHOTO EVIDENCE only, then set aiPredictedStage to match those observations. Set aiConfidence from image clarity and how unambiguous the stage features are.`,
+    text: `\nAfter reviewing all views above, fill observations from the PHOTO EVIDENCE only, then set aiPredictedStage to match those observations. Set aiConfidence from image clarity and how unambiguous the stage features are. If two labeled views are the same photo, say so in aiReasoning, mark missing angles as not_visible, and do not invent a full hairline assessment.`,
   });
 
   return parts;
@@ -1052,6 +1187,7 @@ export const analyzeScalp = async (req, res) => {
     const userGender = String(gender || "male").toLowerCase();
 
     const labeledImages = parseLabeledImages(images);
+    const duplicateInfo = detectDuplicateLabeledImages(labeledImages);
 
     if (labeledImages.length === 0) {
       return res.status(400).json({ error: "Valid scalp image(s) are required." });
@@ -1158,6 +1294,10 @@ export const analyzeScalp = async (req, res) => {
       imageCount,
     });
 
+    const calibratedConfidence = duplicateInfo.duplicateImagesDetected
+      ? Math.round(Math.max(0.4, confidence - 0.12) * 100) / 100
+      : confidence;
+
     const stageNum = parseInt(aiPredictedStage, 10);
     const requiresDoctor =
       Boolean(parsed.requiresDoctorConsultation) ||
@@ -1174,7 +1314,7 @@ export const analyzeScalp = async (req, res) => {
       ruleBasedStage: ruleBasedStage || null,
       observations,
       stageAdjusted: rawAiStage && aiPredictedStage !== rawAiStage,
-      aiConfidence: confidence,
+      aiConfidence: calibratedConfidence,
       modelConfidence,
       imageQuality: parsed.imageQuality || null,
       imageBased: true,
@@ -1190,6 +1330,9 @@ export const analyzeScalp = async (req, res) => {
       rejectionReasons: photoQualityAssessment.rejectionReasons,
       photoQualityAssessment,
       photoQualityRejected: photoQualityAssessment.rejected,
+      duplicateImagesDetected: duplicateInfo.duplicateImagesDetected,
+      duplicateImagesWarning: duplicateInfo.duplicateImagesWarning,
+      duplicatePairs: duplicateInfo.duplicatePairs,
     };
 
     console.log("Stage result:", {

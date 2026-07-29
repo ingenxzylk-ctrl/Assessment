@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useQuiz } from "../../context/QuizContext";
 import { redirectToWordPressCheckout } from "../../utils/wordpressCheckout";
-import { HAIR_HEALTH_MIX_PRICE } from "../../data/zylkProductCatalog";
 
 export default function CartDrawer() {
   const { state, flushPersistence } = useQuiz();
@@ -12,7 +11,6 @@ export default function CartDrawer() {
     setIsCartOpen,
     updateQuantity,
     removeFromCart,
-    toggleHealthMix,
     cartTotal,
     cartCount,
   } = useCart();
@@ -70,9 +68,7 @@ export default function CartDrawer() {
               <p className="text-sm font-medium">Your cart is empty.</p>
             </div>
           ) : (
-            cartItems.map((item) => {
-              const mixPrice = item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE;
-              return (
+            cartItems.map((item) => (
                 <div key={item.id} className="p-3 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-3">
                   <div className="flex gap-4 justify-between items-center">
                     <div className="flex-1 min-w-0">
@@ -112,22 +108,8 @@ export default function CartDrawer() {
                       🗑️
                     </button>
                   </div>
-
-                  {item.bundleNumber && !item.isTestBundle && item.usesSeparateHealthMix && (
-                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        disabled={checkoutBusy}
-                        checked={item.includeHealthMix !== false}
-                        onChange={() => toggleHealthMix(item.id)}
-                        className="rounded border-gray-300"
-                      />
-                      Include Hair Health Mix (+₹{mixPrice})
-                    </label>
-                  )}
                 </div>
-              );
-            })
+              ))
           )}
         </div>
 

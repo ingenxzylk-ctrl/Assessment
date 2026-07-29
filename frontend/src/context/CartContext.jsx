@@ -1,10 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import {
-  getWooProductId,
-  getCheckoutWooProductIds,
-  usesSeparateHealthMixProduct,
-} from "../config/bundles";
-import { HAIR_HEALTH_MIX_PRICE } from "../data/zylkProductCatalog";
+import { getWooProductId, getCheckoutWooProductIds } from "../config/bundles";
 
 const CartContext = createContext();
 
@@ -13,23 +8,23 @@ export function CartProvider({ children }) {
     try {
       const saved = localStorage.getItem("follicle_cart");
       const parsed = saved ? JSON.parse(saved) : [];
-      // Normalize legacy rows so Health Mix checkout gets mixId 8303
+      // Normalize legacy cart rows — kits are single Woo SKUs (no Health Mix line)
       return (Array.isArray(parsed) ? parsed : []).map((item) => {
         if (!item?.bundleNumber || item.isTestBundle) return item;
-        const includeHealthMix = item.includeHealthMix !== false;
         const hasDandruff = Boolean(item.hasDandruff);
         const gender = item.gender || null;
-        const { kitId, mixId } = getCheckoutWooProductIds({
+        const { kitId } = getCheckoutWooProductIds({
           bundleNumber: item.bundleNumber,
           hasDandruff,
-          includeHealthMix,
+          includeHealthMix: false,
           gender,
         });
         return {
           ...item,
-          includeHealthMix,
+          includeHealthMix: false,
+          usesSeparateHealthMix: false,
           wooProductId: kitId || item.wooProductId,
-          wooHealthMixProductId: mixId ?? item.wooHealthMixProductId ?? null,
+          wooHealthMixProductId: null,
         };
       });
     } catch {
@@ -68,7 +63,9 @@ export function CartProvider({ children }) {
                 ...item,
                 ...product,
                 quantity: item.quantity + 1,
-                healthMixPrice: product.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
+                includeHealthMix: false,
+                usesSeparateHealthMix: false,
+                wooHealthMixProductId: null,
               }
             : item
         );
@@ -78,7 +75,9 @@ export function CartProvider({ children }) {
         {
           ...product,
           quantity: 1,
-          healthMixPrice: product.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
+          includeHealthMix: false,
+          usesSeparateHealthMix: false,
+          wooHealthMixProductId: null,
         },
       ];
     });
@@ -101,47 +100,8 @@ export function CartProvider({ children }) {
     );
   };
 
-  /** Toggle Health Mix → updates price + Woo IDs (8393 ± 8303 for dandruff Bundle-5) */
-  const toggleHealthMix = (productId) => {
-    setCartItems((prev) =>
-      prev.map((item) => {
-        if (item.id !== productId) return item;
-
-        // Match drawer checkbox: undefined/missing counts as currently ON
-        const currentlyOn = item.includeHealthMix !== false;
-        const includeHealthMix = !currentlyOn;
-        const newPrice = includeHealthMix ? item.priceWithMix : item.priceWithoutMix;
-        const hasDandruff = Boolean(item.hasDandruff);
-        const gender = item.gender || null;
-
-        const { kitId, mixId } = getCheckoutWooProductIds({
-          bundleNumber: item.bundleNumber,
-          hasDandruff,
-          includeHealthMix,
-          gender,
-        });
-
-        const separateMix = usesSeparateHealthMixProduct(
-          item.bundleNumber,
-          hasDandruff,
-          gender
-        );
-
-        return {
-          ...item,
-          includeHealthMix,
-          price: newPrice,
-          wooProductId: kitId || getWooProductId(item.bundleNumber, includeHealthMix, hasDandruff, gender),
-          wooHealthMixProductId: mixId,
-          usesSeparateHealthMix: separateMix,
-          healthMixPrice: item.healthMixPrice ?? HAIR_HEALTH_MIX_PRICE,
-          subtitle: includeHealthMix
-            ? `Bundle ${item.bundleNumber} • With Health Mix`
-            : `Bundle ${item.bundleNumber} • Without Health Mix`,
-        };
-      })
-    );
-  };
+  /** No-op — kits no longer support a separate Health Mix add-on */
+  const toggleHealthMix = () => {};
 
   const clearCart = () => setCartItems([]);
 

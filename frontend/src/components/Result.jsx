@@ -5,19 +5,13 @@ import { getRecommendedBundle } from "../data/products";
 import {
   getBundleDisplayName,
   getWooProductId,
-  getSeparateHealthMixWooId,
   getCheckoutWooProductIds,
-  usesSeparateHealthMixProduct,
-  resolveBundleNumber,
 } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
 import { getBundleItems } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
 import { motion, useMotionValue, animate } from "framer-motion";
-
-/** List price from Zylk Health product sheet */
-const HAIR_HEALTH_MIX_PRICE = 1799;
 
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
@@ -215,6 +209,7 @@ function getProductPurpose(name = "") {
   if (n.includes("shampoo") || n.includes("cleanser") || n.includes("dandruff")) return "For Dandruff";
   if (n.includes("minoxidil") || n.includes("rosemary") || n.includes("serum") || n.includes("growth")) return "For Hair Regrowth";
   if (n.includes("oil") || n.includes("progro")) return "For Scalp Nourishment";
+  if (n.includes("pumpkin") || n.includes("softgel")) return "For Nutritional Support";
   if (n.includes("supplement") || n.includes("health mix") || n.includes("vitality")) return "For Internal Health";
   if (n.includes("derma") || n.includes("roller")) return "For Absorption";
   if (n.includes("massager")) return "For Scalp Stimulation";
@@ -266,7 +261,7 @@ function buildReportContentHash(state, analysis) {
 
   const payload = JSON.stringify({
     // Bump with backend PDF_FORMAT_VERSION so layout fixes regenerate Drive PDFs
-    pdfFormatVersion: "v7-quiz-result-link",
+    pdfFormatVersion: "v8-dup-photo-warn",
     aboutMe: state?.aboutMe || {},
     hairHealth: state?.hairHealth || {},
     internalHealth: state?.internalHealth || {},
@@ -1183,20 +1178,6 @@ export default function Result() {
     : state?.hairHealth?.norwood_stage;
   const hasDandruff = resolveHasDandruff(state);
 
-  // New stage kits are fixed WooCommerce SKUs — no separate Health Mix add-on.
-  const [includeHealthMix, setIncludeHealthMix] = useState(false);
-  const mixDefaultKeyRef = useRef("");
-
-  useEffect(() => {
-    if (!aiPredictedStageNumber) return;
-    const bundleNumber = resolveBundleNumber(gender, aiPredictedStageNumber, hasDandruff);
-    const separate = usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender);
-    const key = `${gender}:${bundleNumber}:${hasDandruff ? 1 : 0}:${separate ? 1 : 0}`;
-    if (mixDefaultKeyRef.current === key) return;
-    mixDefaultKeyRef.current = key;
-    setIncludeHealthMix(Boolean(separate));
-  }, [aiPredictedStageNumber, gender, hasDandruff]);
-
   const extractImageUrl = (img) => {
     if (!img) return null;
     if (typeof img === "string") return img;
@@ -1232,7 +1213,7 @@ export default function Result() {
   const rootCauseTags = buildRootCauseTags(state, hasDandruff);
 
   const recommendedBundle = !requiresDoctorConsultation
-    ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, includeHealthMix)
+    ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, false)
     : null;
 
   const eligibilityTimeline = getEligibilityTimeline(state, aiPredictedStageNumber);
@@ -1262,43 +1243,31 @@ export default function Result() {
   };
 
   const kitSourceItems = useMemo(() => {
-    // Always render the catalog items for the resolved sheet bundle.
-    // (Do NOT force Bundle-2 for every dandruff case — stage 1 must stay Bundle-5.)
     if (!recommendedBundle) return [];
     const bundleNumber = recommendedBundle.bundleNumber;
-    return getBundleItems(bundleNumber, true, hasDandruff).map((item) => {
-      if (item.id === "zylk-hair-health-mix" && rootCauseTags.length > 0) {
-        return {
-          ...item,
-          subtitle: `Daily capsules targeting: ${rootCauseTags.join(" + ")}`,
-        };
-      }
-      return item;
-    });
-  }, [hasDandruff, recommendedBundle, rootCauseTags]);
+    return getBundleItems(bundleNumber, false, hasDandruff).filter(
+      (item) =>
+        item.id !== "zylk-hair-health-mix" &&
+        !String(item.id || "").startsWith("prod-supplements") &&
+        !/health mix/i.test(String(item.name || ""))
+    );
+  }, [hasDandruff, recommendedBundle]);
 
   const kitProducts = kitSourceItems
     .map((prod) => {
       const formatted = formatBundleProduct(prod, isFemale);
       if (!formatted) return null;
-      const isHealthMix =
-        prod.id === "zylk-hair-health-mix" ||
-        formatted.catalogId === "zylk-hair-health-mix" ||
-        String(prod.id || "").startsWith("prod-supplements") ||
-        /vitality|health mix/i.test(String(prod.name || ""));
       return {
         ...formatted,
         id: formatted.catalogId || prod.id,
         subtitle: prod.subtitle || null,
         price: prod.price ?? null,
         originalPrice: prod.originalPrice ?? null,
-        isHealthMix,
       };
     })
     .filter(Boolean);
 
-  const coreKitProducts = kitProducts.filter((p) => !p.isHealthMix);
-  const healthMixProduct = kitProducts.find((p) => p.isHealthMix) || null;
+  const coreKitProducts = kitProducts;
   const kitDisplayName = recommendedBundle
     ? getBundleDisplayName(
         recommendedBundle.bundleNumber,
@@ -1328,11 +1297,10 @@ export default function Result() {
     }
     if (!recommendedBundle) return;
     const { bundleNumber } = recommendedBundle;
-    const separateMix = usesSeparateHealthMixProduct(bundleNumber, hasDandruff, gender);
-    const { kitId: kitWooId, mixId: mixWooId } = getCheckoutWooProductIds({
+    const { kitId: kitWooId } = getCheckoutWooProductIds({
       bundleNumber,
       hasDandruff,
-      includeHealthMix,
+      includeHealthMix: false,
       gender,
     });
     // Replace any previous assessment kit (e.g. male → female redo)
@@ -1343,21 +1311,15 @@ export default function Result() {
       priceWithMix: recommendedBundle.bundlePrice,
       priceWithoutMix: recommendedBundle.priceWithoutMix,
       bundleNumber,
-      includeHealthMix,
+      includeHealthMix: false,
       coachCallOptIn,
-      healthMixPrice: HAIR_HEALTH_MIX_PRICE,
       gender,
       stage: aiPredictedStageNumber,
       hasDandruff,
-      usesSeparateHealthMix: separateMix,
+      usesSeparateHealthMix: false,
       // Single WooCommerce kit ID (8588 / 8594–8597 male, 8590 female)
-      wooProductId: kitWooId || getWooProductId(bundleNumber, includeHealthMix, hasDandruff, gender),
-      wooHealthMixProductId: mixWooId || getSeparateHealthMixWooId(
-        bundleNumber,
-        includeHealthMix,
-        hasDandruff,
-        gender
-      ),
+      wooProductId: kitWooId || getWooProductId(bundleNumber, false, hasDandruff, gender),
+      wooHealthMixProductId: null,
       wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
       wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
       subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,
@@ -1482,10 +1444,13 @@ export default function Result() {
               originalPrice: recommendedBundle.originalPrice,
               products: (kitSourceItems.length ? kitSourceItems : recommendedBundle.items || [])
                 .filter((p) => {
-                  const isHealthMix =
-                    p.id === "zylk-hair-health-mix" ||
-                    String(p.id || "").startsWith("prod-supplements");
-                  return includeHealthMix || !isHealthMix;
+                  const id = String(p.id || "").toLowerCase();
+                  const name = String(p.name || "").toLowerCase();
+                  return (
+                    !id.includes("health-mix") &&
+                    !id.startsWith("prod-supplements") &&
+                    !name.includes("health mix")
+                  );
                 })
                 .map((p) => {
                   const formatted = formatBundleProduct(p, isFemale);
@@ -1544,7 +1509,6 @@ export default function Result() {
     eligibilityTimeline,
     recommendedBundle,
     kitDisplayName,
-    includeHealthMix,
     kitSourceItems,
     hasDandruff,
     isFemale,
@@ -1810,7 +1774,7 @@ export default function Result() {
           </div>
         )}
 
-        {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
+        {!requiresDoctorConsultation && coreKitProducts.length > 0 && (
           <div className="md:hidden bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-gray-100 space-y-5">
             <div>
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">
@@ -2069,7 +2033,7 @@ export default function Result() {
       {/* END LEFT COLUMN */}
 
       {/* RIGHT COLUMN — sticky purchase card, desktop only */}
-      {!requiresDoctorConsultation && (coreKitProducts.length > 0 || healthMixProduct) && (
+      {!requiresDoctorConsultation && coreKitProducts.length > 0 && (
         <div className="hidden md:block md:sticky md:top-6">
           <div className="bg-white rounded-[32px] p-5 shadow-[0_4px_24px_rgba(0,0,0,0.06)] border border-gray-100 space-y-5">
             <div>

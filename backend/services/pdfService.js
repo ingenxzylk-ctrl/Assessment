@@ -5,7 +5,7 @@ import PDFDocument from "pdfkit";
  * Live check: GET https://api.zylkhealth.com/api/health → pdfFormatVersion
  * Result app is https://quiz.zylkhealth.com/ (not WordPress /assessment/).
  */
-export const PDF_FORMAT_VERSION = "v7-quiz-result-link";
+export const PDF_FORMAT_VERSION = "v8-dup-photo-warn";
 export const PDF_TARGET_PAGES = 2;
 
 const BRAND = "#064e3b";
@@ -333,7 +333,24 @@ function photoCaption(type) {
   return "Photo";
 }
 
-function embedScalpPhotos(doc, scalpImages) {
+function buffersEqual(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  return Buffer.compare(a, b) === 0;
+}
+
+function detectDuplicatePhotoBuffers(photos = []) {
+  const pairs = [];
+  for (let i = 0; i < photos.length; i += 1) {
+    for (let j = i + 1; j < photos.length; j += 1) {
+      if (buffersEqual(photos[i].buffer, photos[j].buffer)) {
+        pairs.push([photoCaption(photos[i].type), photoCaption(photos[j].type)]);
+      }
+    }
+  }
+  return pairs;
+}
+
+function embedScalpPhotos(doc, scalpImages, scalpAnalysis = {}) {
   const photos = getUploadedScalpPhotos(scalpImages);
   const left = doc.page.margins.left;
   const width = pageWidth(doc);
@@ -385,6 +402,28 @@ function embedScalpPhotos(doc, scalpImages) {
 
   doc.x = left;
   doc.y = rowTop + imgH + 14;
+
+  const bufferPairs = detectDuplicatePhotoBuffers(photos);
+  const analysisWarn = Boolean(scalpAnalysis?.duplicateImagesDetected);
+  if (bufferPairs.length || analysisWarn) {
+    const pairLabel = bufferPairs.length
+      ? bufferPairs.map(([a, b]) => `${a} & ${b}`).join(", ")
+      : "multiple angles";
+    const warnText =
+      scalpAnalysis?.duplicateImagesWarning ||
+      `Note: The Front and Top photos appear to be the same image (${pairLabel}). This may affect the AI result — distinct photos for each view are required for accurate staging.`;
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(7.5)
+      .fillColor("#b45309")
+      .text(clampText(warnText, 320), {
+        width,
+        height: 28,
+        ellipsis: true,
+      });
+    doc.moveDown(0.08);
+  }
+
   doc.font("Helvetica").fillColor(INK).fontSize(8);
 }
 
@@ -523,7 +562,7 @@ export function buildAssessmentPdf(payload) {
       .join("  ·  ");
     doc.font("Helvetica").fontSize(8).fillColor(INK).text(profileLine, { width });
 
-    embedScalpPhotos(doc, scalpImages);
+    embedScalpPhotos(doc, scalpImages, scalpAnalysis);
 
     addSectionTitle(doc, "2. Quiz questions & answers");
     addQaTwoColumn(doc, collectQaPairs(payload), labelOpts);
@@ -571,6 +610,31 @@ export function buildAssessmentPdf(payload) {
       labelOpts
     );
     addKeyValue(doc, "Model", scalpAnalysis.model, labelOpts);
+
+    if (
+      (scalpAnalysis.duplicateImagesDetected || scalpAnalysis.duplicateImagesWarning) &&
+      doc.y < page2Budget - 60
+    ) {
+      doc.moveDown(0.08);
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(8)
+        .fillColor("#b45309")
+        .text("Photo quality note:");
+      doc
+        .font("Helvetica")
+        .fontSize(7.5)
+        .fillColor("#92400e")
+        .text(
+          clampText(
+            scalpAnalysis.duplicateImagesWarning ||
+              "The uploaded Front and Top photos appear to be the same image. This may affect the AI stage result.",
+            280
+          ),
+          { width, height: 28, ellipsis: true }
+        );
+      doc.fillColor(INK);
+    }
 
     if (scalpAnalysis.aiReasoning && doc.y < page2Budget - 80) {
       doc.moveDown(0.08);
@@ -645,7 +709,11 @@ export function buildAssessmentPdf(payload) {
       const bundle = reportMeta.recommendedBundle;
       addKeyValue(doc, "Bundle", bundle.bundleTitle || bundle.bundleId, labelOpts);
       addKeyValue(doc, "Price", bundle.price != null ? `₹${bundle.price}` : null, labelOpts);
-      const products = bundle.products || bundle.items || [];
+      const products = (bundle.products || bundle.items || []).filter((p) => {
+        const id = String(typeof p === "string" ? p : p?.id || "").toLowerCase();
+        const name = String(typeof p === "string" ? p : p?.name || p?.shortName || "").toLowerCase();
+        return !id.includes("health-mix") && !id.includes("health_mix") && !name.includes("health mix");
+      });
       if (Array.isArray(products) && products.length) {
         const names = products
           .map((p) =>

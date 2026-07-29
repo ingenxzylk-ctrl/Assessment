@@ -159,7 +159,8 @@ export function shortenProductName(name = "", isFemale = false) {
   }
   if (lower.includes("massager") || lower.includes("brush")) return "Zylk Scalp Massager";
   if (lower.includes("conditioner")) return "Zylk Tea Tree Conditioner";
-  if (lower.includes("health mix") || lower.includes("supplement") || lower.includes("vitality")) {
+  if (lower.includes("pumpkin")) return "Pumpkin Seed Softgel";
+  if (lower.includes("health mix") || lower.includes("vitality")) {
     return "Zylk Hair Health Mix";
   }
   if (lower.includes("shampoo") || lower.includes("cleanser")) {
