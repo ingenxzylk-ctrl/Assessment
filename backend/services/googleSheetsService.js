@@ -6,7 +6,7 @@ import {
 
 export const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
-const DEFAULT_RANGE = "Leads!A:L";
+const DEFAULT_RANGE = "Sheet1!A:L";
 const CALL_STATUS_NEW = "New";
 
 function loadServiceAccountCredentials() {

@@ -54,7 +54,7 @@ router.get("/health", (_req, res) => {
     sheets: {
       configured: sheetsConfigured,
       hasSpreadsheetId: Boolean(process.env.GOOGLE_SHEETS_SPREADSHEET_ID),
-      range: process.env.GOOGLE_SHEETS_RANGE || "Leads!A:L",
+      range: process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:L",
       authMode: hasOAuthConfig()
         ? "oauth"
         : hasServiceAccountConfig()
@@ -62,7 +62,7 @@ router.get("/health", (_req, res) => {
           : "none",
       hint: sheetsConfigured
         ? "Sheets lead sync enabled — new assessments append a row with Call Status=New"
-        : "Sheets sync disabled — set GOOGLE_SHEETS_SPREADSHEET_ID + OAuth/service account (Sheets API enabled, token must include spreadsheets scope)",
+        : "Sheets sync disabled — set GOOGLE_SHEETS_SPREADSHEET_ID + prefer service account (share Sheet with SA email as Editor); OAuth also works if Sheets scope is on the refresh token",
     },
   });
 });

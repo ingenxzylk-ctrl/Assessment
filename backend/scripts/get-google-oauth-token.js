@@ -90,7 +90,7 @@ const server = http.createServer(async (req, res) => {
     console.log(
       "# GOOGLE_SHEETS_SPREADSHEET_ID=paste_id_from_sheet_url"
     );
-    console.log("# GOOGLE_SHEETS_RANGE=Leads!A:L");
+    console.log("# GOOGLE_SHEETS_RANGE=Sheet1!A:L");
     console.log("# PUBLIC_API_URL=https://api.zylkhealth.com");
     console.log("");
 
