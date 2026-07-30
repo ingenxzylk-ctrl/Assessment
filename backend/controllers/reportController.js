@@ -153,17 +153,24 @@ function getRequestOrigin(req) {
 }
 
 function getApiPublicBase(req) {
-  // Sheet PDF links should always hit the VPS API when configured.
+  // Sheet / team PDF links should always hit the live VPS API.
+  const LIVE = "https://api.zylkhealth.com";
   const envBase =
     process.env.PUBLIC_API_URL ||
     process.env.API_PUBLIC_BASE_URL ||
     null;
   if (envBase && /^https?:\/\//i.test(envBase)) {
+    try {
+      const host = new URL(envBase).hostname.toLowerCase();
+      if (host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0") {
+        return LIVE;
+      }
+    } catch {
+      return LIVE;
+    }
     return String(envBase).replace(/\/$/, "");
   }
-
-  // Fallback only when PUBLIC_API_URL is missing (prefer production VPS).
-  return "https://api.zylkhealth.com";
+  return LIVE;
 }
 
 /**

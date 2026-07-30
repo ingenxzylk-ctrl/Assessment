@@ -70,13 +70,36 @@ function cell(value) {
   return String(value).trim();
 }
 
+/**
+ * Format phone for Google Sheets.
+ * Values starting with "+" become #ERROR! under USER_ENTERED (treated as formulas),
+ * so we force a text value with a leading apostrophe.
+ */
 function formatPhone(aboutMe = {}) {
-  const code = cell(aboutMe.countryCode);
-  const phone = cell(aboutMe.whatsapp || aboutMe.phone);
+  const code = cell(aboutMe.countryCode) || "+91";
+  let phone = cell(aboutMe.whatsapp || aboutMe.phone || aboutMe.mobile);
   if (!phone) return "";
-  if (!code) return phone;
-  if (phone.startsWith("+") || phone.startsWith(code)) return phone;
-  return `${code} ${phone}`.trim();
+
+  // Digits only for the local number part when possible
+  const digits = phone.replace(/[^\d]/g, "");
+  let display = phone;
+
+  if (phone.startsWith("+")) {
+    display = phone.replace(/\s+/g, " ");
+  } else if (code.startsWith("+") && digits) {
+    // Avoid duplicating country code if already prefixed as digits (e.g. 91XXXXXXXXXX)
+    const codeDigits = code.replace(/[^\d]/g, "");
+    if (digits.startsWith(codeDigits) && digits.length > codeDigits.length) {
+      display = `+${digits}`;
+    } else {
+      display = `${code} ${digits}`.trim();
+    }
+  } else if (digits) {
+    display = digits;
+  }
+
+  // Leading ' makes Sheets store as plain text (not a formula)
+  return `'${display}`;
 }
 
 function formatStage(scalpAnalysis = {}) {
@@ -93,21 +116,45 @@ function formatKit(reportMeta = {}) {
   return cell(bundle.bundleTitle || bundle.bundleId || bundle.name || "");
 }
 
+const LIVE_API_BASE = "https://api.zylkhealth.com";
+
+function isLoopbackApiUrl(value) {
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+  } catch {
+    return /localhost|127\.0\.0\.1/i.test(String(value || ""));
+  }
+}
+
 /**
  * Build the public VPS PDF URL for a report.
- * Prefers PUBLIC_API_URL / API_PUBLIC_BASE_URL, else https://api.zylkhealth.com
+ * Always prefers the live API for Sheet links (never localhost).
  */
 export function buildPublicPdfUrl(reportId, explicitBase = null) {
   const id = cell(reportId);
   if (!id) return "";
-  const base = String(
+
+  let base = String(
     explicitBase ||
       process.env.PUBLIC_API_URL ||
       process.env.API_PUBLIC_BASE_URL ||
-      "https://api.zylkhealth.com"
+      LIVE_API_BASE
   ).replace(/\/$/, "");
+
+  // Sheet / team links must be reachable — never write localhost
+  if (!base || isLoopbackApiUrl(base)) {
+    base = LIVE_API_BASE;
+  }
+
   const root = base.endsWith("/api") ? base : `${base}/api`;
   return `${root}/report/${encodeURIComponent(id)}/pdf`;
+}
+
+function resolveSheetPdfUrl(reportId, pdfUrl) {
+  const candidate = cell(pdfUrl);
+  if (candidate && !isLoopbackApiUrl(candidate)) return candidate;
+  return buildPublicPdfUrl(reportId);
 }
 
 /**
@@ -150,13 +197,14 @@ export async function appendLeadToGoogleSheet({
       formatStage(scalpAnalysis),
       formatKit(reportMeta),
       cell(resultPageUrl),
-      cell(pdfUrl) || buildPublicPdfUrl(reportId),
+      resolveSheetPdfUrl(reportId, pdfUrl),
       CALL_STATUS_NEW,
     ];
 
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
       range,
+      // USER_ENTERED makes Result/PDF links clickable; phone is prefixed with ' for text
       valueInputOption: "USER_ENTERED",
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: [row] },
