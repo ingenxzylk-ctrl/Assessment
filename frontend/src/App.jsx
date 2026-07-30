@@ -18,6 +18,7 @@ import {
   scalpImagesHaveData,
   mergeScalpImages,
 } from "./utils/quizImageStore";
+import { clearCheckoutAndReportCache } from "./utils/quizPersistence";
 import "./styles/index.css";
 
 const ABOUT_STEPS = 4;
@@ -256,6 +257,10 @@ function QuizFlow() {
 }
 
 export default function App() {
+  useEffect(() => {
+    clearCheckoutAndReportCache();
+  }, []);
+
   return (
     <CartProvider>
       <QuizProvider>

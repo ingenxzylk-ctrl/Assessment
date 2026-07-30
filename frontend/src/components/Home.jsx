@@ -1,12 +1,6 @@
 import React from "react";
-import { getTestBundle } from "../config/bundles";
-import { useCart } from "../context/CartContext";
-import { useQuiz } from "../context/QuizContext";
-import { redirectToWordPressCheckout } from "../utils/wordpressCheckout";
 
 export default function Home({ onStart }) {
-  const { addToCart } = useCart();
-  const { state, flushPersistence } = useQuiz();
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-20 animate-[fadeIn_0.4s_ease-out]">
       
@@ -145,25 +139,6 @@ export default function Home({ onStart }) {
 
         </div>
       </div>
-
-      {/* Dev: ₹1 test bundle for WooCommerce checkout */}
-      {import.meta.env.DEV && (
-        <div className="mt-16 p-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50/50 text-center space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Dev only — test checkout</p>
-          <button
-            type="button"
-            onClick={() => {
-              const testBundle = getTestBundle();
-              addToCart(testBundle);
-              if (flushPersistence) flushPersistence();
-              redirectToWordPressCheckout([{ ...testBundle, quantity: 1 }], state);
-            }}
-            className="h-10 px-6 bg-amber-600 text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition-colors cursor-pointer"
-          >
-            Add ₹1 Test Bundle & Go to Checkout
-          </button>
-        </div>
-      )}
 
       {/* 3. Bottom Call To Action Block */}
       <div className="mt-20 text-center space-y-5">

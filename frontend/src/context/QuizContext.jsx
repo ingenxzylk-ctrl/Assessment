@@ -7,7 +7,6 @@ import {
 } from "../utils/quizImageStore";
 import {
   INITIAL_QUIZ_STATE,
-  CHECKOUT_RETURN_KEY,
   loadPersistedState,
   persistQuizStateNow,
   clearPersistedQuizState,
@@ -16,7 +15,6 @@ import {
 // Re-export persistence helpers for callers that historically imported them from here.
 export {
   persistQuizStateNow,
-  markCheckoutReturn,
   clearPersistedQuizState,
 } from "../utils/quizPersistence";
 
@@ -29,7 +27,7 @@ export function QuizProvider({ children }) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // Rehydrate scalp photos from IndexedDB after mount / checkout return
+  // Rehydrate scalp photos from IndexedDB after mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -47,53 +45,10 @@ export function QuizProvider({ children }) {
     };
   }, []);
 
-  // Persist on every meaningful state change so reload / WP-cart return can resume
+  // Persist on every meaningful state change so reload can resume
   useEffect(() => {
     persistQuizStateNow(state);
   }, [state]);
-
-  // Browser back from WordPress may restore via bfcache — rehydrate from storage + IDB
-  useEffect(() => {
-    const rehydrate = async () => {
-      const restored = loadPersistedState();
-      const idbImages = await loadScalpImagesFromIdb();
-      setState((prev) => {
-        const base = restored || prev;
-        const mergedImages = mergeScalpImages(
-          idbImages,
-          mergeScalpImages(base.scalpImages, prev.scalpImages)
-        );
-        return {
-          ...base,
-          scalpImages: mergedImages,
-          isLoading: false,
-          error: null,
-        };
-      });
-    };
-
-    const onPageShow = () => {
-      rehydrate();
-    };
-    const onFocus = () => {
-      // Returning from WP cart in some browsers fires focus without bfcache pageshow
-      try {
-        if (window.sessionStorage.getItem(CHECKOUT_RETURN_KEY) === "1") {
-          window.sessionStorage.removeItem(CHECKOUT_RETURN_KEY);
-          rehydrate();
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    window.addEventListener("pageshow", onPageShow);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.removeEventListener("pageshow", onPageShow);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, []);
 
   const nextStep = () => {
     setState((prev) => {

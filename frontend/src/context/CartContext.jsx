@@ -1,41 +1,25 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { getWooProductId, getCheckoutWooProductIds } from "../config/bundles";
+import { getCheckoutWooProductIds } from "../config/bundles";
 
 const CartContext = createContext();
+const CART_STORAGE_KEY = "follicle_cart";
+
+function clearCartCache() {
+  try {
+    localStorage.removeItem(CART_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 export function CartProvider({ children }) {
-  const [cartItems, setCartItems] = useState(() => {
-    try {
-      const saved = localStorage.getItem("follicle_cart");
-      const parsed = saved ? JSON.parse(saved) : [];
-      // Normalize legacy cart rows — kits are single Woo SKUs (no Health Mix line)
-      return (Array.isArray(parsed) ? parsed : []).map((item) => {
-        if (!item?.bundleNumber || item.isTestBundle) return item;
-        const hasDandruff = Boolean(item.hasDandruff);
-        const gender = item.gender || null;
-        const { kitId } = getCheckoutWooProductIds({
-          bundleNumber: item.bundleNumber,
-          hasDandruff,
-          includeHealthMix: false,
-          gender,
-        });
-        return {
-          ...item,
-          includeHealthMix: false,
-          usesSeparateHealthMix: false,
-          wooProductId: kitId || item.wooProductId,
-          wooHealthMixProductId: null,
-        };
-      });
-    } catch {
-      return [];
-    }
-  });
+  // No localStorage cart cache — always start fresh (no WP checkout resume)
+  const [cartItems, setCartItems] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("follicle_cart", JSON.stringify(cartItems));
-  }, [cartItems]);
+    clearCartCache();
+  }, []);
 
   // When quiz gender changes mid-session, drop stale male/female kits
   useEffect(() => {
@@ -70,6 +54,19 @@ export function CartProvider({ children }) {
             : item
         );
       }
+
+      // Keep Woo IDs on the item for display/reference, but do not redirect to WordPress
+      let wooProductId = product.wooProductId || null;
+      if (product.bundleNumber && !product.isTestBundle) {
+        const { kitId } = getCheckoutWooProductIds({
+          bundleNumber: product.bundleNumber,
+          hasDandruff: Boolean(product.hasDandruff),
+          includeHealthMix: false,
+          gender: product.gender || null,
+        });
+        wooProductId = kitId || wooProductId;
+      }
+
       return [
         ...base,
         {
@@ -77,6 +74,7 @@ export function CartProvider({ children }) {
           quantity: 1,
           includeHealthMix: false,
           usesSeparateHealthMix: false,
+          wooProductId,
           wooHealthMixProductId: null,
         },
       ];
@@ -103,7 +101,10 @@ export function CartProvider({ children }) {
   /** No-op — kits no longer support a separate Health Mix add-on */
   const toggleHealthMix = () => {};
 
-  const clearCart = () => setCartItems([]);
+  const clearCart = () => {
+    clearCartCache();
+    setCartItems([]);
+  };
 
   const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
