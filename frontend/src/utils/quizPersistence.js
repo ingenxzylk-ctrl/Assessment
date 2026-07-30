@@ -141,26 +141,9 @@ export function persistQuizStateNow(state) {
 }
 
 export function markCheckoutReturn() {
-  // No-op — WordPress cart redirect / return flow removed
-}
-
-export function clearCheckoutAndReportCache() {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.removeItem(CHECKOUT_RETURN_KEY);
-    window.localStorage.removeItem("follicle_cart");
-    const keysToRemove = [];
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const key = window.localStorage.key(i);
-      if (
-        key &&
-        (key.startsWith("zylk_report_submitted_") ||
-          key.startsWith("zylk_report_inflight_"))
-      ) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
+    window.sessionStorage.setItem(CHECKOUT_RETURN_KEY, "1");
   } catch {
     // ignore
   }
@@ -175,5 +158,4 @@ export function clearPersistedQuizState() {
     // ignore
   }
   clearScalpImagesIdb().catch(() => {});
-  clearCheckoutAndReportCache();
 }

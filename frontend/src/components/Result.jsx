@@ -1371,6 +1371,23 @@ export default function Result() {
     if (state?.archivedReportId) return;
     if (!state?.aboutMe || !rawAnalysis || analysisMissing) return;
 
+    if (typeof window !== "undefined") {
+      const submittedKey = `zylk_report_submitted_${reportContentHash}`;
+      const inflightKey = `zylk_report_inflight_${reportContentHash}`;
+      if (
+        window.localStorage.getItem(submittedKey) ||
+        window.localStorage.getItem(inflightKey)
+      ) {
+        reportSubmitRef.current = true;
+        return;
+      }
+      try {
+        window.localStorage.setItem(inflightKey, "1");
+      } catch {
+        // ignore
+      }
+    }
+
     reportSubmitRef.current = true;
 
     const LIVE_DEFAULT = "https://quiz.zylkhealth.com/";
@@ -1448,6 +1465,15 @@ export default function Result() {
     })
       .then((data) => {
         if (typeof window === "undefined") return;
+        try {
+          window.localStorage.setItem(
+            `zylk_report_submitted_${reportContentHash}`,
+            data?.reportId || reportId
+          );
+          window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
+        } catch {
+          // ignore
+        }
         const id = data?.reportId || reportId;
         try {
           const url = new URL(window.location.href);
@@ -1460,6 +1486,11 @@ export default function Result() {
       .catch((err) => {
         // Allow a later retry if this submit failed
         reportSubmitRef.current = false;
+        try {
+          window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
+        } catch {
+          // ignore
+        }
         console.warn("[report] submit failed:", err?.message || err);
       });
   }, [
