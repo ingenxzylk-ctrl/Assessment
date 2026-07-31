@@ -131,7 +131,7 @@ export default function CartDrawer() {
                     className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
                     aria-hidden
                   />
-                  <span>Adding to cart…</span>
+                  <span>Adding kit…</span>
                 </>
               ) : (
                 "Go to Cart"
@@ -141,7 +141,7 @@ export default function CartDrawer() {
         )}
       </div>
 
-      {/* In-app loading overlay — stay on the quiz UI instead of a blank Woo page */}
+      {/* In-app loading overlay — AJAX add on Woo, then one redirect to /cart/ */}
       {checkoutBusy && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-[#064e3b]/70 backdrop-blur-[2px]">
           <div className="mx-4 max-w-sm w-full rounded-3xl bg-white p-8 shadow-2xl text-center space-y-4">
@@ -150,13 +150,13 @@ export default function CartDrawer() {
               aria-hidden
             />
             <div>
-              <p className="text-base font-bold text-gray-900">Adding to your cart</p>
+              <p className="text-base font-bold text-gray-900">Preparing your cart</p>
               <p className="text-sm text-gray-500 mt-1">
-                {checkoutStatus || "Please wait a moment…"}
+                {checkoutStatus || "Adding your kit…"}
               </p>
             </div>
             <p className="text-xs text-gray-400">
-              Keep this tab open — your cart will open automatically.
+              Keep this tab open — you will be taken to the cart once.
             </p>
           </div>
         </div>

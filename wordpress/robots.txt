@@ -1,0 +1,21 @@
+# Zylk Health — place this file at the WordPress site root (https://zylkhealth.com/robots.txt)
+# or merge these Disallow rules into your existing robots.txt.
+#
+# Goal: stop compliant crawlers from hitting expensive WooCommerce cart/checkout
+# and add-to-cart action URLs (these were a major share of access-log volume).
+
+User-agent: *
+Disallow: /cart/
+Disallow: /checkout/
+Disallow: /my-account/
+Disallow: /*?add-to-cart=
+Disallow: /*?remove_item=
+Disallow: /*?undo_item=
+Disallow: /*?wc-ajax=
+
+# Allow product / content discovery
+Allow: /product/
+Allow: /product-category/
+Allow: /shop/
+
+Sitemap: https://zylkhealth.com/sitemap_index.xml
