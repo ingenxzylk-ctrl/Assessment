@@ -15,11 +15,14 @@ import {
   hasOAuthConfig,
   hasServiceAccountConfig,
 } from "../services/googleDriveService.js";
-import { isSheetsConfigured } from "../services/googleSheetsService.js";
+import {
+  isSheetsConfigured,
+  probeGoogleSheets,
+} from "../services/googleSheetsService.js";
 
 const router = express.Router();
 
-router.get("/health", (_req, res) => {
+router.get("/health", async (req, res) => {
   const keys = [
     process.env.GEMINI_API_KEY,
     ...(String(process.env.GEMINI_API_KEYS || "")
@@ -30,6 +33,15 @@ router.get("/health", (_req, res) => {
 
   const driveConfigured = isDriveConfigured();
   const sheetsConfigured = isSheetsConfigured();
+  const wantProbe =
+    String(req.query.probeSheets || "") === "1" ||
+    String(req.query.probeSheets || "").toLowerCase() === "true";
+
+  let sheetsProbe = null;
+  if (wantProbe) {
+    sheetsProbe = await probeGoogleSheets();
+  }
+
   res.json({
     ok: true,
     provider: "gemini",
@@ -63,6 +75,7 @@ router.get("/health", (_req, res) => {
     sheets: {
       configured: sheetsConfigured,
       hasSpreadsheetId: Boolean(process.env.GOOGLE_SHEETS_SPREADSHEET_ID),
+      spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || null,
       range: process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:L",
       authMode: hasOAuthConfig()
         ? "oauth"
@@ -70,8 +83,9 @@ router.get("/health", (_req, res) => {
           ? "service_account"
           : "none",
       hint: sheetsConfigured
-        ? "Sheets lead sync enabled — new assessments append a row with Call Status=New"
+        ? "Sheets lead sync enabled — new assessments append a row with Call Status=New. Add ?probeSheets=1 to verify live access."
         : "Sheets sync disabled — set GOOGLE_SHEETS_SPREADSHEET_ID + prefer service account (share Sheet with SA email as Editor); OAuth also works if Sheets scope is on the refresh token",
+      probe: sheetsProbe,
     },
   });
 });

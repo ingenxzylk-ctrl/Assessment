@@ -38,6 +38,52 @@ export function isSheetsConfigured() {
   );
 }
 
+export function getSheetsStatus() {
+  return {
+    configured: isSheetsConfigured(),
+    hasSpreadsheetId: Boolean(process.env.GOOGLE_SHEETS_SPREADSHEET_ID),
+    spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || null,
+    range: sheetsRange(),
+    authMode: hasOAuthConfig()
+      ? "oauth"
+      : hasServiceAccountConfig()
+        ? "service_account"
+        : "none",
+  };
+}
+
+function improveSheetsError(err) {
+  const message = err?.message || String(err);
+
+  if (
+    /insufficient|ACCESS_TOKEN_SCOPE|Request had insufficient authentication scopes/i.test(
+      message
+    )
+  ) {
+    return [
+      message,
+      "Fix: regenerate OAuth with Sheets scope — from backend/ run: node scripts/get-google-oauth-token.js",
+      "Then update GOOGLE_DRIVE_REFRESH_TOKEN and pm2 restart assessment-api --update-env.",
+    ].join(" ");
+  }
+
+  if (/permission|does not have permission|forbidden|403/i.test(message)) {
+    return [
+      message,
+      "Share the Sheet as Editor with the Google account behind your OAuth refresh token (or the service account email).",
+    ].join(" ");
+  }
+
+  if (/not found|Unable to parse range|Unable to parse/i.test(message)) {
+    return [
+      message,
+      "Check GOOGLE_SHEETS_SPREADSHEET_ID matches the Sheet URL and GOOGLE_SHEETS_RANGE tab name (default Sheet1!A:L).",
+    ].join(" ");
+  }
+
+  return message;
+}
+
 async function getSheetsClient() {
   if (hasOAuthConfig()) {
     const oauth2 = new google.auth.OAuth2(
@@ -223,12 +269,68 @@ export async function appendLeadToGoogleSheet({
       row,
     };
   } catch (err) {
-    const message = err?.message || String(err);
+    const message = improveSheetsError(err);
     console.error("[sheets] append failed:", message);
     return {
       ok: false,
       skipped: false,
       error: message,
+      spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || null,
+    };
+  }
+}
+
+/**
+ * Live probe: open the configured spreadsheet (read metadata + first header row).
+ * Use from /api/health?probeSheets=1 or scripts/test-google-sheets.js.
+ */
+export async function probeGoogleSheets() {
+  if (!isSheetsConfigured()) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: "not_configured",
+      ...getSheetsStatus(),
+    };
+  }
+
+  const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  const range = sheetsRange();
+
+  try {
+    const sheets = await getSheetsClient();
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: "spreadsheetId,properties.title,sheets.properties.title",
+    });
+    const title = meta?.data?.properties?.title || null;
+    const tabNames = (meta?.data?.sheets || [])
+      .map((s) => s?.properties?.title)
+      .filter(Boolean);
+
+    const header = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: range.includes("!") ? range.replace(/![^!]+$/, "!A1:L1") : "A1:L1",
+    });
+
+    return {
+      ok: true,
+      skipped: false,
+      spreadsheetId,
+      title,
+      tabNames,
+      range,
+      headerRow: header?.data?.values?.[0] || [],
+      authMode: getSheetsStatus().authMode,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      skipped: false,
+      spreadsheetId,
+      range,
+      error: improveSheetsError(err),
+      authMode: getSheetsStatus().authMode,
     };
   }
 }

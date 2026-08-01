@@ -1,3 +1,5 @@
+import fs from "fs/promises";
+import path from "path";
 import { buildAssessmentPdf, PDF_FORMAT_VERSION } from "./pdfService.js";
 import { saveReportArtifacts } from "./storageService.js";
 import {
@@ -5,6 +7,33 @@ import {
   buildPublicPdfUrl,
   isSheetsConfigured,
 } from "./googleSheetsService.js";
+
+async function writeSheetsSidecar(storageInfo, reportId, sheets) {
+  const dir =
+    storageInfo?.localBackup?.dir ||
+    (storageInfo?.pdfPath ? path.dirname(storageInfo.pdfPath) : null);
+  if (!dir) return;
+  try {
+    await fs.writeFile(
+      path.join(dir, "sheets.json"),
+      JSON.stringify(
+        {
+          reportId,
+          at: new Date().toISOString(),
+          sheets,
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+  } catch (err) {
+    console.warn(
+      `[pipeline] ${reportId}: could not write sheets.json:`,
+      err?.message || err
+    );
+  }
+}
 
 /**
  * Canonical post-analysis report pipeline (after Gemini via POST /api/analyze):
@@ -121,6 +150,8 @@ export async function runReportPipeline({
           ? `skipped (${sheets.reason || "n/a"})`
           : `error (${sheets.error || "unknown"})`)
   );
+
+  await writeSheetsSidecar(storageInfo, reportId, sheets);
 
   // 4) Return report package for the frontend
   return {
