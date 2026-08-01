@@ -1665,15 +1665,7 @@ export default function Result() {
               </div>
             )}
 
-            {stageDiscrepancy && !analysisMissing && (
-              <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-900">
-                <p className="font-bold">Photo-based assessment used</p>
-                <p className="text-xs text-blue-700 mt-1">
-                  Your quiz answer was Stage {reportedStage || "—"}, but your uploaded photos indicate Stage {aiPredictedStageNumber}.
-                  Results are based on what we see in your images, not the quiz.
-                </p>
-              </div>
-            )}
+           
 
             {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && (
               <div className="mt-4 bg-[#5a6b2e] rounded-full px-4 py-2 flex items-center justify-between text-white text-sm">
@@ -2005,30 +1997,15 @@ export default function Result() {
         {!requiresDoctorConsultation && eligibilityTimeline.eligible !== false && !eligibilityTimeline.needsTransplant && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 text-xl">₹</div>
-            <p className="text-xl font-bold text-[#064e3b]">Congratulations!</p>
-            <p className="text-sm font-bold text-gray-600 mt-1">You Are 100% Eligible For The Money Back Policy</p>
+            <p className="text-xl font-bold text-[#064e3b]">Verify Eligibility!</p>
+            <p className="text-sm font-bold text-gray-600 mt-1">If you want to know if you are eligible for
+money back guarantee contact our customer support</p>
             <div className="border-t border-dashed border-gray-200 my-4" />
             <button type="button" className="text-sm text-gray-600 underline">Read Money back policy</button>
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setFaqOpen(!faqOpen)}
-            className="w-full flex items-center justify-between px-4 py-4 text-left font-bold text-gray-900 cursor-pointer"
-          >
-            FAQ&apos;s
-            <span className={`transition-transform ${faqOpen ? "rotate-180" : ""}`}>▾</span>
-          </button>
-          {faqOpen && (
-            <div className="px-4 pb-4 space-y-3 text-sm text-gray-600 border-t border-gray-50 pt-3">
-              <p><strong>How long until I see results?</strong> Most users see changes in {resultMonths} months with consistent use.</p>
-              <p><strong>Is it safe?</strong> All products are GMP &amp; ISO 9001 certified.</p>
-              <p><strong>Can I cancel?</strong> Yes — review our money-back policy for eligibility details.</p>
-            </div>
-          )}
-        </div>
+        
 
         <p className="text-[10px] text-gray-400 italic text-center px-2">
           *As per an internal study conducted by Zylk Health
