@@ -55,6 +55,15 @@ export function getSheetsStatus() {
 function improveSheetsError(err) {
   const message = err?.message || String(err);
 
+  if (/invalid_grant/i.test(message)) {
+    return [
+      "invalid_grant — Google OAuth refresh token is expired or revoked.",
+      "Fix on VPS: cd ~/Assessment/backend && node scripts/get-google-oauth-token.js",
+      "Approve Drive + Sheets, paste the new GOOGLE_DRIVE_REFRESH_TOKEN into .env,",
+      "then: pm2 restart assessment-api --update-env",
+    ].join(" ");
+  }
+
   if (
     /insufficient|ACCESS_TOKEN_SCOPE|Request had insufficient authentication scopes/i.test(
       message
