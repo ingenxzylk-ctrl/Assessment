@@ -69,8 +69,12 @@ export async function generateResult({ aboutMe, hairHealth, internalHealth, scal
 }
 
 /**
- * Persist quiz Q&A + assessment as PDF, store it, and email the org.
- * Non-blocking for the user UI — callers should catch errors.
+ * Post-Gemini report pipeline (POST /api/report/submit):
+ *   Generate PDF → Save PDF on VPS → Append lead to Google Sheets → return report package.
+ *
+ * Expects analysis already completed via analyzeScalp() (POST /api/analyze).
+ * Returns { ok, reportId, pdfUrl, resultPageUrl, sheets, pipeline, ... }.
+ * Callers should surface reportId / pdfUrl from the response; catch errors for retry.
  */
 export async function submitAssessmentReport(payload) {
   let res;

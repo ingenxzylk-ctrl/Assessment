@@ -38,6 +38,15 @@ router.get("/health", (_req, res) => {
     apiKeyCount: [...new Set(keys)].length,
     pdfFormatVersion: PDF_FORMAT_VERSION,
     pdfTargetPages: PDF_TARGET_PAGES,
+    // End-to-end assessment flow (Gemini stays on POST /api/analyze for photo reject UX)
+    pipeline: [
+      "customer_submits_quiz",
+      "gemini_analysis (POST /api/analyze)",
+      "generate_pdf",
+      "save_pdf_vps",
+      "append_google_sheets",
+      "return_report_frontend (POST /api/report/submit)",
+    ],
     // If drive.configured is false, PDFs stay local and do not appear in Drive
     drive: {
       configured: driveConfigured,

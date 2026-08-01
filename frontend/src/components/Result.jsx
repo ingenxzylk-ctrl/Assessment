@@ -1359,11 +1359,16 @@ export default function Result() {
     reportContentHash,
   ]);
 
-  // Generate PDF only after analysis, and only when quiz answers or photos changed.
+  // After Gemini analysis: PDF → VPS save → Sheets → return report to this page.
   const reportSubmitRef = useRef(false);
+  const [reportSaveStatus, setReportSaveStatus] = useState("idle"); // idle | saving | saved | error
+  const [savedReportPackage, setSavedReportPackage] = useState(null);
+
   useEffect(() => {
     // New content may need a fresh PDF even if this Result mount already submitted once
     reportSubmitRef.current = false;
+    setReportSaveStatus("idle");
+    setSavedReportPackage(null);
   }, [reportContentHash]);
 
   useEffect(() => {
@@ -1379,6 +1384,7 @@ export default function Result() {
         window.localStorage.getItem(inflightKey)
       ) {
         reportSubmitRef.current = true;
+        setReportSaveStatus("saved");
         return;
       }
       try {
@@ -1389,6 +1395,7 @@ export default function Result() {
     }
 
     reportSubmitRef.current = true;
+    setReportSaveStatus("saving");
 
     const LIVE_DEFAULT = "https://quiz.zylkhealth.com/";
     const publicAppBase =
@@ -1464,12 +1471,21 @@ export default function Result() {
       },
     })
       .then((data) => {
+        // Pipeline returned the report package to the frontend
+        setSavedReportPackage(data || null);
+        setReportSaveStatus("saved");
         if (typeof window === "undefined") return;
         try {
           window.localStorage.setItem(
             `zylk_report_submitted_${reportContentHash}`,
             data?.reportId || reportId
           );
+          if (data?.pdfUrl) {
+            window.localStorage.setItem(
+              `zylk_report_pdf_${data.reportId || reportId}`,
+              data.pdfUrl
+            );
+          }
           window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
         } catch {
           // ignore
@@ -1486,6 +1502,8 @@ export default function Result() {
       .catch((err) => {
         // Allow a later retry if this submit failed
         reportSubmitRef.current = false;
+        setReportSaveStatus("error");
+        setSavedReportPackage(null);
         try {
           window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
         } catch {
@@ -1569,7 +1587,10 @@ export default function Result() {
                   </svg>
                 </span>
                 <span className="text-[10px] sm:text-[12px] font-medium text-[#555555] leading-snug break-words">
-                  Report ID: {reportId} • {reportDate}
+                  Report ID: {savedReportPackage?.reportId || reportId} •{" "}
+                  {savedReportPackage?.reportDate || reportDate}
+                  {reportSaveStatus === "saving" && " • Saving report…"}
+                  {reportSaveStatus === "error" && " • Report save pending — will retry"}
                 </span>
               </div>
 

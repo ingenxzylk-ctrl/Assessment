@@ -1,18 +1,27 @@
+/**
+ * Report API — post-analysis pipeline:
+ *
+ *   Customer submits quiz
+ *        → Gemini analysis          (POST /api/analyze — separate step)
+ *        → Generate PDF
+ *        → Save PDF on VPS
+ *        → Append lead to Google Sheets
+ *        → Return report to frontend
+ *
+ * Optional (non-blocking): Google Drive upload (inside storage), org email.
+ */
+
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import { buildAssessmentPdf, PDF_FORMAT_VERSION } from "../services/pdfService.js";
-import {
-  saveReportArtifacts,
-  loadReportJson,
-  loadReportPdf,
-} from "../services/storageService.js";
+import { PDF_FORMAT_VERSION } from "../services/pdfService.js";
+import { loadReportJson, loadReportPdf } from "../services/storageService.js";
 import { sendReportToOrganisation } from "../services/emailService.js";
 import {
-  appendLeadToGoogleSheet,
   buildPublicPdfUrl,
   isSheetsConfigured,
 } from "../services/googleSheetsService.js";
+import { runReportPipeline } from "../services/reportPipeline.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COUNTER_DIR =
@@ -210,11 +219,9 @@ function buildResultPageUrl({ resultPageUrl, appOrigin, reportId, requestOrigin 
     requestOrigin || "",
   ].filter(Boolean);
 
-  // Prefer the first non-loopback absolute URL (rewrite path + report id onto env/live base when needed)
   for (const candidate of candidates) {
     if (!/^https?:\/\//i.test(candidate)) continue;
     if (isLoopbackUrl(candidate)) continue;
-    // If candidate is already a full result URL with report param, keep it
     try {
       const u = new URL(candidate);
       if (u.searchParams.get("report") === String(reportId)) return u.toString();
@@ -224,29 +231,15 @@ function buildResultPageUrl({ resultPageUrl, appOrigin, reportId, requestOrigin 
     return appendReportParam(candidate, reportId);
   }
 
-  // Client sent only localhost (local testing) — still publish the live org link
   return appendReportParam(envBase || LIVE_DEFAULT, reportId);
 }
 
 /**
- * Strip bulky image payloads from the JSON archive after PDF generation.
- * PDF embeds the photos; JSON keeps metadata only.
+ * POST /api/report/submit
+ *
+ * Runs the canonical pipeline after Gemini analysis is already done client-side:
+ * PDF → VPS save → Google Sheets → return report package to frontend.
  */
-function sanitizeForArchive(payload) {
-  const images = Array.isArray(payload.scalpImages)
-    ? payload.scalpImages.map((img) => ({
-        type: img.type,
-        label: img.label,
-        hasImage: Boolean(img.dataUrl || img.previewUrl || img.url),
-      }))
-    : [];
-
-  return {
-    ...payload,
-    scalpImages: images,
-  };
-}
-
 export async function submitAssessmentReport(req, res) {
   try {
     const {
@@ -266,11 +259,12 @@ export async function submitAssessmentReport(req, res) {
 
     if (!aboutMe || !scalpAnalysis) {
       return res.status(400).json({
+        ok: false,
         error: "aboutMe and scalpAnalysis are required to generate a report.",
       });
     }
 
-    // Never reuse cached PDFs from older layout versions (v2 had 7–8 pages + blanks).
+    // Never reuse cached PDFs from older layout versions.
     // Skip only when the same quiz content was already rendered with THIS format.
     const existingByHash = await readContentHashMapping(contentHash);
     const hashFormatOk =
@@ -278,19 +272,40 @@ export async function submitAssessmentReport(req, res) {
     if (existingByHash?.reportId && hashFormatOk) {
       try {
         const loaded = await loadReportJson(existingByHash.reportId);
+        const cachedPdfUrl =
+          buildPublicPdfUrl(existingByHash.reportId, getApiPublicBase(req)) ||
+          loaded.data?.storageInfo?.pdfUrl ||
+          null;
         return res.json({
           ok: true,
+          success: true,
           skipped: true,
           reason: "content_unchanged",
           reportId: existingByHash.reportId,
-          reportDate: existingByHash.reportDate || loaded.data?.reportDate || null,
+          reportDate:
+            existingByHash.reportDate || loaded.data?.reportDate || null,
           resultPageUrl: loaded.data?.resultPageUrl || null,
           storage: loaded.storage || "local",
           pdfPath: null,
-          pdfUrl: loaded.data?.storageInfo?.pdfUrl || null,
+          pdfUrl: cachedPdfUrl,
           drive: null,
+          sheets: { skipped: true, reason: "content_unchanged" },
+          sheetsConfigured: isSheetsConfigured(),
           email: { skipped: true, reason: "content_unchanged" },
           pdfFormatVersion: PDF_FORMAT_VERSION,
+          pipeline: {
+            geminiAnalysis: true,
+            pdfGenerated: true,
+            savedOnVps: true,
+            sheetsAppended: false,
+            sheetsConfigured: isSheetsConfigured(),
+            returnedToFrontend: true,
+            skipped: true,
+            reason: "content_unchanged",
+            storage: loaded.storage || "local",
+            pdfUrl: cachedPdfUrl,
+            resultPageUrl: loaded.data?.resultPageUrl || null,
+          },
         });
       } catch {
         // Fall through and regenerate if archive missing
@@ -335,58 +350,25 @@ export async function submitAssessmentReport(req, res) {
       submittedAt: new Date().toISOString(),
     };
 
-    const pdfBuffer = await buildAssessmentPdf(payload);
-    const archive = sanitizeForArchive({
-      ...payload,
-      pdfFormatVersion: PDF_FORMAT_VERSION,
-      storageInfo: undefined,
-    });
-    const storageInfo = await saveReportArtifacts({
-      reportId,
-      pdfBuffer,
-      jsonData: {
-        ...archive,
-        pdfFormatVersion: PDF_FORMAT_VERSION,
-      },
+    // Canonical steps: Generate PDF → Save on VPS → Append Sheets → return
+    const package_ = await runReportPipeline({
+      payload,
+      apiPublicBase: getApiPublicBase(req),
       patientName: aboutMe.fullName || "Guest",
     });
 
-    console.log(
-      `[report] stored ${reportId}: storage=${storageInfo.storage}` +
-        (storageInfo.pdfUrl ? ` pdfUrl=${storageInfo.pdfUrl}` : "") +
-        (storageInfo.driveError ? ` driveError=${storageInfo.driveError}` : "") +
-        (storageInfo.drive?.skipped
-          ? ` driveSkipped=${storageInfo.drive.reason || "yes"}`
-          : "")
-    );
-
     await writeContentHashMapping(contentHash, reportId, reportDate);
 
-    // Prefer a stable API PDF link for the calling team Sheet
-    const publicPdfUrl =
-      buildPublicPdfUrl(reportId, getApiPublicBase(req)) ||
-      storageInfo.pdfUrl ||
-      null;
+    const publicPdfUrl = package_.publicPdfUrl || null;
+    const storageInfo = package_.storageInfo || {};
+    const sheetsResult = package_.sheets || {
+      skipped: true,
+      reason: "not_attempted",
+    };
 
-    let sheetsResult = { skipped: true, reason: "not_attempted" };
-    try {
-      sheetsResult = await appendLeadToGoogleSheet({
-        reportId,
-        reportDate,
-        aboutMe,
-        scalpAnalysis,
-        reportMeta: reportMeta || {},
-        resultPageUrl,
-        pdfUrl: publicPdfUrl,
-      });
-    } catch (sheetsErr) {
-      console.error("[report] sheets append failed:", sheetsErr.message);
-      sheetsResult = { ok: false, skipped: false, error: sheetsErr.message };
-    }
-
+    // Optional: org email notification (does not block the report response)
     let emailResult;
     try {
-      // Notification only — never pass pdfBuffer (Drive link is in storageInfo)
       emailResult = await sendReportToOrganisation({
         reportId,
         reportDate,
@@ -405,6 +387,7 @@ export async function submitAssessmentReport(req, res) {
 
     return res.json({
       ok: true,
+      success: true,
       reportId,
       reportDate,
       resultPageUrl,
@@ -416,10 +399,27 @@ export async function submitAssessmentReport(req, res) {
       sheetsConfigured: isSheetsConfigured(),
       email: emailResult,
       pdfFormatVersion: PDF_FORMAT_VERSION,
+      // Explicit pipeline contract for the frontend / ops
+      pipeline: {
+        geminiAnalysis: true, // already completed via POST /api/analyze
+        pdfGenerated: package_.pipeline?.pdfGenerated === true,
+        savedOnVps: package_.pipeline?.savedOnVps === true,
+        sheetsAppended: package_.pipeline?.sheetsAppended === true,
+        sheetsConfigured: isSheetsConfigured(),
+        returnedToFrontend: true,
+        storage: package_.pipeline?.storage || storageInfo.storage || "local",
+        pdfUrl: publicPdfUrl || storageInfo.pdfUrl || null,
+        resultPageUrl,
+      },
+      message: package_.pipeline?.sheetsAppended
+        ? "Report saved on VPS and appended to Google Sheets"
+        : "Report saved on VPS (Sheets skipped or failed — see sheets field)",
     });
   } catch (err) {
     console.error("[report] submit failed:", err);
     return res.status(500).json({
+      ok: false,
+      success: false,
       error: err.message || "Failed to generate and store assessment report.",
     });
   }
@@ -448,6 +448,10 @@ export async function getAssessmentReport(req, res) {
       reportMeta: data.reportMeta || {},
       gender: data.gender || data.aboutMe?.gender || null,
       submittedAt: data.submittedAt || null,
+      pdfUrl:
+        buildPublicPdfUrl(loaded.reportId, getApiPublicBase(req)) ||
+        data.storageInfo?.pdfUrl ||
+        null,
     });
   } catch (err) {
     const status = err.status || 500;
