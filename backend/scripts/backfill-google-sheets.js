@@ -33,11 +33,15 @@ import {
   hasOAuthConfig,
   hasServiceAccountConfig,
 } from "../services/googleDriveService.js";
+import {
+  REPORTS_ROOT,
+  listLocalPrimaryReportIds,
+  resolvePrimaryReportDir,
+  isValidReportId,
+} from "../services/reportIdService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPORTS_DIR =
-  process.env.REPORT_STORAGE_DIR ||
-  path.join(__dirname, "..", "storage", "reports");
+const REPORTS_DIR = REPORTS_ROOT;
 
 const REPORT_ID_RE = /^TR-(\d{2})(\d{2})(\d{4})-(\d+)$/i;
 const BATCH_SIZE = 40;
@@ -121,20 +125,20 @@ function inRange(d, from, to) {
 }
 
 async function listLocalReportIds() {
-  let entries = [];
   try {
-    entries = await fs.readdir(REPORTS_DIR, { withFileTypes: true });
+    return await listLocalPrimaryReportIds();
   } catch (err) {
     throw new Error(`Cannot read ${REPORTS_DIR}: ${err.message}`);
   }
-  return entries
-    .filter((e) => e.isDirectory() && REPORT_ID_RE.test(e.name))
-    .map((e) => e.name)
-    .sort();
 }
 
 async function loadAssessmentJson(reportId) {
-  const jsonPath = path.join(REPORTS_DIR, reportId, "assessment.json");
+  if (!isValidReportId(reportId)) {
+    throw new Error(`Invalid report id: ${reportId}`);
+  }
+  const dir = await resolvePrimaryReportDir(reportId);
+  if (!dir) throw new Error(`Report archive not found: ${reportId}`);
+  const jsonPath = path.join(dir, "assessment.json");
   const raw = await fs.readFile(jsonPath, "utf8");
   return JSON.parse(raw);
 }

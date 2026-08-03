@@ -4,31 +4,37 @@
  * Guarantees:
  * - Never overwrite an existing primary report
  * - Never delete / replace reports automatically
- * - On ID collision → persist under duplicate_reports/ with full metadata
+ * - On ID collision → persist under duplicate_reports/ as TR-…-DUPN
  * - Raw incoming payloads are written to incoming/ before processing
  *
  * Layout (VPS):
- *   storage/reports/TR-…/                 primary archives
- *   storage/duplicate_reports/…/          collision copies + meta
- *   storage/incoming/…                    durable raw request dumps
- *   storage/logs/report-storage.log       append-only event log
+ *   storage/reports/YYYY/MM/TR-…/              primary (date-partitioned)
+ *   storage/duplicate_reports/YYYY/MM/TR-…-DUPN/  collisions + meta
+ *   storage/incoming/…                         durable raw request dumps
+ *   storage/logs/report-storage.log            append-only event log
+ *
+ * Legacy flat reports/TR-…/ paths are still readable.
  */
 
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
 import { randomUUID } from "crypto";
 import {
   isDriveConfigured,
   uploadReportToGoogleDrive,
 } from "./googleDriveService.js";
-import { REPORTS_ROOT, isValidReportId } from "./reportIdService.js";
+import {
+  REPORTS_ROOT,
+  DUPLICATE_ROOT,
+  isValidReportId,
+  primaryReportDir,
+  resolvePrimaryReportDir,
+  reportArchiveExists,
+  allocateDuplicateReportId,
+  duplicateReportDir,
+} from "./reportIdService.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STORAGE_ROOT = path.dirname(REPORTS_ROOT);
-const DUPLICATE_ROOT =
-  process.env.REPORT_DUPLICATE_DIR ||
-  path.join(STORAGE_ROOT, "duplicate_reports");
 const INCOMING_ROOT =
   process.env.REPORT_INCOMING_DIR || path.join(STORAGE_ROOT, "incoming");
 const LOG_DIR = path.join(STORAGE_ROOT, "logs");
@@ -142,14 +148,15 @@ export async function persistIncomingRequest({
 }
 
 export async function primaryArchiveExists(reportId) {
-  const safeId = String(reportId || "").trim().toUpperCase();
-  if (!isValidReportId(safeId)) return false;
-  return pathExists(path.join(REPORTS_ROOT, safeId, "assessment.json"));
+  return reportArchiveExists(reportId);
 }
 
 async function writePrimaryLocal({ reportId, pdfBuffer, jsonData }) {
   const safeId = String(reportId || "").trim().toUpperCase();
-  const reportDir = path.join(REPORTS_ROOT, safeId);
+  // Prefer existing dir (legacy or reserved); else canonical partitioned path.
+  const reportDir =
+    (await resolvePrimaryReportDir(safeId, { preferWrite: true })) ||
+    primaryReportDir(safeId);
   await ensureDir(reportDir);
 
   const pdfPath = path.join(reportDir, "assessment.pdf");
@@ -182,7 +189,7 @@ async function writePrimaryLocal({ reportId, pdfBuffer, jsonData }) {
 }
 
 /**
- * Save under duplicate_reports/ — never touches primary archives.
+ * Save under duplicate_reports/YYYY/MM/TR-…-DUPN/ — never touches primary.
  */
 export async function saveDuplicateReport({
   originalReportId,
@@ -195,18 +202,25 @@ export async function saveDuplicateReport({
   analysis = null,
 } = {}) {
   const original = String(originalReportId || "UNKNOWN").trim().toUpperCase();
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const dupId =
-    (duplicateReportId && String(duplicateReportId).trim()) ||
-    `DUP-${stamp}`;
-  const folderName = `${original}__${stamp}__${dupId}`.replace(
-    /[^A-Za-z0-9._-]/g,
-    "_"
-  );
 
-  await ensureDir(DUPLICATE_ROOT);
-  const reportDir = path.join(DUPLICATE_ROOT, folderName);
-  await ensureDir(reportDir);
+  let dupId = duplicateReportId && String(duplicateReportId).trim().toUpperCase();
+  let reportDir = null;
+
+  if (!dupId) {
+    const allocated = await allocateDuplicateReportId(original);
+    dupId = allocated.duplicateReportId;
+    reportDir = allocated.reportDir;
+  } else {
+    reportDir = duplicateReportDir(dupId, original);
+    await ensureDir(reportDir);
+  }
+
+  // If caller supplied an ID that already has content, bump to next DUPN.
+  if (await pathExists(path.join(reportDir, "assessment.json"))) {
+    const allocated = await allocateDuplicateReportId(original);
+    dupId = allocated.duplicateReportId;
+    reportDir = allocated.reportDir;
+  }
 
   const pdfPath = path.join(reportDir, "assessment.pdf");
   const jsonPath = path.join(reportDir, "assessment.json");
@@ -270,6 +284,12 @@ export async function saveDuplicateReport({
   };
 }
 
+function s3PartitionPrefix(reportId) {
+  const m = String(reportId || "").match(/^TR-(\d{2})(\d{2})(\d{4})-/i);
+  if (!m) return "";
+  return `${m[3]}/${m[2]}/`;
+}
+
 async function saveToS3({ reportId, pdfBuffer, jsonData }) {
   const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
   const bucket = process.env.AWS_S3_BUCKET;
@@ -279,9 +299,10 @@ async function saveToS3({ reportId, pdfBuffer, jsonData }) {
     ""
   );
   const client = new S3Client({ region });
+  const part = s3PartitionPrefix(reportId);
 
-  const pdfKey = `${prefix}/${reportId}/assessment.pdf`;
-  const jsonKey = `${prefix}/${reportId}/assessment.json`;
+  const pdfKey = `${prefix}/${part}${reportId}/assessment.pdf`;
+  const jsonKey = `${prefix}/${part}${reportId}/assessment.json`;
 
   await client.send(
     new PutObjectCommand({
@@ -302,7 +323,7 @@ async function saveToS3({ reportId, pdfBuffer, jsonData }) {
 
   return {
     storage: "s3",
-    reportDir: `s3://${bucket}/${prefix}/${reportId}`,
+    reportDir: `s3://${bucket}/${prefix}/${part}${reportId}`,
     pdfPath: pdfKey,
     jsonPath: jsonKey,
     pdfUrl: `https://${bucket}.s3.${region}.amazonaws.com/${pdfKey}`,
@@ -313,7 +334,7 @@ async function saveToS3({ reportId, pdfBuffer, jsonData }) {
 /**
  * Atomic fail-safe save:
  * 1) If primary ID free → write primary (never overwrite)
- * 2) If primary exists → write duplicate_reports + metadata (never lose)
+ * 2) If primary exists → write duplicate_reports as TR-…-DUPN (never lose)
  */
 export async function saveReportArtifactsFailSafe({
   reportId,
@@ -365,7 +386,6 @@ export async function saveReportArtifactsFailSafe({
       status: "ok",
     });
 
-    // Optional cloud mirrors — failures must not erase local primary
     if (isDriveConfigured()) {
       try {
         const drive = await uploadReportToGoogleDrive({
@@ -427,7 +447,6 @@ export async function saveReportArtifactsFailSafe({
       },
     };
   } catch (err) {
-    // Race: another process wrote primary between exists-check and write
     if (err?.code === "REPORT_EXISTS" || err?.code === "EEXIST") {
       await logStorageEvent("duplicate_detected_race", {
         reportId: safeId,
@@ -452,7 +471,6 @@ export async function saveReportArtifactsFailSafe({
       error: err?.message || String(err),
     });
 
-    // Last resort: still try duplicate folder so nothing is lost
     try {
       return await saveDuplicateReport({
         originalReportId: safeId,
@@ -474,34 +492,52 @@ export async function saveReportArtifactsFailSafe({
   }
 }
 
-// ── Loaders (primary archives) ──────────────────────────────────────────
-
-export async function loadReportJson(reportId) {
-  const safeId = String(reportId || "").trim();
-  if (!/^TR-\d{8}-\d{2,}$/i.test(safeId)) {
-    const err = new Error("Invalid report id.");
-    err.status = 400;
-    throw err;
-  }
-
-  const localJson = path.join(REPORTS_ROOT, safeId, "assessment.json");
+async function readLocalJson(reportId) {
+  const dir = await resolvePrimaryReportDir(reportId);
+  if (!dir) return null;
+  const localJson = path.join(dir, "assessment.json");
   try {
     const raw = await fs.readFile(localJson, "utf8");
-    return { storage: "local", reportId: safeId, data: JSON.parse(raw) };
+    return { storage: "local", reportId: String(reportId).trim().toUpperCase(), data: JSON.parse(raw), reportDir: dir };
   } catch {
-    // fall through
+    return null;
   }
+}
 
-  if (useS3()) {
-    const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
-    const bucket = process.env.AWS_S3_BUCKET;
-    const region = process.env.AWS_REGION || "ap-south-1";
-    const prefix = (process.env.AWS_S3_PREFIX || "assessment-reports").replace(
-      /\/$/,
-      ""
-    );
-    const client = new S3Client({ region });
-    const jsonKey = `${prefix}/${safeId}/assessment.json`;
+async function readLocalPdf(reportId) {
+  const dir = await resolvePrimaryReportDir(reportId);
+  if (!dir) return null;
+  const localPdf = path.join(dir, "assessment.pdf");
+  try {
+    const buffer = await fs.readFile(localPdf);
+    return {
+      storage: "local",
+      reportId: String(reportId).trim().toUpperCase(),
+      buffer,
+      contentType: "application/pdf",
+      reportDir: dir,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function tryS3Json(safeId) {
+  if (!useS3()) return null;
+  const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+  const bucket = process.env.AWS_S3_BUCKET;
+  const region = process.env.AWS_REGION || "ap-south-1";
+  const prefix = (process.env.AWS_S3_PREFIX || "assessment-reports").replace(
+    /\/$/,
+    ""
+  );
+  const client = new S3Client({ region });
+  const part = s3PartitionPrefix(safeId);
+  const keys = [
+    `${prefix}/${part}${safeId}/assessment.json`,
+    `${prefix}/${safeId}/assessment.json`,
+  ];
+  for (const jsonKey of keys) {
     try {
       const out = await client.send(
         new GetObjectCommand({ Bucket: bucket, Key: jsonKey })
@@ -512,47 +548,29 @@ export async function loadReportJson(reportId) {
         reportId: safeId,
         data: JSON.parse(body),
       };
-    } catch (err) {
-      console.error("[storage] S3 load failed:", err.message);
+    } catch {
+      // try next
     }
   }
-
-  const notFound = new Error("Report not found.");
-  notFound.status = 404;
-  throw notFound;
+  return null;
 }
 
-export async function loadReportPdf(reportId) {
-  const safeId = String(reportId || "").trim();
-  if (!/^TR-\d{8}-\d{2,}$/i.test(safeId)) {
-    const err = new Error("Invalid report id.");
-    err.status = 400;
-    throw err;
-  }
-
-  const localPdf = path.join(REPORTS_ROOT, safeId, "assessment.pdf");
-  try {
-    const buffer = await fs.readFile(localPdf);
-    return {
-      storage: "local",
-      reportId: safeId,
-      buffer,
-      contentType: "application/pdf",
-    };
-  } catch {
-    // fall through
-  }
-
-  if (useS3()) {
-    const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
-    const bucket = process.env.AWS_S3_BUCKET;
-    const region = process.env.AWS_REGION || "ap-south-1";
-    const prefix = (process.env.AWS_S3_PREFIX || "assessment-reports").replace(
-      /\/$/,
-      ""
-    );
-    const client = new S3Client({ region });
-    const pdfKey = `${prefix}/${safeId}/assessment.pdf`;
+async function tryS3Pdf(safeId) {
+  if (!useS3()) return null;
+  const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
+  const bucket = process.env.AWS_S3_BUCKET;
+  const region = process.env.AWS_REGION || "ap-south-1";
+  const prefix = (process.env.AWS_S3_PREFIX || "assessment-reports").replace(
+    /\/$/,
+    ""
+  );
+  const client = new S3Client({ region });
+  const part = s3PartitionPrefix(safeId);
+  const keys = [
+    `${prefix}/${part}${safeId}/assessment.pdf`,
+    `${prefix}/${safeId}/assessment.pdf`,
+  ];
+  for (const pdfKey of keys) {
     try {
       const out = await client.send(
         new GetObjectCommand({ Bucket: bucket, Key: pdfKey })
@@ -567,10 +585,47 @@ export async function loadReportPdf(reportId) {
         buffer: Buffer.concat(chunks),
         contentType: "application/pdf",
       };
-    } catch (err) {
-      console.error("[storage] S3 PDF load failed:", err.message);
+    } catch {
+      // try next
     }
   }
+  return null;
+}
+
+// ── Loaders (primary archives) ──────────────────────────────────────────
+
+export async function loadReportJson(reportId) {
+  const safeId = String(reportId || "").trim();
+  if (!isValidReportId(safeId)) {
+    const err = new Error("Invalid report id.");
+    err.status = 400;
+    throw err;
+  }
+
+  const local = await readLocalJson(safeId);
+  if (local) return local;
+
+  const s3 = await tryS3Json(safeId.toUpperCase());
+  if (s3) return s3;
+
+  const notFound = new Error("Report not found.");
+  notFound.status = 404;
+  throw notFound;
+}
+
+export async function loadReportPdf(reportId) {
+  const safeId = String(reportId || "").trim();
+  if (!isValidReportId(safeId)) {
+    const err = new Error("Invalid report id.");
+    err.status = 400;
+    throw err;
+  }
+
+  const local = await readLocalPdf(safeId);
+  if (local) return local;
+
+  const s3 = await tryS3Pdf(safeId.toUpperCase());
+  if (s3) return s3;
 
   const notFound = new Error("Report PDF not found.");
   notFound.status = 404;

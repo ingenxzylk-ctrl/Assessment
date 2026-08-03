@@ -30,6 +30,7 @@ import {
 import { runReportPipeline } from "../services/reportPipeline.js";
 import {
   allocateReportId,
+  allocateDuplicateReportId,
   isValidReportId,
   REPORTS_ROOT,
 } from "../services/reportIdService.js";
@@ -351,13 +352,13 @@ export async function submitAssessmentReport(req, res) {
     }
 
     // Extra safety: if primary archive somehow already exists, never overwrite.
-    // Keep the conflicting submission in duplicate_reports, then allocate a fresh ID.
+    // Keep the conflicting submission as TR-…-DUPN, then allocate a fresh primary ID.
     let precheckDuplicate = null;
     if (await primaryArchiveExists(reportId)) {
-      const duplicateId = `${reportId}-DUP-${Date.now()}`;
+      const { duplicateReportId } = await allocateDuplicateReportId(reportId);
       precheckDuplicate = await saveDuplicateReport({
         originalReportId: reportId,
-        duplicateReportId: duplicateId,
+        duplicateReportId,
         reason: "report_id_already_exists_before_pipeline",
         requestPayload,
         quizId,
@@ -375,7 +376,7 @@ export async function submitAssessmentReport(req, res) {
       logStorageEvent("duplicate_detected", {
         quizId,
         reportId,
-        duplicateReportId: duplicateId,
+        duplicateReportId: precheckDuplicate.duplicateReportId,
         storageLocation: precheckDuplicate.dir,
         reason: "report_id_already_exists_before_pipeline",
         status: "saved_to_duplicate_reports",
@@ -535,9 +536,12 @@ export async function submitAssessmentReport(req, res) {
 
     // Last-resort: keep the full request in duplicate_reports so nothing is lost.
     try {
+      const failBase =
+        (req.body?.clientReportId && isValidReportId(req.body.clientReportId)
+          ? String(req.body.clientReportId).trim().toUpperCase()
+          : null) || "FAIL";
       await saveDuplicateReport({
-        originalReportId: req.body?.clientReportId || "UNKNOWN",
-        duplicateReportId: `FAIL-${Date.now()}`,
+        originalReportId: failBase,
         reason: `submit_exception: ${err.message}`,
         requestPayload,
         quizId,
