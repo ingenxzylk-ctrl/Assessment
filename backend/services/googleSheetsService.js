@@ -238,8 +238,40 @@ export function buildLeadRow({
   ];
 }
 
+function sheetTabName() {
+  const range = sheetsRange();
+  const tab = range.includes("!") ? range.split("!")[0].trim() : "Sheet1";
+  return tab || "Sheet1";
+}
+
 /**
- * Append many lead rows in one Sheets write (much lower quota use than 1-by-1).
+ * Find the next empty row after real lead data (column B = Report ID).
+ * Ignores pre-formatted blank rows / dropdown-only formatting that make
+ * values.append jump to row 1000+.
+ */
+async function findNextLeadRow(sheets, spreadsheetId) {
+  const tab = sheetTabName();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${tab}!B:B`,
+    majorDimension: "COLUMNS",
+  });
+  const col = res?.data?.values?.[0] || [];
+  // Row 1 is header. Find last row with a real Report ID (or any non-empty B).
+  let lastDataRow = 1;
+  for (let i = 1; i < col.length; i += 1) {
+    const v = String(col[i] || "").trim();
+    if (!v) continue;
+    if (/^report\s*id$/i.test(v)) continue;
+    lastDataRow = i + 1; // 1-based sheet row
+  }
+  return lastDataRow + 1;
+}
+
+/**
+ * Write many lead rows starting at the first empty data row (A2 if empty).
+ * Uses values.update (not append) so pre-filled Call Status dropdowns
+ * don't push new leads thousands of rows down the sheet.
  */
 export async function appendLeadRowsBatch(rows) {
   if (!isSheetsConfigured()) {
@@ -256,28 +288,33 @@ export async function appendLeadRowsBatch(rows) {
   try {
     const sheets = await getSheetsClient();
     const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
-    const range = sheetsRange();
-    const response = await sheets.spreadsheets.values.append({
+    const tab = sheetTabName();
+    const startRow = await findNextLeadRow(sheets, spreadsheetId);
+    const endRow = startRow + rows.length - 1;
+    const targetRange = `${tab}!A${startRow}:L${endRow}`;
+
+    const response = await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range,
+      range: targetRange,
       valueInputOption: "USER_ENTERED",
-      insertDataOption: "INSERT_ROWS",
       requestBody: { values: rows },
     });
-    const updatedRange = response?.data?.updates?.updatedRange || null;
+
+    const updatedRange = response?.data?.updatedRange || targetRange;
     console.log(
-      `[sheets] batch appended ${rows.length} row(s)${updatedRange ? ` → ${updatedRange}` : ""}`
+      `[sheets] wrote ${rows.length} row(s) at ${updatedRange} (start row ${startRow})`
     );
     return {
       ok: true,
       skipped: false,
       spreadsheetId,
       updatedRange,
+      startRow,
       count: rows.length,
     };
   } catch (err) {
     const message = improveSheetsError(err);
-    console.error("[sheets] batch append failed:", message);
+    console.error("[sheets] batch write failed:", message);
     return {
       ok: false,
       skipped: false,
@@ -354,9 +391,16 @@ export async function probeGoogleSheets() {
       .map((s) => s?.properties?.title)
       .filter(Boolean);
 
+    const tab = sheetTabName();
     const header = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: range.includes("!") ? range.replace(/![^!]+$/, "!A1:L1") : "A1:L1",
+      range: `${tab}!A1:L1`,
+    });
+    const nextRow = await findNextLeadRow(sheets, spreadsheetId);
+    const previewStart = Math.max(2, nextRow - 3);
+    const preview = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${tab}!A${previewStart}:C${Math.max(previewStart, nextRow - 1)}`,
     });
 
     return {
@@ -367,6 +411,13 @@ export async function probeGoogleSheets() {
       tabNames,
       range,
       headerRow: header?.data?.values?.[0] || [],
+      nextWriteRow: nextRow,
+      dataRowCount: Math.max(0, nextRow - 2),
+      recentRows: preview?.data?.values || [],
+      hint:
+        nextRow <= 2
+          ? "Sheet has no lead rows yet — next write goes to row 2 (under the header)."
+          : `Sheet has ${nextRow - 2} lead row(s). Next write starts at row ${nextRow}. If you do not see data, clear filters and jump to row 2.`,
       authMode: getSheetsStatus().authMode,
     };
   } catch (err) {
