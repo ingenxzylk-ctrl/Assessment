@@ -6,9 +6,11 @@
  *   node scripts/backfill-google-sheets.js --from 2026-07-30 --to 2026-08-03
  *   node scripts/backfill-google-sheets.js --all --dry-run
  *   node scripts/backfill-google-sheets.js --all
+ *   node scripts/backfill-google-sheets.js --retry-failed
  *
  * Reads backend/storage/reports/TR-DDMMYYYY-NN/assessment.json
  * Skips report IDs already present in column B of the Sheet.
+ * Failed IDs are written to storage/reports/_backfill_failed.txt for --retry-failed.
  * Gmail notifications are NOT the source — VPS archives are.
  */
 
@@ -37,15 +39,71 @@ const REPORTS_DIR =
 const REPORT_ID_RE = /^TR-(\d{2})(\d{2})(\d{4})-(\d+)$/i;
 
 function parseArgs(argv) {
-  const out = { from: null, to: null, dryRun: false, all: false };
+  const out = {
+    from: null,
+    to: null,
+    dryRun: false,
+    all: false,
+    retryFailed: false,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--dry-run") out.dryRun = true;
     else if (a === "--all") out.all = true;
+    else if (a === "--retry-failed") out.retryFailed = true;
     else if (a === "--from") out.from = argv[++i];
     else if (a === "--to") out.to = argv[++i];
   }
   return out;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const FAILED_LIST_PATH = path.join(REPORTS_DIR, "_backfill_failed.txt");
+
+async function loadFailedList() {
+  try {
+    const raw = await fs.readFile(FAILED_LIST_PATH, "utf8");
+    return raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => REPORT_ID_RE.test(l));
+  } catch {
+    return [];
+  }
+}
+
+async function saveFailedList(ids) {
+  await fs.mkdir(REPORTS_DIR, { recursive: true });
+  await fs.writeFile(
+    FAILED_LIST_PATH,
+    ids.map((id) => String(id).toUpperCase()).join("\n") + (ids.length ? "\n" : ""),
+    "utf8"
+  );
+}
+
+async function appendWithRetry(payload, attempts = 4) {
+  let last = null;
+  for (let i = 1; i <= attempts; i += 1) {
+    last = await appendLeadToGoogleSheet(payload);
+    if (last?.ok) return last;
+
+    const err = String(last?.error || last?.reason || "");
+    const retryable =
+      /rate|quota|429|500|503|ECONNRESET|ETIMEDOUT|socket|temporarily/i.test(
+        err
+      );
+    if (!retryable || i === attempts) break;
+
+    const waitMs = 800 * i * i;
+    console.warn(
+      `retry ${payload.reportId} (${i}/${attempts}) in ${waitMs}ms — ${err.slice(0, 120)}`
+    );
+    await sleep(waitMs);
+  }
+  return last;
 }
 
 /** Parse YYYY-MM-DD or DD.MM.YYYY → Date at UTC midnight */
@@ -173,11 +231,22 @@ if (!probe.ok) {
 console.log(`✅ Sheet: "${probe.title}"`);
 
 const allIds = await listLocalReportIds();
-const candidates = allIds.filter((id) =>
-  inRange(reportIdToDate(id), from, to)
-);
+let candidates = allIds.filter((id) => inRange(reportIdToDate(id), from, to));
 
-console.log(`\nLocal reports in range: ${candidates.length}`);
+if (args.retryFailed) {
+  const failedIds = await loadFailedList();
+  if (!failedIds.length) {
+    console.log(`\nNo failed list at ${FAILED_LIST_PATH}`);
+    console.log("Run a normal backfill first, or pass --all again.\n");
+    process.exit(0);
+  }
+  const allow = new Set(failedIds.map((id) => id.toUpperCase()));
+  candidates = allIds.filter((id) => allow.has(id.toUpperCase()));
+  console.log(`\nRetrying ${candidates.length} IDs from _backfill_failed.txt`);
+} else {
+  console.log(`\nLocal reports in range: ${candidates.length}`);
+}
+
 if (!candidates.length) {
   console.log("Nothing to backfill.\n");
   process.exit(0);
@@ -195,6 +264,8 @@ try {
 let appended = 0;
 let skipped = 0;
 let failed = 0;
+const failedIds = [];
+const failReasons = new Map();
 
 for (const reportId of candidates) {
   const key = reportId.toUpperCase();
@@ -233,21 +304,40 @@ for (const reportId of candidates) {
     continue;
   }
 
-  const result = await appendLeadToGoogleSheet(payload);
-  if (result.ok) {
+  const result = await appendWithRetry(payload);
+  if (result?.ok) {
     console.log(`ok ${reportId} → ${result.updatedRange || "appended"}`);
     appended += 1;
     existing.add(key);
+    // Gentle pacing to avoid Sheets write quota bursts
+    await sleep(250);
   } else {
-    console.error(`fail ${reportId}: ${result.error || result.reason}`);
+    const reason = result?.error || result?.reason || "unknown";
+    console.error(`fail ${reportId}: ${reason}`);
     failed += 1;
+    failedIds.push(reportId);
+    failReasons.set(reason, (failReasons.get(reason) || 0) + 1);
   }
+}
+
+if (!args.dryRun) {
+  await saveFailedList(failedIds);
 }
 
 console.log("\n--- summary ---");
 console.log("appended:", appended);
 console.log("skipped:", skipped);
 console.log("failed:", failed);
+if (failReasons.size) {
+  console.log("fail reasons:");
+  for (const [reason, count] of failReasons) {
+    console.log(`  (${count}) ${reason}`);
+  }
+}
+if (failedIds.length) {
+  console.log(`\nFailed IDs saved to: ${FAILED_LIST_PATH}`);
+  console.log("Retry with: node scripts/backfill-google-sheets.js --retry-failed");
+}
 console.log(args.dryRun ? "(dry-run — no rows written)\n" : "\n");
 
 process.exit(failed ? 1 : 0);
