@@ -156,7 +156,7 @@ export default function CartDrawer() {
               </p>
             </div>
             <p className="text-xs text-gray-400">
-              Keep this tab open — you will be taken to checkout once.
+              Keep this tab open — checkout opens automatically (popups not required).
             </p>
           </div>
         </div>
