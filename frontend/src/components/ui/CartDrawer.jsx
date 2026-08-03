@@ -22,13 +22,13 @@ export default function CartDrawer() {
   const handleCheckout = async () => {
     if (checkoutBusy) return;
     setCheckoutBusy(true);
-    setCheckoutStatus("Adding to your cart…");
+    setCheckoutStatus("Adding your kit…");
     try {
       if (flushPersistence) flushPersistence();
       await redirectToWordPressCheckout(cartItems, state, {
         onStatus: setCheckoutStatus,
       });
-      // On success the page navigates away; if not, re-enable.
+      // On success the page navigates to /checkout; if not, re-enable.
       setCheckoutBusy(false);
       setCheckoutStatus("");
     } catch (err) {
@@ -134,14 +134,14 @@ export default function CartDrawer() {
                   <span>Adding kit…</span>
                 </>
               ) : (
-                "Go to Cart"
+                "Proceed to Checkout"
               )}
             </button>
           </div>
         )}
       </div>
 
-      {/* In-app loading overlay — AJAX add on Woo, then one redirect to /cart/ */}
+      {/* AJAX add on Woo → one redirect to /checkout (never /cart/?add-to-cart=) */}
       {checkoutBusy && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-[#064e3b]/70 backdrop-blur-[2px]">
           <div className="mx-4 max-w-sm w-full rounded-3xl bg-white p-8 shadow-2xl text-center space-y-4">
@@ -150,13 +150,13 @@ export default function CartDrawer() {
               aria-hidden
             />
             <div>
-              <p className="text-base font-bold text-gray-900">Preparing your cart</p>
+              <p className="text-base font-bold text-gray-900">Preparing checkout</p>
               <p className="text-sm text-gray-500 mt-1">
                 {checkoutStatus || "Adding your kit…"}
               </p>
             </div>
             <p className="text-xs text-gray-400">
-              Keep this tab open — you will be taken to the cart once.
+              Keep this tab open — you will be taken to checkout once.
             </p>
           </div>
         </div>
