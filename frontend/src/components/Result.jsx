@@ -11,6 +11,7 @@ import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
 import { getBundleItems } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
+import { redirectToWordPressCheckout } from "../utils/wordpressCheckout";
 import { motion, useMotionValue, animate } from "framer-motion";
 
 const AVATAR_FALLBACK =
@@ -1283,27 +1284,46 @@ export default function Result() {
       includeHealthMix: false,
       gender,
     });
-    // Replace any previous assessment kit (e.g. male → female redo)
-    addToCart({
-      id: recommendedBundle.bundleId,
-      name: getBundleDisplayName(bundleNumber, gender, aiPredictedStageNumber),
-      price: recommendedBundle.price,
-      priceWithMix: recommendedBundle.bundlePrice,
-      priceWithoutMix: recommendedBundle.priceWithoutMix,
-      bundleNumber,
-      includeHealthMix: false,
-      coachCallOptIn,
-      gender,
-      stage: aiPredictedStageNumber,
-      hasDandruff,
-      usesSeparateHealthMix: false,
-      // Single WooCommerce kit ID (8588 / 8594–8597 male, 8590 female)
-      wooProductId: kitWooId || getWooProductId(bundleNumber, false, hasDandruff, gender),
-      wooHealthMixProductId: null,
-      wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
-      wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
-      subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,
-    });
+    const wooProductId =
+      kitWooId || getWooProductId(bundleNumber, false, hasDandruff, gender);
+
+    // Keep local quiz cart in sync (optional), then leave this tab for Woo Blocks checkout.
+    // Do NOT open the quiz cart drawer — that led to popups / empty-cart on mobile.
+    addToCart(
+      {
+        id: recommendedBundle.bundleId,
+        name: getBundleDisplayName(bundleNumber, gender, aiPredictedStageNumber),
+        price: recommendedBundle.price,
+        priceWithMix: recommendedBundle.bundlePrice,
+        priceWithoutMix: recommendedBundle.priceWithoutMix,
+        bundleNumber,
+        includeHealthMix: false,
+        coachCallOptIn,
+        gender,
+        stage: aiPredictedStageNumber,
+        hasDandruff,
+        usesSeparateHealthMix: false,
+        wooProductId,
+        wooHealthMixProductId: null,
+        wooProductIdWithMix: recommendedBundle.wooProductIdWithMix,
+        wooProductIdNoMix: recommendedBundle.wooProductIdNoMix,
+        subtitle: `Complete Customized System (Stage ${aiPredictedStageNumber})`,
+      },
+      { open: false }
+    );
+
+    redirectToWordPressCheckout(
+      [
+        {
+          bundleNumber,
+          hasDandruff,
+          gender,
+          wooProductId,
+          quantity: 1,
+        },
+      ],
+      state
+    );
   };
 
   const handleBack = () => {

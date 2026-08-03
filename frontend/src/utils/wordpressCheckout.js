@@ -12,23 +12,25 @@ const WP_SITE_URL = (
 ).replace(/\/$/, "");
 
 /**
- * Mobile-safe, CPU-safe checkout:
+ * Mobile-safe, CPU-safe checkout for WooCommerce Blocks:
  *
- *   ONE same-tab navigation → /checkout/?add-to-cart=KIT
+ *   ONE same-tab navigation → /checkout-link/?products=KIT[:QTY]
  *
- * Why not popups / iframes?
- * - Mobile Chrome blocks window.open ("pop-ups blocked") and may return a
- *   fake window → we used to think add succeeded, then opened empty /checkout/
- *   which Woo redirects to an empty /cart/.
- * - Cross-origin iframes often never set the Woo session cookie.
+ * Why checkout-link (not /checkout/?add-to-cart=)?
+ * - The storefront checkout is Woo Blocks + Store API.
+ * - Plain add-to-cart can set a PHP cookie while Blocks still shows an
+ *   empty cart → theme sends you to /cart/ ("Your cart is currently empty!").
+ * - checkout-link creates a Store API session and redirects to
+ *   /checkout/?session=… with the kit already in the cart.
  *
- * Why not /cart/?add-to-cart=?
- * - That path caused heavy CPU spikes on the storefront.
+ * Why not popups / iframes / /cart/?add-to-cart=?
+ * - Mobile blocks window.open ("pop-ups blocked").
+ * - /cart/?add-to-cart= caused CPU spikes on the theme.
  *
- * Single kit SKUs only: 8588 / 8594–8597 / 8590 (+ test kit).
+ * Single kit SKUs: 8588 / 8594–8597 / 8590 (+ test kit).
  */
-const CHECKOUT_URL = `${WP_SITE_URL}/checkout/`;
-const CHECKOUT_VERSION = "v9-mobile-direct-checkout";
+const CHECKOUT_LINK_URL = `${WP_SITE_URL}/checkout-link/`;
+const CHECKOUT_VERSION = "v10-checkout-link-blocks";
 
 const TEST_KIT_ID = Number(BUNDLE_CONFIG[TEST_BUNDLE_NUMBER]?.wooProductId) || 8363;
 const ALLOWED_KIT_IDS = new Set([...STAGE_KIT_WOO_IDS, TEST_KIT_ID]);
@@ -55,8 +57,17 @@ function resolveKitId(item) {
   return kitId;
 }
 
+/** Build the Woo shareable checkout URL for one kit. */
+export function buildCheckoutLinkUrl(kitId, quantity = 1) {
+  const id = Number(kitId);
+  const qty = Math.max(1, Number(quantity) || 1);
+  const products = qty > 1 ? `${id}:${qty}` : String(id);
+  return `${CHECKOUT_LINK_URL}?products=${encodeURIComponent(products)}`;
+}
+
 /**
- * Quiz → add 1 kit → /checkout (same tab, no popup, no cart page).
+ * Persist quiz state quickly, then leave this tab for Woo checkout.
+ * Navigation is intentionally not gated on IndexedDB photo save.
  */
 export async function redirectToWordPressCheckout(cartItems, quizState, options = {}) {
   if (!cartItems?.length) return;
@@ -75,22 +86,16 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
   }
 
   const qty = Math.max(1, Number(item.quantity) || 1);
-  setStatus("Saving your assessment…");
+  setStatus("Opening checkout…");
 
   if (quizState) {
     persistQuizStateNow(quizState);
-    try {
-      await saveScalpImagesToIdb(quizState.scalpImages);
-    } catch {
-      // continue — checkout must not block on photo cache
-    }
+    // Fire-and-forget — do not await (keeps navigation inside the click gesture)
+    saveScalpImagesToIdb(quizState.scalpImages).catch(() => {});
   }
   markCheckoutReturn();
 
-  // Same-tab first-party navigation: Woo adds the kit and opens checkout.
-  // No window.open → no "pop-ups blocked". No /cart/ → no CPU spike.
-  setStatus("Opening checkout…");
-  const url = `${CHECKOUT_URL}?add-to-cart=${encodeURIComponent(kitId)}&quantity=${qty}`;
+  const url = buildCheckoutLinkUrl(kitId, qty);
   console.info(`[zylk-checkout] ${CHECKOUT_VERSION} navigate`, { url });
   window.location.assign(url);
 }

@@ -47,7 +47,8 @@ export function CartProvider({ children }) {
     return () => window.removeEventListener("zylk:gender-changed", onGenderChanged);
   }, []);
 
-  const addToCart = (product) => {
+  const addToCart = (product, options = {}) => {
+    const openDrawer = options.open !== false;
     setCartItems((prev) => {
       // Assessment kits replace each other so a male kit cannot linger after a female result
       const isAssessmentKit = Boolean(product.bundleNumber) && !product.isTestBundle;
@@ -81,7 +82,7 @@ export function CartProvider({ children }) {
         },
       ];
     });
-    setIsCartOpen(true);
+    if (openDrawer) setIsCartOpen(true);
   };
 
   const removeFromCart = (productId) => {

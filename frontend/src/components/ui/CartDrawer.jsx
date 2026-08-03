@@ -141,7 +141,7 @@ export default function CartDrawer() {
         )}
       </div>
 
-      {/* Same-tab /checkout/?add-to-cart=KIT — no popups, never /cart/?add-to-cart= */}
+      {/* Same-tab /checkout-link/?products=KIT — Woo Blocks session, no popups */}
       {checkoutBusy && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-[#064e3b]/70 backdrop-blur-[2px]">
           <div className="mx-4 max-w-sm w-full rounded-3xl bg-white p-8 shadow-2xl text-center space-y-4">
