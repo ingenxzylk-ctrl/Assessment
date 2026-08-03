@@ -212,14 +212,8 @@ function resolveSheetPdfUrl(reportId, pdfUrl) {
   return buildPublicPdfUrl(reportId);
 }
 
-/**
- * Append one lead row to the team Google Sheet.
- * Columns A–L:
- * Date | Report ID | Name | Phone | Email | Gender | Age | AI Stage | Kit | Result Link | PDF Link | Call Status
- *
- * Never throws to the quiz flow — returns { skipped|ok|error }.
- */
-export async function appendLeadToGoogleSheet({
+/** Build one Sheet row (A–L) for a lead. */
+export function buildLeadRow({
   reportId,
   reportDate,
   aboutMe = {},
@@ -228,6 +222,80 @@ export async function appendLeadToGoogleSheet({
   resultPageUrl = null,
   pdfUrl = null,
 } = {}) {
+  return [
+    cell(reportDate) || new Date().toLocaleDateString("en-GB"),
+    cell(reportId),
+    cell(aboutMe.fullName || aboutMe.name || "Guest"),
+    formatPhone(aboutMe),
+    cell(aboutMe.email),
+    cell(aboutMe.gender),
+    cell(aboutMe.age || aboutMe.ageRange),
+    formatStage(scalpAnalysis),
+    formatKit(reportMeta),
+    cell(resultPageUrl),
+    resolveSheetPdfUrl(reportId, pdfUrl),
+    CALL_STATUS_NEW,
+  ];
+}
+
+/**
+ * Append many lead rows in one Sheets write (much lower quota use than 1-by-1).
+ */
+export async function appendLeadRowsBatch(rows) {
+  if (!isSheetsConfigured()) {
+    return {
+      skipped: true,
+      reason:
+        "Google Sheets not configured — set GOOGLE_SHEETS_SPREADSHEET_ID and Google OAuth/service-account credentials",
+    };
+  }
+  if (!Array.isArray(rows) || !rows.length) {
+    return { ok: true, skipped: true, reason: "no_rows", count: 0 };
+  }
+
+  try {
+    const sheets = await getSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    const range = sheetsRange();
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range,
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: rows },
+    });
+    const updatedRange = response?.data?.updates?.updatedRange || null;
+    console.log(
+      `[sheets] batch appended ${rows.length} row(s)${updatedRange ? ` → ${updatedRange}` : ""}`
+    );
+    return {
+      ok: true,
+      skipped: false,
+      spreadsheetId,
+      updatedRange,
+      count: rows.length,
+    };
+  } catch (err) {
+    const message = improveSheetsError(err);
+    console.error("[sheets] batch append failed:", message);
+    return {
+      ok: false,
+      skipped: false,
+      error: message,
+      spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || null,
+      count: 0,
+    };
+  }
+}
+
+/**
+ * Append one lead row to the team Google Sheet.
+ * Columns A–L:
+ * Date | Report ID | Name | Phone | Email | Gender | Age | AI Stage | Kit | Result Link | PDF Link | Call Status
+ *
+ * Never throws to the quiz flow — returns { skipped|ok|error }.
+ */
+export async function appendLeadToGoogleSheet(lead) {
   if (!isSheetsConfigured()) {
     return {
       skipped: true,
@@ -236,57 +304,26 @@ export async function appendLeadToGoogleSheet({
     };
   }
 
-  try {
-    const sheets = await getSheetsClient();
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
-    const range = sheetsRange();
-
-    const row = [
-      cell(reportDate) || new Date().toLocaleDateString("en-GB"),
-      cell(reportId),
-      cell(aboutMe.fullName || aboutMe.name || "Guest"),
-      formatPhone(aboutMe),
-      cell(aboutMe.email),
-      cell(aboutMe.gender),
-      cell(aboutMe.age || aboutMe.ageRange),
-      formatStage(scalpAnalysis),
-      formatKit(reportMeta),
-      cell(resultPageUrl),
-      resolveSheetPdfUrl(reportId, pdfUrl),
-      CALL_STATUS_NEW,
-    ];
-
-    const response = await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range,
-      // USER_ENTERED makes Result/PDF links clickable; phone is prefixed with ' for text
-      valueInputOption: "USER_ENTERED",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: { values: [row] },
-    });
-
-    const updatedRange = response?.data?.updates?.updatedRange || null;
+  const row = buildLeadRow(lead);
+  const batch = await appendLeadRowsBatch([row]);
+  if (batch.ok) {
     console.log(
-      `[sheets] appended lead ${reportId}${updatedRange ? ` → ${updatedRange}` : ""}`
+      `[sheets] appended lead ${lead.reportId}${batch.updatedRange ? ` → ${batch.updatedRange}` : ""}`
     );
-
     return {
       ok: true,
       skipped: false,
-      spreadsheetId,
-      updatedRange,
+      spreadsheetId: batch.spreadsheetId,
+      updatedRange: batch.updatedRange,
       row,
     };
-  } catch (err) {
-    const message = improveSheetsError(err);
-    console.error("[sheets] append failed:", message);
-    return {
-      ok: false,
-      skipped: false,
-      error: message,
-      spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || null,
-    };
   }
+  return {
+    ok: false,
+    skipped: Boolean(batch.skipped),
+    error: batch.error || batch.reason,
+    spreadsheetId: batch.spreadsheetId || null,
+  };
 }
 
 /**

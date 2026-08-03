@@ -2,15 +2,17 @@
  * Backfill Google Sheets leads from report archives already on the VPS.
  *
  * Usage (from backend/):
- *   node scripts/backfill-google-sheets.js --from 2026-07-30 --to 2026-08-03 --dry-run
- *   node scripts/backfill-google-sheets.js --from 2026-07-30 --to 2026-08-03
+ *   # After clearing the Sheet — write EVERY local report again:
+ *   node scripts/backfill-google-sheets.js --all --force
+ *
  *   node scripts/backfill-google-sheets.js --all --dry-run
  *   node scripts/backfill-google-sheets.js --all
+ *   node scripts/backfill-google-sheets.js --from 2026-07-30 --to 2026-08-03
  *   node scripts/backfill-google-sheets.js --retry-failed
  *
- * Reads backend/storage/reports/TR-DDMMYYYY-NN/assessment.json
- * Skips report IDs already present in column B of the Sheet.
- * Failed IDs are written to storage/reports/_backfill_failed.txt for --retry-failed.
+ * --force  = do NOT skip IDs already in column B (use after you wipe the Sheet)
+ * Batch writes (~40 rows / request) to avoid Sheets per-minute write quota.
+ *
  * Gmail notifications are NOT the source — VPS archives are.
  */
 
@@ -20,7 +22,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { google } from "googleapis";
 import {
-  appendLeadToGoogleSheet,
+  appendLeadRowsBatch,
+  buildLeadRow,
   buildPublicPdfUrl,
   getSheetsStatus,
   isSheetsConfigured,
@@ -37,6 +40,7 @@ const REPORTS_DIR =
   path.join(__dirname, "..", "storage", "reports");
 
 const REPORT_ID_RE = /^TR-(\d{2})(\d{2})(\d{4})-(\d+)$/i;
+const BATCH_SIZE = 40;
 
 function parseArgs(argv) {
   const out = {
@@ -45,12 +49,14 @@ function parseArgs(argv) {
     dryRun: false,
     all: false,
     retryFailed: false,
+    force: false,
   };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--dry-run") out.dryRun = true;
     else if (a === "--all") out.all = true;
     else if (a === "--retry-failed") out.retryFailed = true;
+    else if (a === "--force") out.force = true;
     else if (a === "--from") out.from = argv[++i];
     else if (a === "--to") out.to = argv[++i];
   }
@@ -79,34 +85,12 @@ async function saveFailedList(ids) {
   await fs.mkdir(REPORTS_DIR, { recursive: true });
   await fs.writeFile(
     FAILED_LIST_PATH,
-    ids.map((id) => String(id).toUpperCase()).join("\n") + (ids.length ? "\n" : ""),
+    ids.map((id) => String(id).toUpperCase()).join("\n") +
+      (ids.length ? "\n" : ""),
     "utf8"
   );
 }
 
-async function appendWithRetry(payload, attempts = 4) {
-  let last = null;
-  for (let i = 1; i <= attempts; i += 1) {
-    last = await appendLeadToGoogleSheet(payload);
-    if (last?.ok) return last;
-
-    const err = String(last?.error || last?.reason || "");
-    const retryable =
-      /rate|quota|429|500|503|ECONNRESET|ETIMEDOUT|socket|temporarily/i.test(
-        err
-      );
-    if (!retryable || i === attempts) break;
-
-    const waitMs = 800 * i * i;
-    console.warn(
-      `retry ${payload.reportId} (${i}/${attempts}) in ${waitMs}ms — ${err.slice(0, 120)}`
-    );
-    await sleep(waitMs);
-  }
-  return last;
-}
-
-/** Parse YYYY-MM-DD or DD.MM.YYYY → Date at UTC midnight */
 function parseDateInput(value, label) {
   if (!value) throw new Error(`Missing --${label}`);
   const iso = String(value).trim();
@@ -116,9 +100,7 @@ function parseDateInput(value, label) {
   }
   m = iso.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (m) {
-    return new Date(
-      Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1]))
-    );
+    return new Date(Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1])));
   }
   throw new Error(
     `Invalid --${label} "${value}". Use YYYY-MM-DD or DD.MM.YYYY`
@@ -177,7 +159,6 @@ async function getSheetsClient() {
   return google.sheets({ version: "v4", auth });
 }
 
-/** Existing Report IDs already in column B */
 async function fetchExistingReportIds() {
   const sheets = await getSheetsClient();
   const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
@@ -198,6 +179,28 @@ async function fetchExistingReportIds() {
   return ids;
 }
 
+async function appendBatchWithRetry(rows, label, attempts = 6) {
+  let last = null;
+  for (let i = 1; i <= attempts; i += 1) {
+    last = await appendLeadRowsBatch(rows);
+    if (last?.ok) return last;
+
+    const err = String(last?.error || last?.reason || "");
+    const retryable = /rate|quota|429|500|503|ECONNRESET|ETIMEDOUT|socket/i.test(
+      err
+    );
+    if (!retryable || i === attempts) break;
+
+    // Google write quota is per minute — wait a full minute on quota errors
+    const waitMs = /quota|429/i.test(err) ? 65_000 : 1500 * i;
+    console.warn(
+      `retry ${label} (${i}/${attempts}) waiting ${Math.round(waitMs / 1000)}s — ${err.slice(0, 100)}`
+    );
+    await sleep(waitMs);
+  }
+  return last;
+}
+
 const args = parseArgs(process.argv.slice(2));
 const from = args.all
   ? new Date(Date.UTC(2000, 0, 1))
@@ -214,6 +217,7 @@ console.log(
     ? "ALL local reports"
     : `${from.toISOString().slice(0, 10)} → ${to.toISOString().slice(0, 10)}`
 );
+console.log("force (ignore existing IDs):", args.force);
 console.log("dry-run:", args.dryRun);
 console.log("env:", getSheetsStatus());
 
@@ -225,7 +229,7 @@ if (!isSheetsConfigured()) {
 const probe = await probeGoogleSheets();
 if (!probe.ok) {
   console.error("\n❌ Cannot access Sheet:", probe.error);
-  console.error("Fix OAuth first (invalid_grant / truncated token), then retry.\n");
+  console.error("Fix OAuth first, then retry.\n");
   process.exit(1);
 }
 console.log(`✅ Sheet: "${probe.title}"`);
@@ -237,7 +241,7 @@ if (args.retryFailed) {
   const failedIds = await loadFailedList();
   if (!failedIds.length) {
     console.log(`\nNo failed list at ${FAILED_LIST_PATH}`);
-    console.log("Run a normal backfill first, or pass --all again.\n");
+    console.log("Run a normal backfill first, or pass --all --force.\n");
     process.exit(0);
   }
   const allow = new Set(failedIds.map((id) => id.toUpperCase()));
@@ -252,24 +256,26 @@ if (!candidates.length) {
   process.exit(0);
 }
 
-let existing;
-try {
-  existing = await fetchExistingReportIds();
-  console.log(`Already in Sheet: ${existing.size} report IDs`);
-} catch (err) {
-  console.error("Could not read existing Sheet rows:", err.message);
-  process.exit(1);
+let existing = new Set();
+if (!args.force) {
+  try {
+    existing = await fetchExistingReportIds();
+    console.log(`Already in Sheet: ${existing.size} report IDs (will skip)`);
+  } catch (err) {
+    console.error("Could not read existing Sheet rows:", err.message);
+    process.exit(1);
+  }
+} else {
+  console.log("Force mode: will append ALL candidates (no skip-by-ID)");
 }
 
-let appended = 0;
+const rowsToWrite = [];
+const rowReportIds = [];
 let skipped = 0;
-let failed = 0;
-const failedIds = [];
-const failReasons = new Map();
 
 for (const reportId of candidates) {
   const key = reportId.toUpperCase();
-  if (existing.has(key)) {
+  if (!args.force && existing.has(key)) {
     console.log(`skip (exists) ${reportId}`);
     skipped += 1;
     continue;
@@ -300,29 +306,49 @@ for (const reportId of candidates) {
     console.log(
       `dry-run would append ${reportId} | ${payload.aboutMe.fullName || payload.aboutMe.name || "Guest"} | ${payload.reportDate || "?"}`
     );
-    appended += 1;
+    rowsToWrite.push(null);
+    rowReportIds.push(reportId);
     continue;
   }
 
-  const result = await appendWithRetry(payload);
+  rowsToWrite.push(buildLeadRow(payload));
+  rowReportIds.push(reportId);
+}
+
+if (args.dryRun) {
+  console.log("\n--- summary ---");
+  console.log("would append:", rowsToWrite.length);
+  console.log("skipped:", skipped);
+  console.log("(dry-run — no rows written)\n");
+  process.exit(0);
+}
+
+let appended = 0;
+let failed = 0;
+const failedIds = [];
+const failReasons = new Map();
+
+for (let i = 0; i < rowsToWrite.length; i += BATCH_SIZE) {
+  const chunkRows = rowsToWrite.slice(i, i + BATCH_SIZE);
+  const chunkIds = rowReportIds.slice(i, i + BATCH_SIZE);
+  const label = `batch ${Math.floor(i / BATCH_SIZE) + 1} (${chunkIds[0]}…${chunkIds[chunkIds.length - 1]})`;
+
+  const result = await appendBatchWithRetry(chunkRows, label);
   if (result?.ok) {
-    console.log(`ok ${reportId} → ${result.updatedRange || "appended"}`);
-    appended += 1;
-    existing.add(key);
-    // Gentle pacing to avoid Sheets write quota bursts
-    await sleep(250);
+    console.log(`ok ${label} → ${result.updatedRange || "appended"}`);
+    appended += chunkRows.length;
+    // Small pause between batches
+    await sleep(1500);
   } else {
     const reason = result?.error || result?.reason || "unknown";
-    console.error(`fail ${reportId}: ${reason}`);
-    failed += 1;
-    failedIds.push(reportId);
-    failReasons.set(reason, (failReasons.get(reason) || 0) + 1);
+    console.error(`fail ${label}: ${reason}`);
+    failed += chunkIds.length;
+    failedIds.push(...chunkIds);
+    failReasons.set(reason, (failReasons.get(reason) || 0) + chunkIds.length);
   }
 }
 
-if (!args.dryRun) {
-  await saveFailedList(failedIds);
-}
+await saveFailedList(failedIds);
 
 console.log("\n--- summary ---");
 console.log("appended:", appended);
@@ -336,8 +362,10 @@ if (failReasons.size) {
 }
 if (failedIds.length) {
   console.log(`\nFailed IDs saved to: ${FAILED_LIST_PATH}`);
-  console.log("Retry with: node scripts/backfill-google-sheets.js --retry-failed");
+  console.log(
+    "Retry with: node scripts/backfill-google-sheets.js --retry-failed --force"
+  );
 }
-console.log(args.dryRun ? "(dry-run — no rows written)\n" : "\n");
+console.log("");
 
 process.exit(failed ? 1 : 0);
