@@ -1,5 +1,5 @@
 /**
- * Bundle config — Men stage kits + Women Advance kit (WooCommerce IDs Jul 2026)
+ * Bundle config — Men stage kits + Women Advance kit (single Woo SKUs)
  *
  * Male:
  *   Stage 1 / overall thinning → 8588 (Men Advance) ₹749
@@ -8,6 +8,8 @@
  *   Stage 4 → 8596 ₹1199
  *   Stage 5+ → 8597 ₹1299
  * Female (all stages) → 8590 (Women Advance) ₹749
+ *
+ * Checkout adds ONE product only via wc-ajax (never /cart/?add-to-cart=).
  */
 export const BUNDLE_CONFIG = {
   // Male stage 1 / overall thinning — Men Advance Hair Regrowth Kit
@@ -73,6 +75,9 @@ export const BUNDLE_CONFIG = {
     originalPrice: 1,
   },
 };
+
+/** Production kit Woo IDs used by checkout allow-list */
+export const STAGE_KIT_WOO_IDS = [8588, 8594, 8595, 8596, 8597, 8590];
 
 export const TEST_BUNDLE_NUMBER = 99;
 export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";

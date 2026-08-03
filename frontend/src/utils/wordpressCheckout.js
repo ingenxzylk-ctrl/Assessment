@@ -1,67 +1,50 @@
 import { markCheckoutReturn, persistQuizStateNow } from "./quizPersistence";
 import { saveScalpImagesToIdb } from "./quizImageStore";
-import { getCheckoutWooProductIds } from "../config/bundles";
+import {
+  getCheckoutWooProductIds,
+  STAGE_KIT_WOO_IDS,
+  TEST_BUNDLE_NUMBER,
+  BUNDLE_CONFIG,
+} from "../config/bundles";
 
 const WP_SITE_URL = (
   import.meta.env.VITE_WP_SITE_URL || "https://zylkhealth.com"
 ).replace(/\/$/, "");
 
 /**
- * Architecture (CPU-safe):
- *   Quiz → Calculate Bundle → AJAX add products → Success → Redirect → /checkout
+ * CPU-safe checkout architecture:
+ *   Quiz → Calculate Bundle → ONE AJAX add (single kit SKU) → Success → /checkout
  *
- * Never use /cart/?add-to-cart=… — that full Woo page render caused CPU spikes.
+ * Never use /cart/?add-to-cart=… (full Woo page = CPU spike).
+ * Kits are single products: 8588 / 8594–8597 / 8590 — no Health Mix line item.
  */
 const CHECKOUT_URL = `${WP_SITE_URL}/checkout/`;
-/** Lightweight WooCommerce AJAX endpoint (JSON), not a full theme page. */
 const WC_AJAX_ADD_URL = `${WP_SITE_URL}/?wc-ajax=add_to_cart`;
+const CHECKOUT_VERSION = "v7-single-kit-ajax";
 
-const CHECKOUT_VERSION = "v6-ajax-checkout";
+const TEST_KIT_ID = Number(BUNDLE_CONFIG[TEST_BUNDLE_NUMBER]?.wooProductId) || 8363;
+const ALLOWED_KIT_IDS = new Set([...STAGE_KIT_WOO_IDS, TEST_KIT_ID]);
 
-/** Match CartDrawer UI: missing/undefined means Health Mix is included. */
-function wantsHealthMix(item) {
-  return item?.includeHealthMix !== false;
-}
-
-/**
- * Build WooCommerce product IDs for checkout.
- * Stage kits are single SKUs (8588 / 8590 / 8594–8597) — mixId is usually null.
- */
-function resolveCheckoutProductIds(item) {
-  const includeHealthMix = wantsHealthMix(item);
-
+function resolveKitId(item) {
   if (item?.bundleNumber) {
     const resolved = getCheckoutWooProductIds({
       bundleNumber: item.bundleNumber,
       hasDandruff: Boolean(item.hasDandruff),
-      includeHealthMix,
+      includeHealthMix: false,
       gender: item.gender || null,
     });
     if (resolved.kitId) {
       console.info(`[zylk-checkout] ${CHECKOUT_VERSION}`, {
         kitId: resolved.kitId,
-        mixId: resolved.mixId,
         bundleNumber: item.bundleNumber,
       });
-      return resolved;
+      return Number(resolved.kitId);
     }
   }
 
   const kitId = item?.wooProductId ? Number(item.wooProductId) : null;
-  if (!kitId) return { kitId: null, mixId: null, productIds: [] };
-
-  const mixId =
-    includeHealthMix && Number(item.wooHealthMixProductId)
-      ? Number(item.wooHealthMixProductId)
-      : null;
-
-  console.info(`[zylk-checkout] ${CHECKOUT_VERSION}`, { kitId, mixId });
-
-  return {
-    kitId,
-    mixId,
-    productIds: mixId ? [kitId, mixId] : [kitId],
-  };
+  console.info(`[zylk-checkout] ${CHECKOUT_VERSION}`, { kitId });
+  return kitId;
 }
 
 function sleep(ms) {
@@ -82,7 +65,6 @@ function waitForPopupLoad(popup, timeoutMs = 12000) {
     try {
       popup.onload = () => {
         clearTimeout(timer);
-        // Brief settle so Woo can write the cart cookie before we continue
         setTimeout(() => finish("load"), 500);
       };
     } catch {
@@ -100,11 +82,6 @@ function refocusOpener() {
   }
 }
 
-/**
- * Tiny helper window. Form POST to `wc-ajax=add_to_cart` sets the cart cookie
- * on zylkhealth.com (quiz runs on quiz.zylkhealth.com). Response is JSON —
- * not a full /cart/ PHP render.
- */
 function openCheckoutHelper() {
   const features = "popup=yes,width=120,height=120,left=0,top=0,noopener=no";
   const popup = window.open("about:blank", "zylk_woo_ajax_add", features);
@@ -124,10 +101,6 @@ Adding…
   return popup;
 }
 
-/**
- * POST product_id to Woo `/?wc-ajax=add_to_cart` via form in the helper window.
- * Must run while popup is still same-origin (about:blank) so we can write the form.
- */
 function submitWcAjaxAddInPopup(popup, productId, quantity = 1) {
   if (!popup || popup.closed) return false;
   try {
@@ -158,10 +131,6 @@ function submitWcAjaxAddInPopup(popup, productId, quantity = 1) {
   }
 }
 
-/**
- * After a wc-ajax POST the popup is cross-origin — open a fresh about:blank
- * helper for the next product add.
- */
 function openFreshHelper() {
   try {
     const existing = window.open("", "zylk_woo_ajax_add");
@@ -179,52 +148,43 @@ function openFreshHelper() {
 }
 
 /**
- * AJAX add each product once → ONE redirect to /checkout/
- * Never hits /cart/?add-to-cart=
+ * ONE wc-ajax add for the kit → ONE redirect to /checkout
  */
-async function ajaxAddProductsThenOpenCheckout(productIds, quantities, setStatus) {
-  const ids = (Array.isArray(productIds) ? productIds : []).filter(
-    (id) => Number.isFinite(Number(id)) && Number(id) > 0
+async function ajaxAddKitThenCheckout(kitId, quantity, setStatus) {
+  const id = Number(kitId);
+  if (!Number.isFinite(id) || id <= 0) return false;
+  if (!ALLOWED_KIT_IDS.has(id)) {
+    console.warn("[zylk-checkout] refusing unknown Woo product id:", id);
+    return false;
+  }
+
+  setStatus("Adding your kit…");
+  const popup = openFreshHelper();
+  if (!popup) return false;
+
+  refocusOpener();
+  const submitted = submitWcAjaxAddInPopup(
+    popup,
+    id,
+    Math.max(1, Number(quantity) || 1)
   );
-  if (!ids.length) return false;
-
-  for (let i = 0; i < ids.length; i += 1) {
-    const productId = Number(ids[i]);
-    const qty = Math.max(1, Number(quantities?.[i]) || 1);
-    const label =
-      ids.length > 1 && i === 0
-        ? "Adding your kit…"
-        : ids.length > 1 && i > 0
-          ? "Adding extras…"
-          : "Adding your kit…";
-    setStatus(label);
-
-    const popup = openFreshHelper();
-    if (!popup) {
-      console.warn("[zylk-checkout] popup blocked — cannot AJAX-add without it");
-      return false;
-    }
-
-    refocusOpener();
-    const submitted = submitWcAjaxAddInPopup(popup, productId, qty);
-    if (!submitted) {
-      try {
-        popup.close();
-      } catch {
-        // ignore
-      }
-      return false;
-    }
-
-    await waitForPopupLoad(popup);
-    await sleep(400);
-    refocusOpener();
-
+  if (!submitted) {
     try {
-      if (!popup.closed) popup.close();
+      popup.close();
     } catch {
       // ignore
     }
+    return false;
+  }
+
+  await waitForPopupLoad(popup);
+  await sleep(400);
+  refocusOpener();
+
+  try {
+    if (!popup.closed) popup.close();
+  } catch {
+    // ignore
   }
 
   setStatus("Opening checkout…");
@@ -233,20 +193,18 @@ async function ajaxAddProductsThenOpenCheckout(productIds, quantities, setStatus
 }
 
 /**
- * Last-resort fallback when popups are blocked.
- * Uses homepage `/?add-to-cart=` (NOT /cart/?add-to-cart=) then ONE redirect
- * to /checkout/. Heavier than AJAX, but avoids the CPU-spike URL.
+ * Last resort when popups are blocked.
+ * Does NOT use /cart/?add-to-cart= (CPU spike).
+ * One soft homepage add, then /checkout once.
  */
-function fallbackHomepageAddThenCheckout(kitId, qty, mixId, setStatus) {
+function fallbackSingleAddThenCheckout(kitId, qty, setStatus) {
   setStatus("Adding your kit…");
-  const first = `${WP_SITE_URL}/?add-to-cart=${kitId}&quantity=${Math.max(1, qty || 1)}`;
-
-  const win = window.open(first, "zylk_woo_fallback");
+  const url = `${WP_SITE_URL}/?add-to-cart=${kitId}&quantity=${Math.max(1, qty || 1)}`;
+  const win = window.open(url, "zylk_woo_fallback");
   if (!win) {
     alert(
-      "Please allow popups for this site so we can add your kit without overloading the store.\n\nOpening checkout — if the kit is missing, go back and try again with popups allowed."
+      "Please allow popups for quiz.zylkhealth.com so we can add your kit without overloading the store.\n\nThen tap Proceed to Checkout again."
     );
-    window.location.href = CHECKOUT_URL;
     return;
   }
 
@@ -258,12 +216,11 @@ function fallbackHomepageAddThenCheckout(kitId, qty, mixId, setStatus) {
     }
     setStatus("Opening checkout…");
     window.location.href = CHECKOUT_URL;
-  }, mixId ? 2200 : 1400);
+  }, 1400);
 }
 
 /**
- * Quiz → Calculate Bundle → AJAX add → Success → /checkout
- * Main window stays on the assessment with spinner until the final redirect.
+ * Quiz → Calculate Bundle → AJAX add (1 kit) → /checkout
  */
 export async function redirectToWordPressCheckout(cartItems, quizState, options = {}) {
   if (!cartItems?.length) return;
@@ -274,18 +231,15 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
   };
 
   const item = cartItems[0];
-  const { kitId, mixId, productIds } = resolveCheckoutProductIds(item);
+  const kitId = resolveKitId(item);
 
-  if (!kitId || !productIds.length) {
+  if (!kitId || !ALLOWED_KIT_IDS.has(Number(kitId))) {
     alert("Product is not linked to the store yet. Please contact support.");
     return;
   }
 
   const qty = item.quantity || 1;
-  const ids = mixId ? [kitId, mixId] : [kitId];
-  const quantities = mixId ? [qty, 1] : [qty];
-
-  setStatus(mixId ? "Adding kit + extras…" : "Adding your kit…");
+  setStatus("Adding your kit…");
 
   if (quizState) {
     persistQuizStateNow(quizState);
@@ -298,13 +252,11 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
   markCheckoutReturn();
 
   try {
-    const ok = await ajaxAddProductsThenOpenCheckout(ids, quantities, setStatus);
+    const ok = await ajaxAddKitThenCheckout(kitId, qty, setStatus);
     if (ok) return;
-
-    // Popup blocked or AJAX form failed
-    fallbackHomepageAddThenCheckout(kitId, qty, mixId, setStatus);
+    fallbackSingleAddThenCheckout(kitId, qty, setStatus);
   } catch (err) {
     console.warn("[zylk-checkout] AJAX checkout failed:", err);
-    fallbackHomepageAddThenCheckout(kitId, qty, mixId, setStatus);
+    fallbackSingleAddThenCheckout(kitId, qty, setStatus);
   }
 }
