@@ -4,9 +4,12 @@
  * Usage (from backend/):
  *   node scripts/backfill-google-sheets.js --from 2026-07-30 --to 2026-08-03 --dry-run
  *   node scripts/backfill-google-sheets.js --from 2026-07-30 --to 2026-08-03
+ *   node scripts/backfill-google-sheets.js --all --dry-run
+ *   node scripts/backfill-google-sheets.js --all
  *
  * Reads backend/storage/reports/TR-DDMMYYYY-NN/assessment.json
  * Skips report IDs already present in column B of the Sheet.
+ * Gmail notifications are NOT the source — VPS archives are.
  */
 
 import "dotenv/config";
