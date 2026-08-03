@@ -134,14 +134,14 @@ export default function CartDrawer() {
                   <span>Adding kit…</span>
                 </>
               ) : (
-                "Proceed to Checkout"
+                "Go to Checkout"
               )}
             </button>
           </div>
         )}
       </div>
 
-      {/* AJAX add on Woo → one redirect to /checkout (never /cart/?add-to-cart=) */}
+      {/* Same-tab /checkout/?add-to-cart=KIT — no popups, never /cart/?add-to-cart= */}
       {checkoutBusy && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-[#064e3b]/70 backdrop-blur-[2px]">
           <div className="mx-4 max-w-sm w-full rounded-3xl bg-white p-8 shadow-2xl text-center space-y-4">
@@ -150,13 +150,13 @@ export default function CartDrawer() {
               aria-hidden
             />
             <div>
-              <p className="text-base font-bold text-gray-900">Preparing checkout</p>
+              <p className="text-base font-bold text-gray-900">Opening checkout</p>
               <p className="text-sm text-gray-500 mt-1">
                 {checkoutStatus || "Adding your kit…"}
               </p>
             </div>
             <p className="text-xs text-gray-400">
-              Keep this tab open — checkout opens automatically (popups not required).
+              Stay on this screen — checkout opens in this tab (no pop-ups).
             </p>
           </div>
         </div>

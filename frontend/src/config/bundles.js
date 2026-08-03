@@ -9,7 +9,8 @@
  *   Stage 5+ → 8597 ₹1299
  * Female (all stages) → 8590 (Women Advance) ₹749
  *
- * Checkout adds ONE product only via wc-ajax (never /cart/?add-to-cart=).
+ * Checkout adds ONE product only via same-tab /checkout/?add-to-cart=KIT
+ * (never popups, never /cart/?add-to-cart=).
  */
 export const BUNDLE_CONFIG = {
   // Male stage 1 / overall thinning — Men Advance Hair Regrowth Kit
