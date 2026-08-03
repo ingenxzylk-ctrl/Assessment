@@ -217,37 +217,17 @@ function getProductPurpose(name = "") {
   return "For Hair Health";
 }
 
-function getOrCreateDailyReportMeta(fingerprint) {
+function getProvisionalReportMeta() {
   const now = new Date();
-  const dd = String(now.getDate()).padStart(2, "0");
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const yyyy = String(now.getFullYear());
-  const dateKey = `${dd}${mm}${yyyy}`;
   const reportDate = now.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
-
-  if (typeof window === "undefined") {
-    return { reportId: `TR-${dateKey}-01`, reportDate };
-  }
-
-  const assignedKey = `zylk_report_assigned_${dateKey}_${fingerprint}`;
-  const existing = window.localStorage.getItem(assignedKey);
-  if (existing) {
-    return { reportId: existing, reportDate };
-  }
-
-  const countKey = `zylk_report_count_${dateKey}`;
-  const next = Number(window.localStorage.getItem(countKey) || "0") + 1;
-  window.localStorage.setItem(countKey, String(next));
-  const reportId = `TR-${dateKey}-${String(next).padStart(2, "0")}`;
-  window.localStorage.setItem(assignedKey, reportId);
-  return { reportId, reportDate };
+  return { reportId: null, reportDate, provisional: true };
 }
 
-/** Hash quiz answers + photo fingerprints — PDF regenerates only when this changes. */
+/** Hash quiz answers + photo fingerprints — used for submit dedupe only (not Report ID). */
 function buildReportContentHash(state, analysis) {
   const imagePrints = (state?.scalpImages || [])
     .map((img) => {
@@ -1338,31 +1318,20 @@ export default function Result() {
     [state?.aboutMe, state?.hairHealth, state?.internalHealth, state?.scalpImages, rawAnalysis]
   );
 
-  const { reportId, reportDate } = useMemo(() => {
-    if (state?.archivedReportId) {
-      return {
-        reportId: state.archivedReportId,
-        reportDate:
-          state.archivedReportDate ||
-          new Date().toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          }),
-      };
-    }
-    // Stable ID per content hash — regenerates only when quiz answers or photos change
-    return getOrCreateDailyReportMeta(reportContentHash);
-  }, [
-    state?.archivedReportId,
-    state?.archivedReportDate,
-    reportContentHash,
-  ]);
-
   // After Gemini analysis: PDF → VPS save → Sheets → return report to this page.
   const reportSubmitRef = useRef(false);
   const [reportSaveStatus, setReportSaveStatus] = useState("idle"); // idle | saving | saved | error
   const [savedReportPackage, setSavedReportPackage] = useState(null);
+
+  // Display ID: archived deep-link, else server-assigned after submit.
+  // NEVER invent TR-… IDs in localStorage (that caused veera/Pooja collisions).
+  const provisionalMeta = useMemo(() => getProvisionalReportMeta(), []);
+  const reportId =
+    state?.archivedReportId || savedReportPackage?.reportId || null;
+  const reportDate =
+    state?.archivedReportDate ||
+    savedReportPackage?.reportDate ||
+    provisionalMeta.reportDate;
 
   useEffect(() => {
     // New content may need a fresh PDF even if this Result mount already submitted once
@@ -1384,6 +1353,12 @@ export default function Result() {
         window.localStorage.getItem(inflightKey)
       ) {
         reportSubmitRef.current = true;
+        const existingId = window.localStorage.getItem(submittedKey);
+        if (existingId && /^TR-/i.test(existingId)) {
+          setSavedReportPackage((prev) =>
+            prev?.reportId ? prev : { reportId: existingId, reportDate: provisionalMeta.reportDate }
+          );
+        }
         setReportSaveStatus("saved");
         return;
       }
@@ -1402,6 +1377,7 @@ export default function Result() {
       (typeof import.meta !== "undefined" &&
         (import.meta.env?.VITE_PUBLIC_APP_URL || import.meta.env?.VITE_APP_ORIGIN)) ||
       LIVE_DEFAULT;
+    // Do not invent a Report ID here — server allocates and returns it.
     const resultPageUrl =
       typeof window !== "undefined"
         ? (() => {
@@ -1410,7 +1386,7 @@ export default function Result() {
             const onLoopback = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
             const base = configured || (onLoopback ? LIVE_DEFAULT : window.location.href);
             const url = new URL(base, onLoopback ? LIVE_DEFAULT : window.location.origin);
-            url.searchParams.set("report", reportId);
+            url.searchParams.delete("report");
             return url.toString();
           })()
         : null;
@@ -1435,7 +1411,8 @@ export default function Result() {
           dataUrl: img.dataUrl || img.previewUrl || img.url || null,
         })),
       gender,
-      clientReportId: reportId,
+      // Server ignores this for allocation; kept only for debug logs
+      clientReportId: null,
       clientReportDate: reportDate,
       contentHash: reportContentHash,
       appOrigin,
@@ -1471,32 +1448,33 @@ export default function Result() {
       },
     })
       .then((data) => {
-        // Pipeline returned the report package to the frontend
+        // Pipeline returned the server-assigned report package
         setSavedReportPackage(data || null);
         setReportSaveStatus("saved");
         if (typeof window === "undefined") return;
+        const id = data?.reportId;
         try {
-          window.localStorage.setItem(
-            `zylk_report_submitted_${reportContentHash}`,
-            data?.reportId || reportId
-          );
-          if (data?.pdfUrl) {
+          if (id) {
             window.localStorage.setItem(
-              `zylk_report_pdf_${data.reportId || reportId}`,
-              data.pdfUrl
+              `zylk_report_submitted_${reportContentHash}`,
+              id
             );
+          }
+          if (data?.pdfUrl && id) {
+            window.localStorage.setItem(`zylk_report_pdf_${id}`, data.pdfUrl);
           }
           window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
         } catch {
           // ignore
         }
-        const id = data?.reportId || reportId;
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.set("report", id);
-          window.history.replaceState({}, "", url);
-        } catch {
-          // ignore
+        if (id) {
+          try {
+            const url = new URL(window.location.href);
+            url.searchParams.set("report", id);
+            window.history.replaceState({}, "", url);
+          } catch {
+            // ignore
+          }
         }
       })
       .catch((err) => {
@@ -1520,9 +1498,9 @@ export default function Result() {
     rawAnalysis,
     analysisMissing,
     gender,
-    reportId,
     reportDate,
     reportContentHash,
+    provisionalMeta.reportDate,
     rootCauses,
     eligibilityTimeline,
     recommendedBundle,
@@ -1587,9 +1565,11 @@ export default function Result() {
                   </svg>
                 </span>
                 <span className="text-[10px] sm:text-[12px] font-medium text-[#555555] leading-snug break-words">
-                  Report ID: {savedReportPackage?.reportId || reportId} •{" "}
-                  {savedReportPackage?.reportDate || reportDate}
+                  {reportId
+                    ? `Report ID: ${reportId} • ${reportDate}`
+                    : `Report date: ${reportDate}`}
                   {reportSaveStatus === "saving" && " • Saving report…"}
+                  {reportSaveStatus === "saved" && reportId && " • Saved"}
                   {reportSaveStatus === "error" && " • Report save pending — will retry"}
                 </span>
               </div>

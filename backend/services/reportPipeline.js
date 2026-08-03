@@ -103,6 +103,7 @@ export async function runReportPipeline({
       pdfFormatVersion: PDF_FORMAT_VERSION,
     },
     patientName,
+    allowOverwrite: false,
   });
 
   const savedOnVps = Boolean(

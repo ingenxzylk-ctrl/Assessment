@@ -13,7 +13,6 @@
 
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
 import { PDF_FORMAT_VERSION } from "../services/pdfService.js";
 import { loadReportJson, loadReportPdf } from "../services/storageService.js";
 import { sendReportToOrganisation } from "../services/emailService.js";
@@ -22,53 +21,13 @@ import {
   isSheetsConfigured,
 } from "../services/googleSheetsService.js";
 import { runReportPipeline } from "../services/reportPipeline.js";
+import {
+  allocateReportId,
+  isValidReportId,
+  REPORTS_ROOT,
+} from "../services/reportIdService.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const COUNTER_DIR =
-  process.env.REPORT_STORAGE_DIR ||
-  path.join(__dirname, "..", "storage", "reports");
-
-const REPORT_ID_RE = /^TR-\d{8}-\d{2,}$/i;
-
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
-
-function formatReportDate(d = new Date()) {
-  return d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function dateKey(d = new Date()) {
-  return `${pad2(d.getDate())}${pad2(d.getMonth() + 1)}${d.getFullYear()}`;
-}
-
-function isValidReportId(id) {
-  return REPORT_ID_RE.test(String(id || "").trim());
-}
-
-async function allocateReportId() {
-  const now = new Date();
-  const key = dateKey(now);
-  await fs.mkdir(COUNTER_DIR, { recursive: true });
-  const counterFile = path.join(COUNTER_DIR, `_count_${key}.txt`);
-
-  let next = 1;
-  try {
-    const raw = await fs.readFile(counterFile, "utf8");
-    next = Number(raw.trim() || "0") + 1;
-  } catch {
-    next = 1;
-  }
-  await fs.writeFile(counterFile, String(next), "utf8");
-  return {
-    reportId: `TR-${key}-${pad2(next)}`,
-    reportDate: formatReportDate(now),
-  };
-}
+const COUNTER_DIR = REPORTS_ROOT;
 
 async function readContentHashMapping(contentHash) {
   if (!contentHash) return null;
@@ -99,26 +58,6 @@ async function writeContentHashMapping(contentHash, reportId, reportDate) {
     }),
     "utf8"
   );
-}
-
-/**
- * Prefer the client-facing report id so the PDF, archive folder, and
- * in-app `?report=` link all share the same identifier.
- */
-async function resolveReportIdentity(clientReportId, clientReportDate) {
-  const now = new Date();
-  const reportDate =
-    (typeof clientReportDate === "string" && clientReportDate.trim()) ||
-    formatReportDate(now);
-
-  if (isValidReportId(clientReportId)) {
-    return {
-      reportId: String(clientReportId).trim().toUpperCase(),
-      reportDate,
-    };
-  }
-
-  return allocateReportId();
 }
 
 function isLoopbackHost(hostname) {
@@ -316,10 +255,14 @@ export async function submitAssessmentReport(req, res) {
       );
     }
 
-    const { reportId, reportDate } = await resolveReportIdentity(
-      clientReportId || existingByHash?.reportId,
-      clientReportDate || existingByHash?.reportDate
-    );
+    // ALWAYS allocate on the VPS — never trust browser localStorage Report IDs
+    // (clientReportId is logged as a hint only; collisions were overwriting archives).
+    const { reportId, reportDate } = await allocateReportId();
+    if (clientReportId && isValidReportId(clientReportId)) {
+      console.log(
+        `[report] ignoring clientReportId=${String(clientReportId).trim()} → server ${reportId}`
+      );
+    }
 
     const resultPageUrl = buildResultPageUrl({
       resultPageUrl: bodyResultPageUrl,
@@ -348,9 +291,10 @@ export async function submitAssessmentReport(req, res) {
       gender: gender || aboutMe.gender,
       resultPageUrl,
       submittedAt: new Date().toISOString(),
+      idSource: "server",
     };
 
-    // Canonical steps: Generate PDF → Save on VPS → Append Sheets → return
+    // Canonical steps: Generate PDF → Save on VPS (create-once) → Append Sheets → return
     const package_ = await runReportPipeline({
       payload,
       apiPublicBase: getApiPublicBase(req),

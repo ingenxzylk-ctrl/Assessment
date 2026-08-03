@@ -22,12 +22,29 @@ function useS3() {
   );
 }
 
-async function saveLocal({ reportId, pdfBuffer, jsonData }) {
-  const reportDir = path.join(LOCAL_ROOT, reportId);
+async function saveLocal({ reportId, pdfBuffer, jsonData, allowOverwrite = false }) {
+  const safeId = String(reportId || "").trim().toUpperCase();
+  const reportDir = path.join(LOCAL_ROOT, safeId);
   await ensureDir(reportDir);
 
   const pdfPath = path.join(reportDir, "assessment.pdf");
   const jsonPath = path.join(reportDir, "assessment.json");
+
+  // Create-once: never clobber another customer's archive
+  if (!allowOverwrite) {
+    try {
+      await fs.access(jsonPath);
+      const err = new Error(
+        `Report archive already exists for ${safeId} — refusing overwrite`
+      );
+      err.code = "REPORT_EXISTS";
+      err.status = 409;
+      throw err;
+    } catch (err) {
+      if (err?.code === "REPORT_EXISTS") throw err;
+      // ENOENT — ok to create
+    }
+  }
 
   await fs.writeFile(pdfPath, pdfBuffer);
   await fs.writeFile(jsonPath, JSON.stringify(jsonData, null, 2), "utf8");
@@ -200,9 +217,15 @@ export async function saveReportArtifacts({
   pdfBuffer,
   jsonData,
   patientName,
+  allowOverwrite = false,
 }) {
   // Always keep a local backup so reports aren't lost if cloud upload fails mid-way.
-  const local = await saveLocal({ reportId, pdfBuffer, jsonData });
+  const local = await saveLocal({
+    reportId,
+    pdfBuffer,
+    jsonData,
+    allowOverwrite,
+  });
 
   if (isDriveConfigured()) {
     try {
