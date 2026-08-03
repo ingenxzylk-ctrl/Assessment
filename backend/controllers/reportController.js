@@ -4,7 +4,7 @@
  *   Customer submits quiz
  *        → Gemini analysis          (POST /api/analyze — separate step)
  *        → Generate PDF
- *        → Save PDF on VPS
+ *        → Save PDF on VPS (fail-safe: primary or duplicate_reports)
  *        → Append lead to Google Sheets
  *        → Return report to frontend
  *
@@ -14,7 +14,14 @@
 import fs from "fs/promises";
 import path from "path";
 import { PDF_FORMAT_VERSION } from "../services/pdfService.js";
-import { loadReportJson, loadReportPdf } from "../services/storageService.js";
+import {
+  loadReportJson,
+  loadReportPdf,
+  persistIncomingRequest,
+  saveDuplicateReport,
+  logStorageEvent,
+  primaryArchiveExists,
+} from "../services/storageService.js";
 import { sendReportToOrganisation } from "../services/emailService.js";
 import {
   buildPublicPdfUrl,
@@ -173,13 +180,70 @@ function buildResultPageUrl({ resultPageUrl, appOrigin, reportId, requestOrigin 
   return appendReportParam(envBase || LIVE_DEFAULT, reportId);
 }
 
+function buildSafeRequestPayload(req, quizId) {
+  const body = req.body || {};
+  return {
+    quizId: quizId || null,
+    aboutMe: body.aboutMe || null,
+    hairHealth: body.hairHealth || null,
+    internalHealth: body.internalHealth || null,
+    scalpAnalysis: body.scalpAnalysis || null,
+    reportMeta: body.reportMeta || null,
+    gender: body.gender || null,
+    clientReportId: body.clientReportId || null,
+    clientReportDate: body.clientReportDate || null,
+    contentHash: body.contentHash || null,
+    appOrigin: body.appOrigin || null,
+    resultPageUrl: body.resultPageUrl || null,
+    scalpImageCount: Array.isArray(body.scalpImages) ? body.scalpImages.length : 0,
+    receivedAt: new Date().toISOString(),
+    ip: req.ip || null,
+    userAgent: typeof req.get === "function" ? req.get("user-agent") : null,
+  };
+}
+
 /**
  * POST /api/report/submit
  *
- * Runs the canonical pipeline after Gemini analysis is already done client-side:
- * PDF → VPS save → Google Sheets → return report package to frontend.
+ * Fail-safe flow:
+ * 1) receive + persist raw request (incoming/)
+ * 2) validate payload
+ * 3) allocate Report ID on VPS
+ * 4) if primary already exists → duplicate_reports (never overwrite)
+ * 5) else save primary via pipeline
+ * 6) continue Sheets / response — never lose data
  */
 export async function submitAssessmentReport(req, res) {
+  const receivedAt = new Date().toISOString();
+  const quizId =
+    typeof req.body?.quizId === "string" && req.body.quizId.trim()
+      ? req.body.quizId.trim()
+      : null;
+  const requestPayload = buildSafeRequestPayload(req, quizId);
+
+  let incoming = null;
+  try {
+    incoming = await persistIncomingRequest({
+      quizId,
+      payload: {
+        ...requestPayload,
+        scalpImages: req.body?.scalpImages,
+      },
+      meta: {
+        path: req.originalUrl || req.url,
+        method: req.method,
+        receivedAt,
+      },
+    });
+  } catch (persistErr) {
+    console.error("CRITICAL: failed to persist incoming request:", persistErr);
+    logStorageEvent("incoming_persist_failed", {
+      quizId,
+      error: persistErr.message,
+      timestamp: receivedAt,
+    });
+  }
+
   try {
     const {
       aboutMe,
@@ -197,9 +261,16 @@ export async function submitAssessmentReport(req, res) {
     } = req.body || {};
 
     if (!aboutMe || !scalpAnalysis) {
+      logStorageEvent("validation_failed", {
+        quizId,
+        incomingId: incoming?.incomingId || null,
+        reason: "aboutMe_and_scalpAnalysis_required",
+      });
       return res.status(400).json({
         ok: false,
         error: "aboutMe and scalpAnalysis are required to generate a report.",
+        quizId,
+        incomingId: incoming?.incomingId || null,
       });
     }
 
@@ -215,11 +286,18 @@ export async function submitAssessmentReport(req, res) {
           buildPublicPdfUrl(existingByHash.reportId, getApiPublicBase(req)) ||
           loaded.data?.storageInfo?.pdfUrl ||
           null;
+        logStorageEvent("content_unchanged_reuse", {
+          quizId,
+          reportId: existingByHash.reportId,
+          incomingId: incoming?.incomingId || null,
+          status: "ok",
+        });
         return res.json({
           ok: true,
           success: true,
           skipped: true,
           reason: "content_unchanged",
+          quizId,
           reportId: existingByHash.reportId,
           reportDate:
             existingByHash.reportDate || loaded.data?.reportDate || null,
@@ -257,11 +335,60 @@ export async function submitAssessmentReport(req, res) {
 
     // ALWAYS allocate on the VPS — never trust browser localStorage Report IDs
     // (clientReportId is logged as a hint only; collisions were overwriting archives).
-    const { reportId, reportDate } = await allocateReportId();
+    let { reportId, reportDate } = await allocateReportId();
+    logStorageEvent("report_id_generated", {
+      quizId,
+      reportId,
+      incomingId: incoming?.incomingId || null,
+      ignoredClientReportId: clientReportId || null,
+      clientReportDate: clientReportDate || null,
+    });
+
     if (clientReportId && isValidReportId(clientReportId)) {
       console.log(
         `[report] ignoring clientReportId=${String(clientReportId).trim()} → server ${reportId}`
       );
+    }
+
+    // Extra safety: if primary archive somehow already exists, never overwrite.
+    // Keep the conflicting submission in duplicate_reports, then allocate a fresh ID.
+    let precheckDuplicate = null;
+    if (await primaryArchiveExists(reportId)) {
+      const duplicateId = `${reportId}-DUP-${Date.now()}`;
+      precheckDuplicate = await saveDuplicateReport({
+        originalReportId: reportId,
+        duplicateReportId: duplicateId,
+        reason: "report_id_already_exists_before_pipeline",
+        requestPayload,
+        quizId,
+        jsonData: {
+          reportId,
+          quizId,
+          aboutMe,
+          hairHealth: hairHealth || {},
+          internalHealth: internalHealth || {},
+          scalpAnalysis,
+          note: "Captured before pipeline because primary Report ID already existed",
+        },
+      });
+
+      logStorageEvent("duplicate_detected", {
+        quizId,
+        reportId,
+        duplicateReportId: duplicateId,
+        storageLocation: precheckDuplicate.dir,
+        reason: "report_id_already_exists_before_pipeline",
+        status: "saved_to_duplicate_reports",
+      });
+
+      const regenerated = await allocateReportId();
+      logStorageEvent("report_id_regenerated_after_duplicate", {
+        quizId,
+        originalReportId: reportId,
+        regeneratedReportId: regenerated.reportId,
+      });
+      reportId = regenerated.reportId;
+      reportDate = regenerated.reportDate;
     }
 
     const resultPageUrl = buildResultPageUrl({
@@ -280,6 +407,7 @@ export async function submitAssessmentReport(req, res) {
     const payload = {
       reportId,
       reportDate,
+      quizId,
       clientReportId: clientReportId || null,
       contentHash: contentHash || null,
       aboutMe,
@@ -292,13 +420,21 @@ export async function submitAssessmentReport(req, res) {
       resultPageUrl,
       submittedAt: new Date().toISOString(),
       idSource: "server",
+      ...(precheckDuplicate
+        ? {
+            originalConflictingReportId: precheckDuplicate.originalReportId,
+            duplicateArchiveId: precheckDuplicate.duplicateReportId,
+          }
+        : {}),
     };
 
-    // Canonical steps: Generate PDF → Save on VPS (create-once) → Append Sheets → return
+    // Canonical steps: Generate PDF → Save on VPS (fail-safe) → Append Sheets → return
     const package_ = await runReportPipeline({
       payload,
       apiPublicBase: getApiPublicBase(req),
       patientName: aboutMe.fullName || "Guest",
+      quizId,
+      requestPayload,
     });
 
     await writeContentHashMapping(contentHash, reportId, reportDate);
@@ -309,6 +445,18 @@ export async function submitAssessmentReport(req, res) {
       skipped: true,
       reason: "not_attempted",
     };
+
+    logStorageEvent("storage_success", {
+      quizId,
+      reportId,
+      storageLocation: storageInfo.reportDir || storageInfo.dir || null,
+      isDuplicate: Boolean(package_.isDuplicate || storageInfo.isDuplicate),
+      sheetsSynced: sheetsResult?.ok === true && sheetsResult?.skipped !== true,
+      status:
+        package_.isDuplicate || storageInfo.isDuplicate
+          ? "ok_via_duplicate_storage"
+          : "ok_primary",
+    });
 
     // Optional: org email notification (does not block the report response)
     let emailResult;
@@ -332,6 +480,7 @@ export async function submitAssessmentReport(req, res) {
     return res.json({
       ok: true,
       success: true,
+      quizId,
       reportId,
       reportDate,
       resultPageUrl,
@@ -343,6 +492,20 @@ export async function submitAssessmentReport(req, res) {
       sheetsConfigured: isSheetsConfigured(),
       email: emailResult,
       pdfFormatVersion: PDF_FORMAT_VERSION,
+      isDuplicate: Boolean(package_.isDuplicate || storageInfo.isDuplicate),
+      duplicateHandling: precheckDuplicate
+        ? {
+            originalReportId: precheckDuplicate.originalReportId,
+            duplicateArchiveId: precheckDuplicate.duplicateReportId,
+            regeneratedReportId: reportId,
+          }
+        : package_.isDuplicate
+          ? {
+              originalReportId: package_.originalReportId,
+              duplicateArchiveId: package_.duplicateReportId,
+              regeneratedReportId: null,
+            }
+          : null,
       // Explicit pipeline contract for the frontend / ops
       pipeline: {
         geminiAnalysis: true, // already completed via POST /api/analyze
@@ -352,6 +515,8 @@ export async function submitAssessmentReport(req, res) {
         sheetsConfigured: isSheetsConfigured(),
         returnedToFrontend: true,
         storage: package_.pipeline?.storage || storageInfo.storage || "local",
+        location: package_.pipeline?.location || storageInfo.location || "primary",
+        isDuplicate: Boolean(package_.isDuplicate || storageInfo.isDuplicate),
         pdfUrl: publicPdfUrl || storageInfo.pdfUrl || null,
         resultPageUrl,
       },
@@ -361,10 +526,39 @@ export async function submitAssessmentReport(req, res) {
     });
   } catch (err) {
     console.error("[report] submit failed:", err);
+    logStorageEvent("storage_failure", {
+      quizId,
+      incomingId: incoming?.incomingId || null,
+      error: err.message,
+      status: "failed",
+    });
+
+    // Last-resort: keep the full request in duplicate_reports so nothing is lost.
+    try {
+      await saveDuplicateReport({
+        originalReportId: req.body?.clientReportId || "UNKNOWN",
+        duplicateReportId: `FAIL-${Date.now()}`,
+        reason: `submit_exception: ${err.message}`,
+        requestPayload,
+        quizId,
+        jsonData: {
+          error: err.message,
+          aboutMe: req.body?.aboutMe || null,
+          scalpAnalysis: req.body?.scalpAnalysis || null,
+          hairHealth: req.body?.hairHealth || null,
+          internalHealth: req.body?.internalHealth || null,
+        },
+      });
+    } catch (dupErr) {
+      console.error("CRITICAL: failed to save exception duplicate archive:", dupErr);
+    }
+
     return res.status(500).json({
       ok: false,
       success: false,
       error: err.message || "Failed to generate and store assessment report.",
+      quizId,
+      incomingId: incoming?.incomingId || null,
     });
   }
 }
@@ -392,6 +586,7 @@ export async function getAssessmentReport(req, res) {
       reportMeta: data.reportMeta || {},
       gender: data.gender || data.aboutMe?.gender || null,
       submittedAt: data.submittedAt || null,
+      quizId: data.quizId || null,
       pdfUrl:
         buildPublicPdfUrl(loaded.reportId, getApiPublicBase(req)) ||
         data.storageInfo?.pdfUrl ||

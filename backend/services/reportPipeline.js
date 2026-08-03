@@ -1,7 +1,11 @@
 import fs from "fs/promises";
 import path from "path";
 import { buildAssessmentPdf, PDF_FORMAT_VERSION } from "./pdfService.js";
-import { saveReportArtifacts } from "./storageService.js";
+import {
+  saveReportArtifactsFailSafe,
+  logStorageEvent,
+  primaryArchiveExists,
+} from "./storageService.js";
 import {
   appendLeadToGoogleSheet,
   buildPublicPdfUrl,
@@ -11,7 +15,11 @@ import {
 async function writeSheetsSidecar(storageInfo, reportId, sheets) {
   const dir =
     storageInfo?.localBackup?.dir ||
-    (storageInfo?.pdfPath ? path.dirname(storageInfo.pdfPath) : null);
+    storageInfo?.reportDir ||
+    storageInfo?.dir ||
+    (storageInfo?.pdfPath && !String(storageInfo.pdfPath).startsWith("s3://")
+      ? path.dirname(storageInfo.pdfPath)
+      : null);
   if (!dir) return;
   try {
     await fs.writeFile(
@@ -36,53 +44,37 @@ async function writeSheetsSidecar(storageInfo, reportId, sheets) {
 }
 
 /**
- * Canonical post-analysis report pipeline (after Gemini via POST /api/analyze):
+ * Fail-safe post-analysis pipeline:
+ *   Generate PDF → Save (primary or duplicate_reports) → Sheets → return
  *
- *   Customer submits quiz → Gemini analysis
- *        ↓
- *   Generate PDF
- *        ↓
- *   Save PDF (+ JSON) on VPS disk
- *        ↓
- *   Append lead to Google Sheets
- *        ↓
- *   Return report metadata to the frontend
- *
- * Drive upload / org email are optional side-effects handled by the controller.
- *
- * @returns {Promise<{
- *   reportId: string,
- *   reportDate: string,
- *   resultPageUrl: string|null,
- *   pdfBuffer: Buffer,
- *   archive: object,
- *   storageInfo: object,
- *   publicPdfUrl: string|null,
- *   sheets: object,
- *   pipeline: {
- *     pdfGenerated: boolean,
- *     savedOnVps: boolean,
- *     sheetsAppended: boolean,
- *     sheetsConfigured: boolean,
- *     storage: string,
- *   }
- * }>}
+ * Never overwrites primary. Collisions go to duplicate_reports/.
  */
 export async function runReportPipeline({
   payload,
   apiPublicBase = null,
   patientName = "Guest",
+  quizId = null,
+  requestPayload = null,
 } = {}) {
   const reportId = payload?.reportId;
   if (!reportId) {
     throw new Error("runReportPipeline requires payload.reportId");
   }
 
+  await logStorageEvent("pipeline_start", {
+    reportId,
+    quizId,
+    status: "started",
+  });
+
+  const existedBefore = await primaryArchiveExists(reportId);
+
   // 1) Generate PDF
   const pdfBuffer = await buildAssessmentPdf(payload);
 
   const archive = {
     ...payload,
+    quizId: quizId || payload.quizId || null,
     scalpImages: Array.isArray(payload.scalpImages)
       ? payload.scalpImages.map((img) => ({
           type: img?.type,
@@ -94,8 +86,8 @@ export async function runReportPipeline({
     storageInfo: undefined,
   };
 
-  // 2) Save PDF (+ JSON) on VPS (local disk always; Drive/S3 optional inside storage service)
-  const storageInfo = await saveReportArtifacts({
+  // 2) Fail-safe save (primary if free, else duplicate_reports — never lose)
+  const storageInfo = await saveReportArtifactsFailSafe({
     reportId,
     pdfBuffer,
     jsonData: {
@@ -103,36 +95,66 @@ export async function runReportPipeline({
       pdfFormatVersion: PDF_FORMAT_VERSION,
     },
     patientName,
-    allowOverwrite: false,
+    quizId,
+    requestPayload,
+    reasonIfDuplicate: existedBefore
+      ? "report_id_already_exists"
+      : "race_or_unexpected_conflict",
   });
 
   const savedOnVps = Boolean(
     storageInfo?.localBackup?.pdfPath ||
+      storageInfo?.localBackup?.jsonPath ||
       storageInfo?.pdfPath ||
+      storageInfo?.jsonPath ||
+      storageInfo?.reportDir ||
       storageInfo?.storage === "local" ||
+      storageInfo?.storage === "local_duplicate" ||
       storageInfo?.storage === "google_drive" ||
       storageInfo?.storage === "s3"
   );
 
+  await logStorageEvent("pipeline_stored", {
+    reportId,
+    quizId,
+    isDuplicate: Boolean(storageInfo.isDuplicate),
+    storageLocation: storageInfo.reportDir || storageInfo.dir || null,
+    location: storageInfo.location || storageInfo.storage,
+    status: savedOnVps ? "ok" : "error",
+  });
+
   console.log(
-    `[pipeline] ${reportId}: pdf=ok storage=${storageInfo.storage}` +
+    `[pipeline] ${reportId}: pdf=ok` +
+      ` storage=${storageInfo.storage}` +
+      (storageInfo.isDuplicate ? " DUPLICATE" : " primary") +
       (storageInfo.pdfPath ? ` path=${storageInfo.pdfPath}` : "") +
       (storageInfo.driveError ? ` driveError=${storageInfo.driveError}` : "")
   );
 
-  // Live VPS PDF URL for Sheets / frontend (never localhost)
+  // Sheet / public PDF URL — for duplicates still reference the intended reportId
   const publicPdfUrl =
     buildPublicPdfUrl(reportId, apiPublicBase) || storageInfo.pdfUrl || null;
 
-  // 3) Append lead to Google Sheets
+  // 3) Append lead to Google Sheets (even duplicates — both leads must appear)
   let sheets = { skipped: true, reason: "not_attempted" };
   try {
+    const sheetReportId = storageInfo.isDuplicate
+      ? storageInfo.duplicateReportId || reportId
+      : reportId;
     sheets = await appendLeadToGoogleSheet({
-      reportId,
+      reportId: sheetReportId,
       reportDate: payload.reportDate,
       aboutMe: payload.aboutMe || {},
       scalpAnalysis: payload.scalpAnalysis || {},
-      reportMeta: payload.reportMeta || {},
+      reportMeta: {
+        ...(payload.reportMeta || {}),
+        ...(storageInfo.isDuplicate
+          ? {
+              duplicateOf: storageInfo.originalReportId,
+              storedAsDuplicate: true,
+            }
+          : {}),
+      },
       resultPageUrl: payload.resultPageUrl || null,
       pdfUrl: publicPdfUrl,
     });
@@ -154,6 +176,14 @@ export async function runReportPipeline({
 
   await writeSheetsSidecar(storageInfo, reportId, sheets);
 
+  await logStorageEvent("pipeline_complete", {
+    reportId,
+    quizId,
+    sheetsAppended,
+    isDuplicate: Boolean(storageInfo.isDuplicate),
+    status: "ok",
+  });
+
   // 4) Return report package for the frontend
   return {
     reportId,
@@ -164,12 +194,17 @@ export async function runReportPipeline({
     storageInfo,
     publicPdfUrl,
     sheets,
+    isDuplicate: Boolean(storageInfo.isDuplicate),
+    originalReportId: storageInfo.originalReportId || null,
+    duplicateReportId: storageInfo.duplicateReportId || null,
     pipeline: {
       pdfGenerated: true,
       savedOnVps,
       sheetsAppended,
       sheetsConfigured: isSheetsConfigured(),
       storage: storageInfo.storage || "local",
+      location: storageInfo.location || "primary",
+      isDuplicate: Boolean(storageInfo.isDuplicate),
       pdfUrl: publicPdfUrl,
       resultPageUrl: payload.resultPageUrl || null,
     },

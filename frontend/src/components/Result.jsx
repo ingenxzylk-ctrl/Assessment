@@ -1398,7 +1398,14 @@ export default function Result() {
           ? `${window.location.origin}${window.location.pathname || "/"}`
           : LIVE_DEFAULT;
 
+    // Stable Quiz ID for this submission attempt (VPS allocates Report ID separately).
+    const quizId =
+      (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
     submitAssessmentReport({
+      quizId,
       aboutMe: state.aboutMe,
       hairHealth: state.hairHealth || {},
       internalHealth: state.internalHealth || {},

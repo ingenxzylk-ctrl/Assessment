@@ -70,11 +70,11 @@ export async function generateResult({ aboutMe, hairHealth, internalHealth, scal
 
 /**
  * Post-Gemini report pipeline (POST /api/report/submit):
- *   Generate PDF → Save PDF on VPS → Append lead to Google Sheets → return report package.
+ *   Generate PDF → Save PDF on VPS (fail-safe) → Append lead to Google Sheets → return.
  *
+ * Send a stable `quizId` (UUID) with each attempt. The VPS allocates `reportId`.
  * Expects analysis already completed via analyzeScalp() (POST /api/analyze).
- * Returns { ok, reportId, pdfUrl, resultPageUrl, sheets, pipeline, ... }.
- * Callers should surface reportId / pdfUrl from the response; catch errors for retry.
+ * Returns { ok, quizId, reportId, pdfUrl, resultPageUrl, sheets, pipeline, ... }.
  */
 export async function submitAssessmentReport(payload) {
   let res;
