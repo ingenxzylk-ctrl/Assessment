@@ -37,10 +37,11 @@ const REPORTS_DIR =
 const REPORT_ID_RE = /^TR-(\d{2})(\d{2})(\d{4})-(\d+)$/i;
 
 function parseArgs(argv) {
-  const out = { from: null, to: null, dryRun: false };
+  const out = { from: null, to: null, dryRun: false, all: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--dry-run") out.dryRun = true;
+    else if (a === "--all") out.all = true;
     else if (a === "--from") out.from = argv[++i];
     else if (a === "--to") out.to = argv[++i];
   }
@@ -140,12 +141,21 @@ async function fetchExistingReportIds() {
 }
 
 const args = parseArgs(process.argv.slice(2));
-const from = parseDateInput(args.from || "2026-07-30", "from");
-const to = parseDateInput(args.to || "2026-08-03", "to");
+const from = args.all
+  ? new Date(Date.UTC(2000, 0, 1))
+  : parseDateInput(args.from || "2026-07-30", "from");
+const to = args.all
+  ? new Date(Date.UTC(2100, 0, 1))
+  : parseDateInput(args.to || "2026-08-03", "to");
 
 console.log("\n=== Sheets backfill ===\n");
 console.log("reports dir:", REPORTS_DIR);
-console.log("range:", from.toISOString().slice(0, 10), "→", to.toISOString().slice(0, 10));
+console.log(
+  "range:",
+  args.all
+    ? "ALL local reports"
+    : `${from.toISOString().slice(0, 10)} → ${to.toISOString().slice(0, 10)}`
+);
 console.log("dry-run:", args.dryRun);
 console.log("env:", getSheetsStatus());
 
