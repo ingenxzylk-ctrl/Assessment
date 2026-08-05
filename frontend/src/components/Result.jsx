@@ -99,7 +99,7 @@ const FREE_ADDONS = [
   },
 ];
 
-const TESTIMONIALS = [
+const MALE_TESTIMONIALS = [
   {
     name: "Harish",
     age: 28,
@@ -109,10 +109,8 @@ const TESTIMONIALS = [
     review:
       "I was losing hope with generic oils. Zylk's stage-based kit actually reduced my shedding in the first month. My hairline looks fuller now.",
     date: "Reviewed on 25th Feb 2025",
-    // Put files in frontend/public/testimonials/ (jpg/png/webp OK)
     photos: [
       { label: "Before", file: "Harish-before.png" },
-     
       { label: "After", file: "Harish-after.png" },
     ],
   },
@@ -125,12 +123,40 @@ const TESTIMONIALS = [
     review:
       "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
     date: "Reviewed on 12th Jan 2025",
-    // Keep Ajay's default frames; Rahul's Arun shots need contain + portrait frames
-    // so they aren't over-cropped like object-cover square crops.
     photoFrameClass: "aspect-[3/4]",
     photos: [
       { label: "Before", file: "Arun-before.png", fit: "contain" },
       { label: "After", file: "Arun-after.png", fit: "contain" },
+    ],
+  },
+];
+const FEMALE_TESTIMONIALS = [
+  {
+    name: "Priya",
+    age: 29,
+    city: "Coimbatore, Tamil Nadu",
+    stage: "2",
+    rating: 5,
+    review:
+      "After pregnancy my hair fall became severe. Within a few months of following the Zylk routine, shedding reduced and my part line looked much fuller.",
+    date: "Reviewed on 8th Mar 2025",
+    photos: [
+      { label: "Before", file: "Priya-before.png" },
+      { label: "After", file: "Priya-after.png" },
+    ],
+  },
+  {
+    name: "Divya",
+    age: 35,
+    city: "Madurai, Tamil Nadu",
+    stage: "3",
+    rating: 5,
+    review:
+      "I tried many shampoos without success. Zylk's personalized treatment helped reduce hair fall and I started seeing healthy new growth after a few months.",
+    date: "Reviewed on 18th Apr 2025",
+    photos: [
+      { label: "Before", file: "Divya-before.png" },
+      { label: "After", file: "Divya-after.png" },
     ],
   },
 ];
@@ -1256,20 +1282,29 @@ export default function Result() {
         aiPredictedStageNumber
       )
     : null;
-  const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
-  const testimonial = TESTIMONIALS[testimonialIdx % TESTIMONIALS.length];
+const savings = recommendedBundle ? recommendedBundle.originalPrice - recommendedBundle.price : 0;
+const testimonials = isFemale
+  ? FEMALE_TESTIMONIALS
+  : MALE_TESTIMONIALS;
+
+const testimonial =
+  testimonials[testimonialIdx % testimonials.length];
   const testimonialPhotos = useMemo(
     () => resolveTestimonialPhotos(testimonial.photos || []),
     [testimonial]
   );
 
-  useEffect(() => {
-    if (TESTIMONIALS.length <= 1) return undefined;
-    const timer = setInterval(() => {
-      setTestimonialIdx((prev) => (prev + 1) % TESTIMONIALS.length);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
+ useEffect(() => {
+  if (testimonials.length <= 1) return;
+
+  setTestimonialIdx(0);
+
+  const timer = setInterval(() => {
+    setTestimonialIdx((prev) => (prev + 1) % testimonials.length);
+  }, 3000);
+
+  return () => clearInterval(timer);
+}, [isFemale]);
   
   const handleBuyNow = () => {
     if (requiresDoctorConsultation) {
@@ -1782,7 +1817,7 @@ export default function Result() {
               ))}
             </div>
             <div className="flex justify-center gap-1.5 mt-3">
-              {TESTIMONIALS.map((_, i) => (
+              {testimonials.map((_, i) => (
                 <button
                   key={i}
                   type="button"
@@ -1988,7 +2023,7 @@ export default function Result() {
             <p className="text-sm text-gray-700 leading-relaxed">{testimonial.review}</p>
             <p className="text-[10px] text-gray-400 mt-2">{testimonial.date}</p>
             <div className="flex justify-center gap-1.5 mt-3">
-              {TESTIMONIALS.map((_, i) => (
+              {testimonials.map((_, i) => (
                 <button
                   key={`story-dot-${i}`}
                   type="button"
@@ -2008,7 +2043,7 @@ export default function Result() {
             <p className="text-sm font-bold text-gray-600 mt-1">If you want to know if you are eligible for
 money back guarantee contact our customer support</p>
             <div className="border-t border-dashed border-gray-200 my-4" />
-            <button type="button" className="text-sm text-gray-600 underline">Read Money back policy</button>
+            
           </div>
         )}
 
