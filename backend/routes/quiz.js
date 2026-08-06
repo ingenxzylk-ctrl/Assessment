@@ -90,9 +90,12 @@ router.get("/health", async (req, res) => {
     },
   });
 });
+router.post("/analyze", analyzeScalp);
+router.post("/result", generateResult);
 router.post("/report/submit", submitAssessmentReport);
 
 router.get("/report/:reportId/pdf", getAssessmentReportPdf);
 router.get("/report/:reportId/photo/:type", getAssessmentReportPhoto);
 router.get("/report/:reportId", getAssessmentReport);
+
 export default router;
