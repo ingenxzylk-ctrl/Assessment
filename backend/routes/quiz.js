@@ -5,6 +5,7 @@ import {
   submitAssessmentReport,
   getAssessmentReport,
   getAssessmentReportPdf,
+  getAssessmentReportPhoto,
 } from "../controllers/reportController.js";
 import {
   PDF_FORMAT_VERSION,
@@ -89,11 +90,9 @@ router.get("/health", async (req, res) => {
     },
   });
 });
-router.post("/analyze", analyzeScalp);
-router.post("/result", generateResult);
 router.post("/report/submit", submitAssessmentReport);
-// PDF route must be registered before the generic :reportId JSON route is fine as long as path differs
-router.get("/report/:reportId/pdf", getAssessmentReportPdf);
-router.get("/report/:reportId", getAssessmentReport);
 
+router.get("/report/:reportId/pdf", getAssessmentReportPdf);
+router.get("/report/:reportId/photo/:type", getAssessmentReportPhoto);
+router.get("/report/:reportId", getAssessmentReport);
 export default router;
