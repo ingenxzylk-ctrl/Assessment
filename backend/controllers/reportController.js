@@ -17,6 +17,7 @@ import { PDF_FORMAT_VERSION } from "../services/pdfService.js";
 import {
   loadReportJson,
   loadReportPdf,
+  loadReportPhoto,
   persistIncomingRequest,
   saveDuplicateReport,
   logStorageEvent,
@@ -37,6 +38,13 @@ import {
 
 const COUNTER_DIR = REPORTS_ROOT;
 
+// Only reuse a cached report if it was created within this window.
+// This exists purely to dedupe retries / double-submits (e.g. a flaky network
+// causing the frontend to fire the same request twice within seconds) — it is
+// NOT meant to be a permanent "same content = same result" identity cache.
+// Letting it live forever was the root cause of stale/"stuck" report reuse.
+const HASH_REUSE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
 async function readContentHashMapping(contentHash) {
   if (!contentHash) return null;
   const safe = String(contentHash).replace(/[^\w-]/g, "").slice(0, 64);
@@ -44,7 +52,15 @@ async function readContentHashMapping(contentHash) {
   const file = path.join(COUNTER_DIR, `_hash_${safe}.json`);
   try {
     const raw = await fs.readFile(file, "utf8");
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+
+    // Stale entries are treated as a miss — this forces a fresh report
+    // instead of silently handing back something that may be arbitrarily old.
+    const savedAt = parsed?.savedAt ? new Date(parsed.savedAt).getTime() : 0;
+    if (!savedAt || Date.now() - savedAt > HASH_REUSE_TTL_MS) {
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -56,8 +72,14 @@ async function writeContentHashMapping(contentHash, reportId, reportDate) {
   if (!safe) return;
   await fs.mkdir(COUNTER_DIR, { recursive: true });
   const file = path.join(COUNTER_DIR, `_hash_${safe}.json`);
+  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
+
+  // Atomic write: write to a temp file first, then rename into place.
+  // Two near-simultaneous requests racing on the same content hash can no
+  // longer observe a half-written file, and rename() is atomic on the same
+  // filesystem, so the mapping file is always either fully old or fully new.
   await fs.writeFile(
-    file,
+    tmp,
     JSON.stringify({
       reportId,
       reportDate,
@@ -66,6 +88,7 @@ async function writeContentHashMapping(contentHash, reportId, reportDate) {
     }),
     "utf8"
   );
+  await fs.rename(tmp, file);
 }
 
 function isLoopbackHost(hostname) {
@@ -275,8 +298,9 @@ export async function submitAssessmentReport(req, res) {
       });
     }
 
-    // Never reuse cached PDFs from older layout versions.
-    // Skip only when the same quiz content was already rendered with THIS format.
+    // Never reuse cached PDFs from older layout versions, and never reuse a
+    // mapping older than HASH_REUSE_TTL_MS (see readContentHashMapping).
+    // This only skips regeneration for near-instant duplicate submits.
     const existingByHash = await readContentHashMapping(contentHash);
     const hashFormatOk =
       existingByHash?.pdfFormatVersion === PDF_FORMAT_VERSION;
@@ -576,6 +600,22 @@ export async function getAssessmentReport(req, res) {
     const { reportId } = req.params;
     const loaded = await loadReportJson(reportId);
     const data = loaded.data || {};
+    const apiPublicBase = getApiPublicBase(req);
+
+    // The JSON archive only stores { type, label, hasImage } — the actual
+    // photo bytes were saved as real files (see saveScalpPhotosLocal) and
+    // are served from GET /api/report/:reportId/photo/:type. Attach that
+    // URL here so the frontend's existing merge logic, which already checks
+    // img.url, picks it up with no frontend changes needed.
+    const scalpImagesWithUrls = (Array.isArray(data.scalpImages) ? data.scalpImages : []).map(
+      (img) => {
+        if (!img?.hasImage || !img?.type) return img;
+        return {
+          ...img,
+          url: `${apiPublicBase}/api/report/${encodeURIComponent(loaded.reportId)}/photo/${encodeURIComponent(img.type)}`,
+        };
+      }
+    );
 
     return res.json({
       ok: true,
@@ -586,13 +626,13 @@ export async function getAssessmentReport(req, res) {
       hairHealth: data.hairHealth || {},
       internalHealth: data.internalHealth || {},
       scalpAnalysis: data.scalpAnalysis || null,
-      scalpImages: data.scalpImages || [],
+      scalpImages: scalpImagesWithUrls,
       reportMeta: data.reportMeta || {},
       gender: data.gender || data.aboutMe?.gender || null,
       submittedAt: data.submittedAt || null,
       quizId: data.quizId || null,
       pdfUrl:
-        buildPublicPdfUrl(loaded.reportId, getApiPublicBase(req)) ||
+        buildPublicPdfUrl(loaded.reportId, apiPublicBase) ||
         data.storageInfo?.pdfUrl ||
         null,
     });
@@ -604,6 +644,34 @@ export async function getAssessmentReport(req, res) {
     console.error("[report] get failed:", err);
     return res.status(500).json({
       error: err.message || "Failed to load assessment report.",
+    });
+  }
+}
+
+/**
+ * Stream a single saved scalp photo (front/top/side/back) for a report.
+ * GET /api/report/:reportId/photo/:type
+ *
+ * This is what lets the live Result page, the team's Google Sheet, or any
+ * other device/browser see the actual photo — instead of depending on the
+ * originating browser's IndexedDB, which is empty for anyone else.
+ */
+export async function getAssessmentReportPhoto(req, res) {
+  try {
+    const { reportId, type } = req.params;
+    const loaded = await loadReportPhoto(reportId, type);
+
+    res.setHeader("Content-Type", loaded.contentType || "image/jpeg");
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    return res.status(200).send(loaded.buffer);
+  } catch (err) {
+    const status = err.status || 500;
+    if (status === 404 || status === 400) {
+      return res.status(status).json({ error: err.message });
+    }
+    console.error("[report] photo get failed:", err);
+    return res.status(500).json({
+      error: err.message || "Failed to load photo.",
     });
   }
 }

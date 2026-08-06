@@ -149,6 +149,30 @@ export function markCheckoutReturn() {
   }
 }
 
+/**
+ * Remove every report-submission-tracking key this app has ever written
+ * (zylk_report_submitted_<hash>, zylk_report_inflight_<hash>, zylk_report_pdf_<id>).
+ *
+ * These are keyed by a content hash of the quiz answers, not by quiz attempt.
+ * Left alone, they (a) accumulate forever in localStorage, and (b) can — in the
+ * rare case a retake produces byte-identical content (shared device, identical
+ * test/demo answers) — cause the next attempt to silently reuse a stale report
+ * instead of submitting fresh data. Sweeping them on every reset closes that gap.
+ */
+function clearReportSubmissionKeys() {
+  if (typeof window === "undefined") return;
+  try {
+    const toRemove = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith("zylk_report_")) toRemove.push(key);
+    }
+    toRemove.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+}
+
 export function clearPersistedQuizState() {
   if (typeof window === "undefined") return;
   try {
@@ -157,5 +181,6 @@ export function clearPersistedQuizState() {
   } catch {
     // ignore
   }
+  clearReportSubmissionKeys();
   clearScalpImagesIdb().catch(() => {});
 }

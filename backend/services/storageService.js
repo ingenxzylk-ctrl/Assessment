@@ -9,6 +9,9 @@
  *
  * Layout (VPS):
  *   storage/reports/YYYY/MM/TR-…/              primary (date-partitioned)
+ *     assessment.pdf
+ *     assessment.json
+ *     photos/<type>.<ext>                      real photo files (front/top/side/back)
  *   storage/duplicate_reports/YYYY/MM/TR-…-DUPN/  collisions + meta
  *   storage/incoming/…                         durable raw request dumps
  *   storage/logs/report-storage.log            append-only event log
@@ -186,6 +189,101 @@ async function writePrimaryLocal({ reportId, pdfBuffer, jsonData }) {
     pdfUrl: null,
     jsonUrl: null,
   };
+}
+
+/**
+ * Decode each scalp photo's base64 dataUrl and write it as a real file under
+ * <reportDir>/photos/<type>.<ext> — the same directory assessment.pdf and
+ * assessment.json already live in. This is what lets photos be served back
+ * by URL (GET /api/report/:reportId/photo/:type) instead of only existing as
+ * inline base64 that gets stripped out of the JSON archive before it's saved.
+ *
+ * Never throws — a failed photo save should never take down the report save.
+ */
+export async function saveScalpPhotosLocal({ reportDir, scalpImages = [] } = {}) {
+  if (!reportDir) return [];
+  const photosDir = path.join(reportDir, "photos");
+  const saved = [];
+
+  for (const img of Array.isArray(scalpImages) ? scalpImages : []) {
+    const raw = img?.dataUrl || img?.previewUrl || img?.url;
+    if (!raw || typeof raw !== "string") continue;
+
+    const match = /^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/s.exec(raw.trim());
+    if (!match) continue;
+
+    const mime = match[1].toLowerCase();
+    const ext = mime.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+    const type = String(img?.type || "photo")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "");
+    if (!type) continue;
+
+    try {
+      await ensureDir(photosDir);
+      const buffer = Buffer.from(match[2], "base64");
+      const filename = `${type}.${ext}`;
+      await fs.writeFile(path.join(photosDir, filename), buffer);
+      saved.push({ type, label: img.label || img.type || type, filename, ext, mime });
+    } catch (err) {
+      console.warn(
+        `[storage] failed to save scalp photo "${type}":`,
+        err?.message || err
+      );
+    }
+  }
+
+  return saved;
+}
+
+/**
+ * Load a single saved scalp photo back off disk for streaming to the client.
+ * Tries common extensions since we don't store a manifest of exact filenames.
+ */
+export async function loadReportPhoto(reportId, type) {
+  const safeId = String(reportId || "").trim();
+  if (!isValidReportId(safeId)) {
+    const err = new Error("Invalid report id.");
+    err.status = 400;
+    throw err;
+  }
+
+  const safeType = String(type || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+  if (!safeType) {
+    const err = new Error("Invalid photo type.");
+    err.status = 400;
+    throw err;
+  }
+
+  const dir = await resolvePrimaryReportDir(safeId);
+  if (!dir) {
+    const err = new Error("Report not found.");
+    err.status = 404;
+    throw err;
+  }
+
+  const photosDir = path.join(dir, "photos");
+  const candidates = [
+    ["jpg", "image/jpeg"],
+    ["jpeg", "image/jpeg"],
+    ["png", "image/png"],
+    ["webp", "image/webp"],
+  ];
+
+  for (const [ext, contentType] of candidates) {
+    try {
+      const buffer = await fs.readFile(path.join(photosDir, `${safeType}.${ext}`));
+      return { buffer, contentType, reportId: safeId, type: safeType };
+    } catch {
+      // try next extension
+    }
+  }
+
+  const notFound = new Error("Photo not found.");
+  notFound.status = 404;
+  throw notFound;
 }
 
 /**

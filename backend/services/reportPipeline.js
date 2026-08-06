@@ -3,6 +3,7 @@ import path from "path";
 import { buildAssessmentPdf, PDF_FORMAT_VERSION } from "./pdfService.js";
 import {
   saveReportArtifactsFailSafe,
+  saveScalpPhotosLocal,
   logStorageEvent,
   primaryArchiveExists,
 } from "./storageService.js";
@@ -45,7 +46,7 @@ async function writeSheetsSidecar(storageInfo, reportId, sheets) {
 
 /**
  * Fail-safe post-analysis pipeline:
- *   Generate PDF → Save (primary or duplicate_reports) → Sheets → return
+ *   Generate PDF → Save (primary or duplicate_reports) → Save photo files → Sheets → return
  *
  * Never overwrites primary. Collisions go to duplicate_reports/.
  */
@@ -75,6 +76,9 @@ export async function runReportPipeline({
   const archive = {
     ...payload,
     quizId: quizId || payload.quizId || null,
+    // Keep the JSON archive lightweight — no inline base64 — but the actual
+    // photo bytes are saved separately as real files (see saveScalpPhotosLocal
+    // below) and served back via GET /api/report/:reportId/photo/:type.
     scalpImages: Array.isArray(payload.scalpImages)
       ? payload.scalpImages.map((img) => ({
           type: img?.type,
@@ -130,6 +134,32 @@ export async function runReportPipeline({
       (storageInfo.pdfPath ? ` path=${storageInfo.pdfPath}` : "") +
       (storageInfo.driveError ? ` driveError=${storageInfo.driveError}` : "")
   );
+
+  // 2b) Save scalp photos as real files next to the PDF/JSON so they can be
+  // served back by URL — this is what the live Result page and the team's
+  // Google Sheet links both need. Only works for local/duplicate storage
+  // (S3/Drive-only setups skip this silently — savedPhotos stays empty).
+  const reportDirForPhotos =
+    storageInfo?.localBackup?.dir || storageInfo?.reportDir || storageInfo?.dir || null;
+  let savedPhotos = [];
+  if (reportDirForPhotos) {
+    try {
+      savedPhotos = await saveScalpPhotosLocal({
+        reportDir: reportDirForPhotos,
+        scalpImages: payload.scalpImages || [],
+      });
+      if (savedPhotos.length) {
+        console.log(
+          `[pipeline] ${reportId}: saved ${savedPhotos.length} scalp photo file(s)`
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[pipeline] ${reportId}: failed to save scalp photo files:`,
+        err?.message || err
+      );
+    }
+  }
 
   // Sheet / public PDF URL — for duplicates still reference the intended reportId
   const publicPdfUrl =
@@ -193,6 +223,7 @@ export async function runReportPipeline({
     archive,
     storageInfo,
     publicPdfUrl,
+    savedPhotos,
     sheets,
     isDuplicate: Boolean(storageInfo.isDuplicate),
     originalReportId: storageInfo.originalReportId || null,

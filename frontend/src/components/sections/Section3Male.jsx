@@ -81,12 +81,12 @@ const OPTIONS = {
 const DETAIL_FIELDS = {
   supplements: {
     stateKey: "supplements_details",
-    placeholder: "Please mention which vitamins or supplements you are taking",
+    placeholder: "Mention your vitamins or supplements...",
     error: "Please mention what vitamins or supplements you are taking",
   },
   prescription_medicines: {
     stateKey: "prescription_medicines_details",
-    placeholder: "Please mention which prescription medicines you are taking",
+    placeholder: "Mention your prescription medicines...",
     error: "Please mention what prescription medicines you are taking",
   },
 };
@@ -305,7 +305,7 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
                         value={otherCondition}
                         onChange={(e) => setOtherCondition(e.target.value)}
                         placeholder="Please specify condition details here"
-                        className="w-full h-12 px-4 border border-gray-200 rounded-xl focus:outline-none focus:border-[#064e3b] bg-white text-gray-900 text-sm transition-all"
+                        className="w-full h-12 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#064e3b] focus:border-[#064e3b] bg-[#fcfdfc] text-gray-900 placeholder:text-red-600 text-xs sm:text-sm font-medium transition-all shadow-xs"
                       />
                     )}
                   </div>
@@ -342,14 +342,17 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
                 </button>
               ))}
 
+              {/* Enhanced Input Field with Concise Red Placeholder & Clean Padding */}
               {detailMeta && localForm[currentStep] === "Yes" && (
-                <input
-                  type="text"
-                  value={localForm[detailMeta.stateKey] || ""}
-                  onChange={(e) => handleDetailChange(detailMeta.stateKey, e.target.value)}
-                  placeholder={detailMeta.placeholder}
-                  className="w-full min-h-[56px] px-5 border border-gray-200 rounded-2xl focus:outline-none focus:border-[#064e3b] bg-white text-gray-900 text-base transition-all"
-                />
+                <div className="mt-3 animate-[fadeIn_0.2s_ease-out]">
+                  <input
+                    type="text"
+                    value={localForm[detailMeta.stateKey] || ""}
+                    onChange={(e) => handleDetailChange(detailMeta.stateKey, e.target.value)}
+                    placeholder={detailMeta.placeholder}
+                    className="w-full h-14 px-4 py-3 border-2 border-gray-300 rounded-2xl focus:outline-none focus:border-[#064e3b] focus:ring-4 focus:ring-[#064e3b]/10 bg-white text-gray-900 placeholder:text-red-600 text-xs sm:text-sm font-medium transition-all shadow-xs"
+                  />
+                </div>
               )}
             </div>
           )}

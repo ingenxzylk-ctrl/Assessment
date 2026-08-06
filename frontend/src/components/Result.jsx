@@ -17,6 +17,7 @@ import { motion, useMotionValue, animate } from "framer-motion";
 const AVATAR_FALLBACK =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23e8eede'/><circle cx='50' cy='38' r='18' fill='%23a7c4a0'/><rect x='18' y='64' width='64' height='30' rx='15' fill='%23a7c4a0'/></svg>";
 
+
 const TESTIMONIAL_EXTS = ["jpg", "jpeg", "png", "webp"];
 
 /** Normalize a pasted path/filename into a public URL under /testimonials. */
@@ -252,6 +253,45 @@ function getProvisionalReportMeta() {
     year: "numeric",
   });
   return { reportId: null, reportDate, provisional: true };
+}
+
+const SUBMITTED_KEY_TTL_MS = 15 * 60 * 1000; // match backend HASH_REUSE_TTL_MS
+
+/** Read a "submitted" localStorage entry, treating anything older than the
+ *  TTL as a miss so a stale record can never block a genuinely new attempt. */
+function readSubmittedEntry(key) {
+  if (typeof window === "undefined") return null;
+  let raw;
+  try {
+    raw = window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+
+  // Back-compat: older entries were stored as a bare "TR-…" string with no timestamp.
+  // Treat those as immediately stale so they get re-validated against the server
+  // instead of trusted forever.
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && parsed.id) {
+      if (Date.now() - (parsed.ts || 0) > SUBMITTED_KEY_TTL_MS) return null;
+      return parsed.id;
+    }
+  } catch {
+    // raw wasn't JSON — it's an old bare-string entry, treat as stale
+    return null;
+  }
+  return null;
+}
+
+function writeSubmittedEntry(key, id) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify({ id, ts: Date.now() }));
+  } catch {
+    // ignore
+  }
 }
 
 /** Hash quiz answers + photo fingerprints — used for submit dedupe only (not Report ID). */
@@ -1294,7 +1334,7 @@ const testimonial =
     [testimonial]
   );
 
- useEffect(() => {
+   useEffect(() => {
   if (testimonials.length <= 1) return;
 
   setTestimonialIdx(0);
@@ -1400,28 +1440,25 @@ const testimonial =
     if (state?.archivedReportId) return;
     if (!state?.aboutMe || !rawAnalysis || analysisMissing) return;
 
-    if (typeof window !== "undefined") {
-      const submittedKey = `zylk_report_submitted_${reportContentHash}`;
-      const inflightKey = `zylk_report_inflight_${reportContentHash}`;
-      if (
-        window.localStorage.getItem(submittedKey) ||
-        window.localStorage.getItem(inflightKey)
-      ) {
-        reportSubmitRef.current = true;
-        const existingId = window.localStorage.getItem(submittedKey);
-        if (existingId && /^TR-/i.test(existingId)) {
-          setSavedReportPackage((prev) =>
-            prev?.reportId ? prev : { reportId: existingId, reportDate: provisionalMeta.reportDate }
-          );
-        }
-        setReportSaveStatus("saved");
-        return;
+    const submittedKey = `zylk_report_submitted_${reportContentHash}`;
+    const inflightKey = `zylk_report_inflight_${reportContentHash}`;
+
+    const existingId = readSubmittedEntry(submittedKey);
+    const inflightActive = Boolean(window.localStorage.getItem(inflightKey));
+    if (existingId || inflightActive) {
+      reportSubmitRef.current = true;
+      if (existingId && /^TR-/i.test(existingId)) {
+        setSavedReportPackage((prev) =>
+          prev?.reportId ? prev : { reportId: existingId, reportDate: provisionalMeta.reportDate }
+        );
       }
-      try {
-        window.localStorage.setItem(inflightKey, "1");
-      } catch {
-        // ignore
-      }
+      setReportSaveStatus("saved");
+      return;
+    }
+    try {
+      window.localStorage.setItem(inflightKey, "1");
+    } catch {
+      // ignore
     }
 
     reportSubmitRef.current = true;
@@ -1517,10 +1554,7 @@ const testimonial =
         const id = data?.reportId;
         try {
           if (id) {
-            window.localStorage.setItem(
-              `zylk_report_submitted_${reportContentHash}`,
-              id
-            );
+            writeSubmittedEntry(`zylk_report_submitted_${reportContentHash}`, id);
           }
           if (data?.pdfUrl && id) {
             window.localStorage.setItem(`zylk_report_pdf_${id}`, data.pdfUrl);
@@ -1718,7 +1752,7 @@ const testimonial =
               </div>
             )}
 
-            
+             
 
             <p className="text-[10px] text-gray-400 mt-3 italic">
               *Based on internal Zylk user outcomes for profiles matching your stage and age group.
@@ -1941,7 +1975,7 @@ const testimonial =
           </div>
         )}
 
-       
+         
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <h2 className="text-base font-bold text-gray-900 mb-3">Real People, Real Stories</h2>
@@ -2043,11 +2077,11 @@ const testimonial =
             <p className="text-sm font-bold text-gray-600 mt-1">If you want to know if you are eligible for
 money back guarantee contact our customer support</p>
             <div className="border-t border-dashed border-gray-200 my-4" />
-            
+             
           </div>
         )}
 
-        
+         
 
         <p className="text-[10px] text-gray-400 italic text-center px-2">
           *As per an internal study conducted by Zylk Health
@@ -2162,12 +2196,12 @@ money back guarantee contact our customer support</p>
                 <>
                   <div className="flex flex-col gap-1 text-left">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wide uppercase">Your treatment plan price</span>
-                    
+                     
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-[26px] font-black text-gray-900 leading-none">₹{recommendedBundle.price}</span>
                       <span className="text-xs font-semibold text-gray-500">/ month</span>
                     </div>
-                    
+                     
                     <p className="text-xs font-medium text-gray-700">
                       (Less than ₹{Math.round(recommendedBundle.price / 30)} / day)
                     </p>
@@ -2239,12 +2273,12 @@ money back guarantee contact our customer support</p>
             <>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] font-medium text-gray-500 tracking-wide uppercase">Your treatment plan price</span>
-                
+                 
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-xl font-extrabold text-gray-900 leading-none">₹{recommendedBundle.price}</span>
                   <span className="text-[11px] font-semibold text-gray-500">/ month</span>
                 </div>
-                
+                 
                 <p className="text-[11px] font-medium text-gray-700">
                   (Less than ₹{Math.round(recommendedBundle.price / 30)} / day)
                 </p>
