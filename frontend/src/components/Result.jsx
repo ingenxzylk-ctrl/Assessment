@@ -1248,18 +1248,16 @@ export default function Result() {
   // report if this browser was previously used to take the quiz. It's only
   // safe to borrow local IndexedDB photos while the current user is actively
   // progressing through their own in-progress quiz session.
-  useEffect(() => {
-    if (displayUserPhoto) return undefined;
-    if (state?.archivedReportId) return undefined;
-    let cancelled = false;
-    (async () => {
-      await restorePhotosFromIdb?.();
-      if (cancelled) return;
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [displayUserPhoto, state?.archivedReportId, restorePhotosFromIdb]);
+useEffect(() => {
+  if (displayUserPhoto) return undefined;
+  if (state?.archivedReportId) return undefined; // never restore local photos onto an archived report
+  let cancelled = false;
+  (async () => {
+    await restorePhotosFromIdb?.();
+    if (cancelled) return;
+  })();
+  return () => { cancelled = true; };
+}, [displayUserPhoto, restorePhotosFromIdb, state?.archivedReportId]);
 
   const requiresDoctorConsultation =
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||

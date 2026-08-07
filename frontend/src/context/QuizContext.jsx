@@ -299,14 +299,18 @@ export function QuizProvider({ children }) {
   }, []);
 
   const restorePhotosFromIdb = useCallback(async () => {
-    const idbImages = await loadScalpImagesFromIdb();
-    if (!scalpImagesHaveData(idbImages)) return false;
-    setState((prev) => ({
-      ...prev,
-      scalpImages: mergeScalpImages(idbImages, prev.scalpImages),
-    }));
-    return true;
-  }, []);
+  // Never pull in local/IndexedDB photos while viewing an archived report —
+  // those photos belong to whoever last used this browser, not necessarily
+  // the person whose report is currently on screen.
+  if (stateRef.current.archivedReportId) return false;
+  const idbImages = await loadScalpImagesFromIdb();
+  if (!scalpImagesHaveData(idbImages)) return false;
+  setState((prev) => ({
+    ...prev,
+    scalpImages: mergeScalpImages(idbImages, prev.scalpImages),
+  }));
+  return true;
+}, []);
 
   const flushPersistence = useCallback(() => {
     persistQuizStateNow(stateRef.current);
