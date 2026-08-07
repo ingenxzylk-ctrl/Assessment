@@ -16,8 +16,8 @@ export const BUNDLE_CONFIG = {
   // Male stage 1 / overall thinning — Men Advance Hair Regrowth Kit
   1: {
     label: "Men Advance Hair Regrowth Kit",
-    wooProductId: 8588,
-    wooProductIdNoMix: 8588,
+    wooProductId: 8590 ,
+    wooProductIdNoMix: 8590 ,
     priceWithMix: 749,
     priceWithoutMix: 749,
     originalPrice: 1125,
