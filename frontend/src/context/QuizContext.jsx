@@ -31,17 +31,30 @@ export function QuizProvider({ children }) {
 
   // Rehydrate scalp photos from IndexedDB after mount / checkout return
   useEffect(() => {
+    // Never restore previous quiz photos when viewing an archived report
+    if (stateRef.current.archivedReportId) return;
+
     let cancelled = false;
+
     (async () => {
       const idbImages = await loadScalpImagesFromIdb();
+
       if (cancelled || !idbImages.length) return;
+
       setState((prev) => {
         const merged = mergeScalpImages(idbImages, prev.scalpImages);
-        const mergedHasUrl = merged.some((i) => i?.dataUrl);
-        if (!mergedHasUrl) return prev;
-        return { ...prev, scalpImages: merged };
+
+        if (!merged.some((i) => i?.dataUrl)) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          scalpImages: merged,
+        };
       });
     })();
+
     return () => {
       cancelled = true;
     };
@@ -55,6 +68,11 @@ export function QuizProvider({ children }) {
   // Browser back from WordPress may restore via bfcache — rehydrate from storage + IDB
   useEffect(() => {
     const rehydrate = async () => {
+      const params = new URLSearchParams(window.location.search);
+
+      if (params.has("report")) {
+        return;
+      }
       const restored = loadPersistedState();
       const idbImages = await loadScalpImagesFromIdb();
       setState((prev) => {
@@ -233,48 +251,51 @@ export function QuizProvider({ children }) {
     clearPersistedQuizState();
     setState(INITIAL_STATE);
   };
-const hydrateFromReport = useCallback((report, { preferLocalPhotos = false } = {}) => {
-  if (!report || typeof report !== "object") return;
 
-  const apply = (photoSources = []) => {
-    setState((prev) => {
-      const archiveImages = Array.isArray(report.scalpImages) ? report.scalpImages : [];
-      // An archived report's own photos are the source of truth. Local/IndexedDB
-      // photos on this device must never override another report's real images —
-      // they only fill gaps when the archive itself has nothing.
-      const mergedImages = archiveImages.length > 0
-        ? (preferLocalPhotos
-            ? mergeScalpImages(mergeScalpImages(photoSources, prev.scalpImages), archiveImages)
-            : archiveImages)
-        : mergeScalpImages(photoSources, prev.scalpImages);
+  /**
+   * Hydrate quiz state from an archived report (e.g. opening a ?report=TR-... link).
+   *
+   * Privacy fix: an archived report ONLY ever shows that report's own photos,
+   * exactly as returned by the backend for that reportId. This never merges in
+   * IndexedDB photos or any photos already sitting in local state — those are
+   * leftovers from whoever last used this browser/device and must never be
+   * shown as if they belong to a different person's report.
+   */
+  const hydrateFromReport = useCallback((report) => {
+    if (!report || typeof report !== "object") return;
 
-        return {
-          ...prev,
-          step: 5,
-          aboutMe: {
-            ...INITIAL_STATE.aboutMe,
-            ...(report.aboutMe || {}),
-          },
-          hairHealth: {
-            ...INITIAL_STATE.hairHealth,
-            ...(report.hairHealth || {}),
-          },
-          internalHealth: { ...(report.internalHealth || {}) },
-          scalpAnalysis: report.scalpAnalysis || prev.scalpAnalysis || null,
-          scalpImages: mergedImages,
-          archivedReportId: report.reportId || null,
-          archivedReportDate: report.reportDate || null,
-          isLoading: false,
-          error: null,
-          navDirection: "forward",
-        };
-      });
-    };
+    setState((prev) => ({
+      ...prev,
 
-    // Merge IndexedDB photos so archive metadata never blanks the Result overview
-    loadScalpImagesFromIdb()
-      .then((idbImages) => apply(idbImages))
-      .catch(() => apply([]));
+      step: 5,
+
+      aboutMe: {
+        ...INITIAL_STATE.aboutMe,
+        ...(report.aboutMe || {}),
+      },
+
+      hairHealth: {
+        ...INITIAL_STATE.hairHealth,
+        ...(report.hairHealth || {}),
+      },
+
+      internalHealth: {
+        ...(report.internalHealth || {}),
+      },
+
+      scalpAnalysis: report.scalpAnalysis || null,
+
+      // Only use the photos that came from the backend report.
+      // Never merge IndexedDB or previous quiz photos.
+      scalpImages: Array.isArray(report.scalpImages) ? report.scalpImages : [],
+
+      archivedReportId: report.reportId || null,
+      archivedReportDate: report.reportDate || null,
+
+      isLoading: false,
+      error: null,
+      navDirection: "forward",
+    }));
   }, []);
 
   const restorePhotosFromIdb = useCallback(async () => {

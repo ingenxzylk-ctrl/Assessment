@@ -1239,7 +1239,15 @@ export default function Result() {
     extractImageUrl(findScalpImage("back")) ||
     extractImageUrl(state?.scalpImages?.[0]);
 
-  // After WP cart return / ?report= reload, restore photos from IndexedDB if missing
+  // After WP cart return, restore photos from IndexedDB if missing.
+  //
+  // Privacy fix: this must NEVER run while viewing an archived report
+  // (i.e. state.archivedReportId is set, such as opening a ?report=TR-... link).
+  // Pulling in whatever scalp photos happen to be cached on this device would
+  // display a *different* person's leftover local photo on someone else's
+  // report if this browser was previously used to take the quiz. It's only
+  // safe to borrow local IndexedDB photos while the current user is actively
+  // progressing through their own in-progress quiz session.
   useEffect(() => {
     if (displayUserPhoto) return undefined;
     if (state?.archivedReportId) return undefined;
