@@ -88,7 +88,6 @@ function QuizFlow() {
     prevStep,
     goToStep,
     hydrateFromReport,
-    restorePhotosFromIdb,
     setScalpImages,
     setError,
   } = useQuiz();
@@ -110,10 +109,16 @@ function QuizFlow() {
           scalpImagesHaveData(state.scalpImages) || scalpImagesHaveData(idbImages);
         const localHasResult =
           state.step === 5 && Boolean(state.scalpAnalysis?.aiPredictedStage);
+        // Identity check: local state must actually belong to the report being
+        // requested, not just "any" completed result sitting in this browser.
+        // Without this, a stale in-memory result from a previous session/report
+        // gets shown under a completely different report's URL.
+        const localMatchesRequested = state.archivedReportId === reportBoot.reportId;
 
-        // Returning from WP cart / same session: keep local Result + restore photos.
-        // Do NOT overwrite with the archived JSON (archive strips image data URLs).
-        if (localHasResult && localHasPhotos) {
+        // Returning from WP cart / same session, SAME report: keep local Result
+        // + restore photos. Do NOT overwrite with the archived JSON (archive
+        // strips image data URLs).
+        if (localHasResult && localHasPhotos && localMatchesRequested) {
           if (scalpImagesHaveData(idbImages) && setScalpImages) {
             setScalpImages(mergeScalpImages(idbImages, state.scalpImages));
           }
@@ -125,16 +130,22 @@ function QuizFlow() {
         const data = await fetchAssessmentReport(reportBoot.reportId);
         if (cancelled) return;
 
-        hydrateFromReport(data, { preferLocalPhotos: true });
-        // Extra pass in case hydrate raced before IDB resolved
-        await restorePhotosFromIdb?.();
+        // hydrateFromReport only ever uses photos from the fetched report itself —
+        // never merge in local/IndexedDB photos here, that's how a different
+        // person's photo can end up shown on this report.
+        hydrateFromReport(data);
         if (cancelled) return;
         setReportBoot({ status: "ready", reportId: data.reportId });
       } catch (err) {
         if (cancelled) return;
-        // Soft-fallback: if we still have a local result, show it instead of an error page
-        if (state.step === 5 && state.scalpAnalysis) {
-          await restorePhotosFromIdb?.();
+        // Soft-fallback: only trust local state if it actually IS the same
+        // report that just failed to fetch — never fall back to an unrelated
+        // stale result.
+        if (
+          state.step === 5 &&
+          state.scalpAnalysis &&
+          state.archivedReportId === reportBoot.reportId
+        ) {
           setReportBoot({ status: "ready", reportId: reportBoot.reportId });
           return;
         }
@@ -152,7 +163,7 @@ function QuizFlow() {
     };
     // Intentionally depend on reportBoot only — local state is read at effect start
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportBoot.status, reportBoot.reportId, hydrateFromReport, restorePhotosFromIdb, setError]);
+  }, [reportBoot.status, reportBoot.reportId, hydrateFromReport, setError]);
 
   const isMale = aboutMe?.gender === "male";
 
