@@ -233,19 +233,20 @@ export function QuizProvider({ children }) {
     clearPersistedQuizState();
     setState(INITIAL_STATE);
   };
+const hydrateFromReport = useCallback((report, { preferLocalPhotos = false } = {}) => {
+  if (!report || typeof report !== "object") return;
 
-  const hydrateFromReport = useCallback((report, { preferLocalPhotos = true } = {}) => {
-    if (!report || typeof report !== "object") return;
-
-    const apply = (photoSources = []) => {
-      setState((prev) => {
-        const archiveImages = Array.isArray(report.scalpImages) ? report.scalpImages : [];
-        const mergedImages = preferLocalPhotos
-          ? mergeScalpImages(
-              mergeScalpImages(photoSources, prev.scalpImages),
-              archiveImages
-            )
-          : mergeScalpImages(archiveImages, mergeScalpImages(photoSources, prev.scalpImages));
+  const apply = (photoSources = []) => {
+    setState((prev) => {
+      const archiveImages = Array.isArray(report.scalpImages) ? report.scalpImages : [];
+      // An archived report's own photos are the source of truth. Local/IndexedDB
+      // photos on this device must never override another report's real images —
+      // they only fill gaps when the archive itself has nothing.
+      const mergedImages = archiveImages.length > 0
+        ? (preferLocalPhotos
+            ? mergeScalpImages(mergeScalpImages(photoSources, prev.scalpImages), archiveImages)
+            : archiveImages)
+        : mergeScalpImages(photoSources, prev.scalpImages);
 
         return {
           ...prev,

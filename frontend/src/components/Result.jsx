@@ -1242,6 +1242,7 @@ export default function Result() {
   // After WP cart return / ?report= reload, restore photos from IndexedDB if missing
   useEffect(() => {
     if (displayUserPhoto) return undefined;
+    if (state?.archivedReportId) return undefined;
     let cancelled = false;
     (async () => {
       await restorePhotosFromIdb?.();
@@ -1250,7 +1251,7 @@ export default function Result() {
     return () => {
       cancelled = true;
     };
-  }, [displayUserPhoto, restorePhotosFromIdb]);
+  }, [displayUserPhoto, state?.archivedReportId, restorePhotosFromIdb]);
 
   const requiresDoctorConsultation =
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||

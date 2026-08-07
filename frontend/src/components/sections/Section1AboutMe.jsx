@@ -249,8 +249,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     if (stepIndex === 1) {
       return (
         Boolean(localForm.whatsapp.trim()) &&
-        Boolean(localForm.email.trim()) &&
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(localForm.email)
+        localForm.whatsapp.trim().length === 10 &&
+        (localForm.email.trim() === "" || /^[^\s@]+@gmail\.com$/i.test(localForm.email))
       );
     }
     if (stepIndex === 2) {
@@ -300,11 +300,15 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     const e = {};
     if (step === 0 && !localForm.fullName.trim()) e.fullName = "Name is required";
     if (step === 1) {
-      if (!localForm.whatsapp.trim()) e.whatsapp = "WhatsApp number is required";
-      if (!localForm.email.trim()) {
-        e.email = "Email is required";
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(localForm.email)) {
-        e.email = "Invalid email format";
+      if (!localForm.whatsapp.trim()) {
+        e.whatsapp = "WhatsApp number is required";
+      } else if (localForm.whatsapp.trim().length !== 10) {
+        e.whatsapp = "WhatsApp number must be exactly 10 digits";
+      }
+      if (localForm.email.trim()) {
+        if (!/^[^\s@]+@gmail\.com$/i.test(localForm.email)) {
+          e.email = "Email must be a valid gmail.com address";
+        }
       }
     }
     if (step === 2) {
@@ -455,7 +459,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     autoComplete="tel"
     value={localForm.whatsapp}
     onChange={(e) =>
-      handleChange({ whatsapp: e.target.value.replace(/\D/g, "") })
+      handleChange({ whatsapp: e.target.value.replace(/\D/g, "").slice(0, 10) })
     }
     placeholder="Phone number"
     className={`flex-1 min-w-0 basis-0 h-14 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-base ${
