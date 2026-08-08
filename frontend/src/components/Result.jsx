@@ -20,6 +20,160 @@ const AVATAR_FALLBACK =
 
 const TESTIMONIAL_EXTS = ["jpg", "jpeg", "png", "webp"];
 
+const PRODUCT_DETAIL_CONTENT = {
+  "zylk-antidandruff-shampoo": {
+    title: "Anti Dandruff Shampoo",
+    summary: "Clinically formulated to remove flakes, calm irritation, and clean the scalp deeply.",
+    usage: "Wet your hair, lather well, massage into the scalp for 60 seconds, then rinse. Use 3 times a week.",
+    ingredients: ["Salicylic Acid", "Tea Tree Oil", "Aloe Vera", "Natural Surfactants"],
+    hindi: {
+      summary: "खुरदरी त्वचा और पपड़ी को दूर करने के लिए शांति देने वाला क्लीनिंग शैम्पू।",
+      usage: "बाल गीले करें, अच्छी तरह झाग बनायें, 60 सेकेंड तक खोपड़ी पर मसाज करें और फिर धो लें। सप्ताह में 3 बार उपयोग करें।",
+      ingredients: ["सैलिसिलिक एसिड", "टी ट्री ऑयल", "एलो वेरा", "प्राकृतिक क्लीनिंग घटक"],
+    },
+  },
+  "zylk-dermaroller": {
+    title: "Dermaroller",
+    summary: "Supports product absorption and stimulates scalp microcirculation with gentle needling.",
+    usage: "Roll gently over the scalp in 4 directions for 2-3 minutes. Clean before and after use. Use once or twice weekly.",
+    ingredients: ["Stainless Steel Microneedles", "Medical Grade Handle"],
+    hindi: {
+      summary: "उत्पादों को अवशोषित करने और खोपड़ी में रक्त प्रवाह बढ़ाने में मदद करता है।",
+      usage: "स्कalp पर 2-3 मिनट के लिए हल्के से रोल करें। उपयोग से पहले और बाद में साफ करें। सप्ताह में 1-2 बार उपयोग करें।",
+      ingredients: ["स्टेनलेस स्टील माइक्रोनीडल", "मेडिकल ग्रेड हैंडल"],
+    },
+  },
+  "zylk-pumpkin-seed": {
+    title: "Pumpkin Seed Softgel",
+    summary: "Provides daily nutritional support to strengthen follicles and reduce shedding.",
+    usage: "Take one softgel daily after a meal or as directed by your physician.",
+    ingredients: ["Pumpkin Seed Oil", "Vitamin E", "Zinc"],
+    hindi: {
+      summary: "बालों की जड़ें मजबूत करने और गिरावट को कम करने के लिए दैनिक पोषण समर्थन देता है।",
+      usage: "एक सॉफ्टगेल रोज़ भोजन के बाद लें या डॉक्टर के निर्देशानुसार।",
+      ingredients: ["कद्दू के बीज का तेल", "विटामिन ई", "जिंक"],
+    },
+  },
+  "zylk-serum": {
+    title: "Serum",
+    summary: "Lightweight topical serum designed to nourish follicles and improve scalp hydration.",
+    usage: "Apply 4-6 drops to the scalp daily, gently massage until absorbed.",
+    ingredients: ["Niacinamide", "Caffeine", "Botanical Extracts"],
+    hindi: {
+      summary: "फोलिकल को पोषण देने और खोपड़ी को हाइड्रेटेड रखने के लिए तैयार किया गया सीरम।",
+      usage: "रोज़ाना 4-6 बूंदें खोपड़ी पर लगायें, धीरे से मसाज करें।",
+      ingredients: ["नियासिनामाइड", "कैफीन", "औषधीय अर्क"],
+    },
+  },
+  "zylk-advanced-serum": {
+    title: "Advanced Serum",
+    summary: "A deeper-strength serum for mature thinning, repairing damaged strands and boosting density.",
+    usage: "Apply daily to the scalp and massage. Use consistently for best results.",
+    ingredients: ["Peptides", "Amino Acids", "Antioxidants"],
+    hindi: {
+      summary: "पुराने पतले बालों के लिए गहरी शक्ति वाला सीरम, जो खराब धारा की मरम्मत करता है।",
+      usage: "रोज़ाना खोपड़ी पर लगायें और मसाज करें। बेहतर परिणामों के लिए नियमित उपयोग करें।",
+      ingredients: ["पेप्टाइड्स", "अमीनो एसिड", "एंटीऑक्सिडेंट"],
+    },
+  },
+  "zylk-scalp-massager": {
+    title: "Scalp Massager",
+    summary: "Improves circulation and helps products penetrate the scalp more effectively.",
+    usage: "Use for 2-3 minutes on damp or dry scalp. Move in small circles over the problem areas.",
+    ingredients: ["Soft Silicone Bristles", "Ergonomic Grip"],
+    hindi: {
+      summary: "संचरण को बेहतर बनाता है और उत्पादों को खोपड़ी में असरदार तरीके से पहुँचाता है।",
+      usage: "गीली या सूखी खोपड़ी पर 2-3 मिनट तक छोटे घेरे में उपयोग करें।",
+      ingredients: ["नरम सिलिकॉन ब्रिसल", "आरामदायक पकड़"],
+    },
+  },
+  "zylk-rosemary-oil": {
+    title: "Rosemary Hair Oil",
+    summary: "Natural oil to soothe the scalp, reduce inflammation, and support healthy hair growth.",
+    usage: "Apply a few drops to the scalp at night, massage gently, and leave on for 1-2 hours before shampooing.",
+    ingredients: ["Rosemary Oil", "Jojoba Oil", "Vitamin E"],
+    hindi: {
+      summary: "खोपड़ी को शांत करने और स्वस्थ बालों के विकास का समर्थन करने वाला प्राकृतिक तेल।",
+      usage: "रात में खोपड़ी पर कुछ बूंदें लगायें, धीरे से मालिश करें और 1-2 घंटे बाद शैम्पू करें।",
+      ingredients: ["रोsemary ऑयल", "जोजोबा ऑयल", "विटामिन ई"],
+    },
+  },
+  "zylk-rosemary-mist": {
+    title: "Rosemary Mist Spray",
+    summary: "Refreshing scalp spray that calms irritation and supports daily hydration.",
+    usage: "Spray evenly across the scalp once a day and massage lightly.",
+    ingredients: ["Rosemary Extract", "Aloe Vera", "Botanical Hydrators"],
+    hindi: {
+      summary: "ताज़ा करने वाला खोपड़ी स्प्रे जो जलन को शांत करता है।",
+      usage: "रोज़ाना एक बार खोपड़ी पर समान रूप से स्प्रे करें और हल्के से मसाज करें।",
+      ingredients: ["रोsemary अर्क", "एलो वेरा", "बोटैनिकल ह्यूड्रेटर्स"],
+    },
+  },
+  "zylk-salicylic-shampoo": {
+    title: "Salicylic Acid Shampoo",
+    summary: "Deep-clean shampoo that removes excess oil, unclogs pores and keeps the scalp balanced.",
+    usage: "Lather on wet hair focusing on scalp, leave for 1 minute, then rinse thoroughly.",
+    ingredients: ["Salicylic Acid", "Zinc Pyrithione", "Mint Extract"],
+    hindi: {
+      summary: "अतिरिक्त तेल निकालने और खोपड़ी को संतुलित रखने वाला गहरा शैम्पू।",
+      usage: "गीले बालों पर झाग लगायें, 1 मिनट तक छोड़ें और फिर अच्छी तरह धो लें।",
+      ingredients: ["सैलिसिलिक एसिड", "जिंक पिरिथियोन", "पुदीना अर्क"],
+    },
+  },
+  "zylk-minoxidil-finasteride": {
+    title: "5% Minoxidil + 0.1% Finasteride",
+    summary: "Clinically designed to stimulate regrowth and strengthen thinning follicles.",
+    usage: "Apply twice daily to a clean, dry scalp. Use as directed and avoid contact with eyes.",
+    ingredients: ["Minoxidil", "Finasteride", "Propylene Glycol", "Purified Water"],
+    hindi: {
+      summary: "बालों की जड़ों को मजबूती देने और पतले बालों की रिकवरी में मदद करने के लिए तैयार।",
+      usage: "दो बार रोज़ साफ और सूखी खोपड़ी पर लगायें। आंखों से बचायें।",
+      ingredients: ["मिनॉक्सिडिल", "फिनास्टेराइड", "प्रोपाइलीन ग्लाइकोल", "शुद्ध पानी"],
+    },
+  },
+  "zylk-scalp-massager-complimentary": {
+    title: "Scalp Massager",
+    summary: "Improves circulation and helps products penetrate the scalp more effectively.",
+    usage: "Use for 2-3 minutes on damp or dry scalp. Move in small circles over the problem areas.",
+    ingredients: ["Soft Silicone Bristles", "Ergonomic Grip"],
+    hindi: {
+      summary: "संचरण को बेहतर बनाता है और उत्पादों को खोपड़ी में असरदार तरीके से पहुँचाता है।",
+      usage: "गीली या सूखी खोपड़ी पर 2-3 मिनट तक छोटे घेरे में उपयोग करें।",
+      ingredients: ["नरम सिलिकॉन ब्रिसल", "आरामदायक पकड़"],
+    },
+  },
+};
+
+function getProductDetails(product = {}, language = "english") {
+  const productId =
+    typeof product === "string"
+      ? product
+      : product?.id || "";
+  const normalizedId =
+    productId === "zylk-scalp-massager-complimentary"
+      ? "zylk-scalp-massager"
+      : productId;
+  const detail = PRODUCT_DETAIL_CONTENT[normalizedId] || null;
+  if (detail) {
+    if (language === "hindi") {
+      return {
+        title: detail.title,
+        summary: detail.hindi?.summary || detail.summary,
+        usage: detail.hindi?.usage || detail.usage,
+        ingredients: detail.hindi?.ingredients || detail.ingredients,
+      };
+    }
+    return detail;
+  }
+
+  return {
+    title: product.subtitle || product.shortName || "Product Details",
+    summary: product.description || "Discover the full benefits of this product.",
+    usage: "Tap the product name to view how to use it and the ingredients.",
+    ingredients: product.ingredients || [],
+  };
+}
+
 /** Normalize a pasted path/filename into a public URL under /testimonials. */
 function normalizeTestimonialSrc(raw) {
   if (!raw || typeof raw !== "string") return null;
@@ -1212,6 +1366,10 @@ export default function Result() {
   const [coachCallOptIn, setCoachCallOptIn] = useState(false);
   const [faqOpen, setFaqOpen] = useState(false);
   const [testimonialIdx, setTestimonialIdx] = useState(0);
+  const [expandedProductId, setExpandedProductId] = useState(null);
+  const [drawerLanguage, setDrawerLanguage] = useState("english");
+  const [showStickyBar, setShowStickyBar] = useState(false);
+  const rootCausesRef = useRef(null);
   const rawAnalysis = state?.scalpAnalysis || {};
   const gender = state?.aboutMe?.gender || "male";
   const isFemale = gender === "female";
@@ -1258,6 +1416,25 @@ useEffect(() => {
   })();
   return () => { cancelled = true; };
 }, [displayUserPhoto, restorePhotosFromIdb, state?.archivedReportId]);
+
+useEffect(() => {
+  const section = rootCausesRef.current;
+  if (!section || typeof IntersectionObserver === "undefined") return undefined;
+
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      setShowStickyBar(entry.boundingClientRect.bottom <= 0);
+    },
+    {
+      root: null,
+      threshold: 0,
+    }
+  );
+
+  observer.observe(section);
+
+  return () => observer.disconnect();
+}, []);
 
   const requiresDoctorConsultation =
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
@@ -1315,11 +1492,26 @@ useEffect(() => {
         ...formatted,
         id: formatted.catalogId || prod.id,
         subtitle: prod.subtitle || null,
+        description: prod.name || "",
         price: prod.price ?? null,
         originalPrice: prod.originalPrice ?? null,
       };
     })
     .filter(Boolean);
+
+  const drawerProduct = kitProducts.find((product) => product.id === expandedProductId) || null;
+  const drawerProductDetails = drawerProduct
+    ? getProductDetails(drawerProduct.id, drawerLanguage)
+    : null;
+
+  const openProductDrawer = (productId) => {
+    setExpandedProductId(productId);
+    setDrawerLanguage("english");
+  };
+
+  const closeProductDrawer = () => {
+    setExpandedProductId(null);
+  };
 
   const coreKitProducts = kitProducts;
   const kitDisplayName = recommendedBundle
@@ -1622,7 +1814,8 @@ const testimonial =
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-32 md:pb-10">
+    <>
+      <div className="min-h-screen bg-[#f0f7f4] -mx-4 md:-mx-8 -mt-8 pb-32 md:pb-10">
       <div className="max-w-lg md:max-w-6xl mx-auto px-3 md:px-6 pt-4 md:grid md:grid-cols-[1fr_380px] md:gap-6 md:items-start">
       {/* LEFT COLUMN — scrolls normally on desktop, single column on mobile */}
       <div className="space-y-4 md:min-w-0">
@@ -1768,9 +1961,14 @@ const testimonial =
         </section>
 
         {!requiresDoctorConsultation && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-left">
-            <h2 className="text-base font-bold text-gray-900 mb-3">Your Hair fall Root Causes</h2>
-            <div className="space-y-3">
+          <>
+            <div
+              id="root-causes-section"
+              ref={rootCausesRef}
+              className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-left"
+            >
+              <h2 className="text-base font-bold text-gray-900 mb-3">Your Hair fall Root Causes</h2>
+              <div className="space-y-3">
               {rootCauses.map((cause) => (
                 <div
                   key={cause.id}
@@ -1789,6 +1987,7 @@ const testimonial =
               ))}
             </div>
           </div>
+          </>
         )}
 
         {!requiresDoctorConsultation && !analysisMissing && (
@@ -1887,70 +2086,78 @@ const testimonial =
             </div>
 
             <div className="space-y-3">
-              {coreKitProducts.map((product, index) => (
-                <div
-                  key={product.id || index}
-                  className="p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
-                >
-                  <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
-                      <ProductImage
-                        src={product.imgUrl}
-                        fallbacks={product.imgFallbacks}
-                        alt={product.shortName}
-                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
-                        {product.shortName}
-                      </h3>
-                      {product.subtitle && (
-                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
-                          {product.subtitle}
-                        </p>
-                      )}
-                      {(product.price != null || product.originalPrice != null) && (
-                        <p className="text-xs font-semibold text-[#064e3b] mt-1">
-                          {Number(product.price) === 0 ? (
-                            <>
-                              <span className="text-[#52b788]">FREE</span>
-                              {product.originalPrice > 0 && (
-                                <span className="text-gray-400 line-through font-medium ml-1.5">
-                                  ₹{product.originalPrice}
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              ₹{product.price}
-                              {product.originalPrice > product.price && (
-                                <span className="text-gray-400 line-through font-medium ml-1.5">
-                                  ₹{product.originalPrice}
-                                </span>
-                              )}
-                            </>
+              {coreKitProducts.map((product, index) => {
+                const isExpanded = expandedProductId === product.id;
+                return (
+                  <div key={product.id || index} className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => openProductDrawer(product.id)}
+                      className="w-full p-4 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-4 group"
+                    >
+                      <div className="flex items-center flex-1 min-w-0 text-left">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-4">
+                          <ProductImage
+                            src={product.imgUrl}
+                            fallbacks={product.imgFallbacks}
+                            alt={product.subtitle || product.shortName}
+                            className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0 pr-2">
+                          <h3 className="text-sm font-bold text-gray-800 leading-snug tracking-tight break-words">
+                            {product.subtitle || product.shortName}
+                          </h3>
+                          {product.shortName && product.subtitle && (
+                            <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                              {product.shortName}
+                            </p>
                           )}
-                        </p>
-                      )}
-                    </div>
+                          {(product.price != null || product.originalPrice != null) && (
+                            <p className="text-xs font-semibold text-[#064e3b] mt-1">
+                              {Number(product.price) === 0 ? (
+                                <>
+                                  <span className="text-[#52b788]">FREE</span>
+                                  {product.originalPrice > 0 && (
+                                    <span className="text-gray-400 line-through font-medium ml-1.5">
+                                      ₹{product.originalPrice}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  ₹{product.price}
+                                  {product.originalPrice > product.price && (
+                                    <span className="text-gray-400 line-through font-medium ml-1.5">
+                                      ₹{product.originalPrice}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border ${
+                            Number(product.price) === 0
+                              ? "text-white bg-[#52b788] border-[#52b788]"
+                              : "text-emerald-800 bg-emerald-50 border-emerald-100/40"
+                          }`}
+                        >
+                          {Number(product.price) === 0 ? "FREE" : "Included"}
+                        </span>
+                        <span className={`text-gray-400 transition-transform duration-200 ${isExpanded ? "rotate-90 text-[#064e3b]" : ""}`}>
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 18l6-6-6-6" />
+                          </svg>
+                        </span>
+                      </div>
+                    </button>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 border ${
-                      Number(product.price) === 0
-                        ? "text-white bg-[#52b788] border-[#52b788]"
-                        : "text-emerald-800 bg-emerald-50 border-emerald-100/40"
-                    }`}
-                  >
-                    {Number(product.price) === 0 ? "FREE" : "Included"}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
-              <span>🌿</span>
-              <span>Supplements &amp; Oil are 100% Ayurvedic with no side effects.</span>
+                );
+              })}
             </div>
           </div>
         )}
@@ -2084,7 +2291,19 @@ const testimonial =
             <p className="text-sm font-bold text-gray-600 mt-1">If you want to know if you are eligible for
 money back guarantee contact our customer support</p>
             <div className="border-t border-dashed border-gray-200 my-4" />
-             
+             <div className="mt-2 flex justify-center">
+               <a
+                 href="https://wa.me/917603876811"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 className="inline-flex items-center gap-2 rounded-full border border-[#25D366] bg-[#E9F7EE] px-3 py-2 text-sm font-semibold text-[#075E54] hover:bg-[#d7f0de] transition-colors"
+               >
+                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white text-base">
+                   W
+                 </span>
+                 WhatsApp
+               </a>
+             </div>
           </div>
         )}
 
@@ -2132,71 +2351,81 @@ money back guarantee contact our customer support</p>
             </div>
 
             <div className="space-y-3">
-              {coreKitProducts.map((product, index) => (
-                <div
-                  key={product.id || index}
-                  className="p-3 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
-                >
-                  <div className="flex items-center flex-1 min-w-0">
-                    <div className="w-16 h-16 xl:w-[72px] xl:h-[72px] rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
-                      <ProductImage
-                        src={product.imgUrl}
-                        fallbacks={product.imgFallbacks}
-                        alt={product.shortName}
-                        className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h3 className="text-xs font-bold text-gray-800 leading-snug tracking-tight break-words">
-                        {product.shortName}
-                      </h3>
-                      {product.subtitle && (
-                        <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
-                          {product.subtitle}
-                        </p>
-                      )}
-                      {(product.price != null || product.originalPrice != null) && (
-                        <p className="text-xs font-semibold text-[#064e3b] mt-1">
-                          {Number(product.price) === 0 ? (
-                            <>
-                              <span className="text-[#52b788]">FREE</span>
-                              {product.originalPrice > 0 && (
-                                <span className="text-gray-400 line-through font-medium ml-1.5">
-                                  ₹{product.originalPrice}
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              ₹{product.price}
-                              {product.originalPrice > product.price && (
-                                <span className="text-gray-400 line-through font-medium ml-1.5">
-                                  ₹{product.originalPrice}
-                                </span>
-                              )}
-                            </>
+              {coreKitProducts.map((product, index) => {
+                const isExpanded = expandedProductId === product.id;
+                return (
+                  <div key={product.id || index} className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => openProductDrawer(product.id)}
+                      className="w-full p-3 border border-gray-100 rounded-2xl bg-white shadow-[0_2px_12px_rgba(0,0,0,0.01)] hover:border-[#064e3b]/30 hover:shadow-md transition-all flex items-center justify-between gap-3 group"
+                    >
+                      <div className="flex items-center flex-1 min-w-0">
+                        <div className="w-16 h-16 xl:w-[72px] xl:h-[72px] rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden mr-3">
+                          <ProductImage
+                            src={product.imgUrl}
+                            fallbacks={product.imgFallbacks}
+                            alt={product.shortName}
+                            className="w-full h-full object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0 pr-2 text-left">
+                          <h3 className="text-xs font-bold text-gray-800 leading-snug tracking-tight break-words">
+                            {product.subtitle || product.shortName}
+                          </h3>
+                          {product.shortName && product.subtitle && (
+                            <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
+                              {product.shortName}
+                            </p>
                           )}
-                        </p>
-                      )}
-                    </div>
+                          {(product.price != null || product.originalPrice != null) && (
+                            <p className="text-xs font-semibold text-[#064e3b] mt-1">
+                              {Number(product.price) === 0 ? (
+                                <>
+                                  <span className="text-[#52b788]">FREE</span>
+                                  {product.originalPrice > 0 && (
+                                    <span className="text-gray-400 line-through font-medium ml-1.5">
+                                      ₹{product.originalPrice}
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  ₹{product.price}
+                                  {product.originalPrice > product.price && (
+                                    <span className="text-gray-400 line-through font-medium ml-1.5">
+                                      ₹{product.originalPrice}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap shrink-0 border ${
+                            Number(product.price) === 0
+                              ? "text-white bg-[#52b788] border-[#52b788]"
+                              : "text-emerald-800 bg-emerald-50 border-emerald-100/40"
+                          }`}
+                        >
+                          {Number(product.price) === 0 ? "FREE" : "Included"}
+                        </span>
+                        <span className={`text-gray-400 transition-transform duration-200 ${isExpanded ? "rotate-90 text-[#064e3b]" : ""}`}>
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 18l6-6-6-6" />
+                          </svg>
+                        </span>
+                      </div>
+                    </button>
                   </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap shrink-0 border ${
-                      Number(product.price) === 0
-                        ? "text-white bg-[#52b788] border-[#52b788]"
-                        : "text-emerald-800 bg-emerald-50 border-emerald-100/40"
-                    }`}
-                  >
-                    {Number(product.price) === 0 ? "FREE" : "Included"}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            <div className="bg-[#e8f5e9] rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-[#1b4332]">
-              <span>🌿</span>
-              <span>Supplements &amp; Oil are 100% Ayurvedic with no side effects.</span>
-            </div>
+            
 
             <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
               {recommendedBundle && !requiresDoctorConsultation ? (
@@ -2228,7 +2457,7 @@ money back guarantee contact our customer support</p>
                     onClick={handleBuyNow}
                     className="w-full bg-gradient-to-r from-[#2e7d32] to-[#1b5e20] hover:from-[#1b5e20] hover:to-[#0c3810] text-white font-bold text-sm py-3.5 px-5 rounded-lg tracking-wide cursor-pointer transition-all shadow-md flex items-center justify-between group"
                   >
-                    <span className="mx-auto pl-4 text-center">See My Treatment Plan &amp; Start My Recovery</span>
+                    <span className="mx-auto pl-4 text-center"> Buy Now </span>
                     <svg className="w-4 h-4 text-white transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
@@ -2274,7 +2503,7 @@ money back guarantee contact our customer support</p>
       </div>
       {/* END GRID */}
 
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] transform transition-transform duration-300 ease-in-out ${showStickyBar ? "translate-y-0" : "translate-y-full"}`}>
         <div className="max-w-lg mx-auto px-4 py-3 flex flex-col gap-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {recommendedBundle && !requiresDoctorConsultation ? (
             <>
@@ -2305,7 +2534,7 @@ money back guarantee contact our customer support</p>
                 onClick={handleBuyNow}
                 className="w-full bg-gradient-to-r from-[#2e7d32] to-[#1b5e20] hover:from-[#1b5e20] hover:to-[#0c3810] text-white font-bold text-sm py-3 px-5 rounded-lg tracking-wide cursor-pointer transition-all shadow-md flex items-center justify-between group"
               >
-                <span className="mx-auto pl-4 text-center">See My Treatment Plan &amp; Start My Recovery</span>
+                <span className="mx-auto pl-4 text-center">Buy Now</span>
                 <svg className="w-4 h-4 text-white transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
@@ -2331,5 +2560,75 @@ money back guarantee contact our customer support</p>
         </div>
       </div>
     </div>
+    {expandedProductId && drawerProductDetails && (
+      <>
+        <div
+          className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
+          onClick={closeProductDrawer}
+        />
+        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl border-l border-gray-200 overflow-y-auto transition-transform duration-300 ease-out">
+          <div className="flex items-center justify-between p-5 border-b border-gray-100">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-green-700 font-bold">Product Details</p>
+              <h2 className="text-lg font-bold text-gray-900 mt-2">{drawerProductDetails.title}</h2>
+            </div>
+            <button
+              type="button"
+              onClick={closeProductDrawer}
+              className="text-gray-500 hover:text-gray-900 transition-colors"
+              aria-label="Close product details"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="p-5 space-y-5">
+            <div className="grid gap-4 sm:grid-cols-[120px_1fr] items-start">
+              <div className="w-full max-w-[120px] mx-auto">
+                <div className="rounded-3xl overflow-hidden border border-gray-200 bg-gray-50">
+                  <ProductImage
+                    src={drawerProduct.imgUrl}
+                    fallbacks={drawerProduct.imgFallbacks}
+                    alt={drawerProduct.subtitle || drawerProduct.shortName}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-green-700 font-bold">Product</p>
+                  <h2 className="text-xl font-bold text-gray-900 mt-2">
+                    {drawerProduct.subtitle || drawerProductDetails.title}
+                  </h2>
+                  {drawerProduct.shortName && drawerProduct.subtitle && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      {drawerProduct.shortName}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="rounded-3xl bg-[#f3f7f2] p-4 text-sm text-gray-700">
+              <p className="font-semibold mb-2">Summary</p>
+              <p>{drawerProductDetails.summary}</p>
+            </div>
+            <div className="rounded-3xl bg-[#f9fafb] p-4 text-sm text-gray-700">
+              <p className="font-semibold mb-2">Ingredients</p>
+              <ul className="list-disc list-inside space-y-1">
+                {drawerProductDetails.ingredients.map((ingredient) => (
+                  <li key={ingredient}>{ingredient}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-3xl bg-[#f3f7f2] p-4 text-sm text-gray-700">
+              <p className="font-semibold mb-2">Usage Instructions</p>
+              <p>{drawerProductDetails.usage}</p>
+            </div>
+          </div>
+        </div>
+      </>
+    )}
+    </>
   );
 }

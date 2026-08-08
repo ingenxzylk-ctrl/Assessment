@@ -78,6 +78,11 @@ const OPTIONS = {
   food_habits: HEALTH_FOOD_HABITS_OPTIONS,
 };
 
+const OPTION_BTN =
+  "w-full min-h-[56px] px-5 flex items-center justify-between border rounded-2xl transition-all font-medium text-base text-left cursor-pointer";
+const OPTION_SELECTED = "border-[#064e3b] bg-[#064e3b]/5 text-[#064e3b] ring-1 ring-[#064e3b]";
+const OPTION_IDLE = "border-gray-200 text-gray-700 hover:bg-gray-50";
+
 const DETAIL_FIELDS = {
   supplements: {
     stateKey: "supplements_details",
@@ -195,7 +200,7 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
       }
     } else if (currentStep === "supplements") {
       if (!localForm.supplements) {
-        e.supplements = "Please select an option to continue";
+        e.supplements = "Select any option";
       } else if (
         localForm.supplements === "Yes" &&
         !String(localForm.supplements_details || "").trim()
@@ -204,7 +209,7 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
       }
     } else if (currentStep === "prescription_medicines") {
       if (!localForm.prescription_medicines) {
-        e.prescription_medicines = "Please select an option to continue";
+        e.prescription_medicines = "Select any option";
       } else if (
         localForm.prescription_medicines === "Yes" &&
         !String(localForm.prescription_medicines_details || "").trim()
@@ -212,7 +217,7 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
         e.prescription_medicines = DETAIL_FIELDS.prescription_medicines.error;
       }
     } else if (!localForm[currentStep]) {
-      e[currentStep] = "Please select an option to continue";
+      e[currentStep] = "Select any option";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -260,6 +265,8 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
     if (step > 0) setStep((prev) => prev - 1);
     else if (onBack) onBack();
   };
+
+  const getOptionSelectedClass = () => OPTION_SELECTED;
 
   return (
     <div className="max-w-xl mx-auto mt-6 px-4">
@@ -316,31 +323,32 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
 
           {OPTIONS[currentStep] && (
             <div className="grid grid-cols-1 gap-3">
-              {OPTIONS[currentStep].map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => handleSelect(currentStep, opt)}
-                  className={`w-full min-h-[56px] px-5 flex items-center justify-between border rounded-2xl transition-all font-medium text-base text-left ${
-                    localForm[currentStep] === opt
-                      ? "border-[#064e3b] bg-[#064e3b]/5 text-[#064e3b] ring-1 ring-[#064e3b]"
-                      : "border-gray-200 text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="pr-3 leading-snug">{opt}</span>
-                  <div
-                    className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                      localForm[currentStep] === opt
-                        ? "border-[#064e3b] bg-[#064e3b]"
-                        : "border-gray-300"
-                    }`}
+              {OPTIONS[currentStep].map((opt) => {
+                const isSelected = localForm[currentStep] === opt;
+                const isErrorField =
+                  currentStep === "supplements" || currentStep === "prescription_medicines";
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => handleSelect(currentStep, opt)}
+                    className={`${OPTION_BTN} ${isSelected ? getOptionSelectedClass(currentStep) : OPTION_IDLE}`}
                   >
-                    {localForm[currentStep] === opt && (
-                      <div className="w-2 h-2 rounded-full bg-white" />
-                    )}
-                  </div>
-                </button>
-              ))}
+                    <span className="pr-3 leading-snug">{opt}</span>
+                    <div
+                      className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                        isSelected
+                          ? isErrorField
+                            ? "border-red-300 bg-red-300"
+                            : "border-[#064e3b] bg-[#064e3b]"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                  </button>
+                );
+              })}
 
               {/* Enhanced Input Field with Concise Red Placeholder & Clean Padding */}
               {detailMeta && localForm[currentStep] === "Yes" && (
@@ -350,7 +358,11 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
                     value={localForm[detailMeta.stateKey] || ""}
                     onChange={(e) => handleDetailChange(detailMeta.stateKey, e.target.value)}
                     placeholder={detailMeta.placeholder}
-                    className="w-full h-14 px-4 py-3 border-2 border-gray-300 rounded-2xl focus:outline-none focus:border-[#064e3b] focus:ring-4 focus:ring-[#064e3b]/10 bg-white text-gray-900 placeholder:text-red-600 text-xs sm:text-sm font-medium transition-all shadow-xs"
+                    className={`w-full h-14 px-4 py-3 border-2 rounded-2xl focus:outline-none transition-all text-gray-900 bg-white placeholder:text-red-600 text-xs sm:text-sm font-medium shadow-xs ${
+                      currentStep === "supplements" || currentStep === "prescription_medicines"
+                        ? "border-red-300 ring-2 ring-red-300 focus:border-red-500 focus:ring-red-300"
+                        : "border-gray-300 focus:border-[#064e3b] focus:ring-4 focus:ring-[#064e3b]/10"
+                    }`}
                   />
                 </div>
               )}

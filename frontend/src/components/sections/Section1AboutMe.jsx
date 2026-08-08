@@ -475,7 +475,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
 
               <div className="flex flex-col gap-2 w-full min-w-0">
                 <label className="text-sm font-semibold text-gray-700">
-                  Email Address (optional)
+                  Email Address 
                 </label>
                 <input
                   type="email"
@@ -492,6 +492,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                   <p className="text-sm text-red-500 font-medium">{errors.email}</p>
                 )}
               </div>
+
             </div>
           )}
           {/* STEP 2: AGE NUMBER INPUT */}

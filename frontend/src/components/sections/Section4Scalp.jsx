@@ -128,7 +128,7 @@ function PhoneIcon() {
   );
 }
 
-function PhotoSlot({ title, hint, preview, onAdd, onRemove }) {
+function PhotoSlot({ title, hint, guide, preview, onAdd, onRemove }) {
   return (
     <div className="rounded-2xl border border-gray-200/80 bg-white p-4 flex flex-col text-center h-full shadow-xs hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between mb-2">
@@ -140,36 +140,48 @@ function PhotoSlot({ title, hint, preview, onAdd, onRemove }) {
         )}
       </div>
 
-      {preview ? (
-        <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gray-100 border border-gray-200 mb-3 group">
-          <img src={preview} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+      <div className="relative w-full aspect-[4/5] rounded-xl overflow-hidden bg-gray-100 border border-gray-200 mb-3 group">
+        {guide && (
+          <img
+            src={guide}
+            alt={`${title} guideline`}
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+        )}
+
+        {preview ? (
+          <>
+            <img
+              src={preview}
+              alt={title}
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 z-20"
+            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onRemove) onRemove();
+              }}
+              className="absolute top-2.5 right-2.5 bg-white/95 text-red-600 text-[11px] font-semibold px-3 py-1 rounded-full shadow-md border border-red-100 hover:bg-red-50 cursor-pointer transition-colors z-30"
+            >
+              Change / Remove
+            </button>
+          </>
+        ) : (
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (onRemove) onRemove();
-            }}
-            className="absolute top-2.5 right-2.5 bg-white/95 text-red-600 text-[11px] font-semibold px-3 py-1 rounded-full shadow-md border border-red-100 hover:bg-red-50 cursor-pointer transition-colors"
+            onClick={onAdd}
+            className="absolute inset-0 flex flex-col items-center justify-end pb-4 cursor-pointer transition-all group"
           >
-            Change / Remove
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+            <div className="relative z-10 text-center">
+              <span className="text-sm font-bold text-gray-900 block">Add photo</span>
+              <span className="text-[10px] text-gray-500">Click to browse or snap</span>
+            </div>
           </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={onAdd}
-          className="w-full aspect-[4/5] rounded-xl border-2 border-dashed border-gray-300 bg-[#fafbf9] flex flex-col items-center justify-center gap-2.5 mb-3 cursor-pointer hover:border-[#064e3b] hover:bg-[#f0f4ef] transition-all group"
-        >
-          <div className="w-12 h-12 rounded-full bg-[#e8eede] flex items-center justify-center group-hover:scale-110 transition-transform">
-            <PhoneIcon />
-          </div>
-          <div>
-            <span className="text-xs font-bold text-gray-700 block">Add photo</span>
-            <span className="text-[10px] text-gray-400">Click to browse or snap</span>
-          </div>
-        </button>
-      )}
+        )}
+      </div>
       <p className="text-[11px] text-gray-500 leading-snug mt-auto">{hint}</p>
     </div>
   );
@@ -520,6 +532,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
               <PhotoSlot
                 title="1. Front Hairline"
                 hint="Direct forward view showing full hairline."
+                guide={guideOptions.find((opt) => opt.type === "front")?.img}
                 preview={images.front}
                 onAdd={() => {
                   setActiveCaptureType("front");
@@ -533,6 +546,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
                   <PhotoSlot
                     title="2. Side Profile"
                     hint="Hair in ponytail, turned sideways (ear/temple visible)."
+                    guide={guideOptions.find((opt) => opt.type === "side")?.img}
                     preview={images.side}
                     onAdd={() => {
                       setActiveCaptureType("side");
@@ -543,6 +557,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
                   <PhotoSlot
                     title="3. Crown / Back"
                     hint="Ponytail swept over shoulder, crown & part-line visible."
+                    guide={guideOptions.find((opt) => opt.type === "back")?.img}
                     preview={images.back}
                     onAdd={() => {
                       setActiveCaptureType("back");
@@ -555,6 +570,7 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
                 <PhotoSlot
                   title="2. Crown / Top View"
                   hint="Head tilted slightly forward exposing top crown area."
+                  guide={guideOptions.find((opt) => opt.type === "top")?.img}
                   preview={images.top}
                   onAdd={() => {
                     setActiveCaptureType("top");

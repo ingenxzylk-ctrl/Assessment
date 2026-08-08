@@ -117,19 +117,21 @@ export const HEALTH_CONDITION_OPTIONS = [
 ];
 
 export const HEALTH_DIGESTIVE_OPTIONS = [
-  "No ongoing symptoms",
+  
   "Occasional bloating, reflux, diarrhea, or constipation",
   "Frequent symptoms",
   "Diagnosed digestive condition",
+  "No ongoing symptoms",
   
 ];
 
 export const HEALTH_DIET_WEIGHT_OPTIONS = [
-  "No major change",
+ 
   "Lost weight intentionally",
   "Lost weight unexpectedly",
   "Gained weight",
   "Started a restrictive diet or fasting",
+  "No major change",
   
 ];
 

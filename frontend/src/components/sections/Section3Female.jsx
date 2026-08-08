@@ -78,10 +78,11 @@ const RADIO_OPTIONS = {
     "None of these",
   ],
   digestion: [
-    "No ongoing symptoms",
+    
     "Occasional bloating, reflux, diarrhea, or constipation",
     "Frequent symptoms",
     "Diagnosed digestive condition",
+    "No ongoing symptoms",
   ],
   sleep_cycle: ["Under 5 hours", "5–6 hours", "7–8 hours", "More than 8 hours"],
   stress_level: ["Low or Manageable", "Moderate", "High", "Very high or recent major stress"],
@@ -192,16 +193,18 @@ export default function Section3Female({ onComplete, onBack }) {
     setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
+  const getOptionSelectedClass = () => OPTION_SELECTED;
+
   const validate = () => {
     const e = {};
 
     if (currentStep === "symptoms") {
       if (!localForm.symptoms || localForm.symptoms.length === 0) {
-        e.symptoms = "Please select at least one option";
+        e.symptoms = "Select any option";
       }
     } else if (currentStep === "supplements") {
       if (!localForm.supplements) {
-        e.supplements = "Please select an option to continue";
+        e.supplements = "Select any option";
       } else if (
         localForm.supplements === "Yes" &&
         !String(localForm.supplements_details || "").trim()
@@ -210,7 +213,7 @@ export default function Section3Female({ onComplete, onBack }) {
       }
     } else if (currentStep === "prescription_medicines") {
       if (!localForm.prescription_medicines) {
-        e.prescription_medicines = "Please select an option to continue";
+        e.prescription_medicines = "Select any option";
       } else if (
         localForm.prescription_medicines === "Yes" &&
         !String(localForm.prescription_medicines_details || "").trim()
@@ -218,7 +221,7 @@ export default function Section3Female({ onComplete, onBack }) {
         e.prescription_medicines = DETAIL_FIELDS.prescription_medicines.error;
       }
     } else if (!localForm[currentStep]) {
-      e[currentStep] = "Please select an option to continue";
+      e[currentStep] = "Select any option";
     }
 
     setErrors(e);
@@ -271,7 +274,7 @@ export default function Section3Female({ onComplete, onBack }) {
         key={opt}
         type="button"
         onClick={() => handleSelect(field, opt)}
-        className={`${OPTION_BTN} ${isSelected ? OPTION_SELECTED : OPTION_IDLE}`}
+        className={`${OPTION_BTN} ${isSelected ? getOptionSelectedClass() : OPTION_IDLE}`}
       >
         <span className="pr-3 leading-snug">{opt}</span>
         <div
@@ -346,13 +349,17 @@ export default function Section3Female({ onComplete, onBack }) {
             <div className="grid grid-cols-1 gap-3">
               {RADIO_OPTIONS[currentStep].map((opt) => radioOption(opt, currentStep))}
 
-              {detailMeta && localForm[currentStep] === "Yes" && (
+                  {detailMeta && localForm[currentStep] === "Yes" && (
                 <input
                   type="text"
                   value={localForm[detailMeta.stateKey] || ""}
                   onChange={(e) => handleDetailChange(detailMeta.stateKey, e.target.value)}
                   placeholder={detailMeta.placeholder}
-                  className="w-full min-h-[56px] px-5 border border-gray-200 rounded-2xl focus:outline-none focus:border-[#064e3b] bg-white text-gray-900 text-base transition-all"
+                  className={`w-full min-h-[56px] px-5 border rounded-2xl focus:outline-none transition-all text-base bg-white ${
+                    currentStep === "prescription_medicines"
+                      ? "border-red-300 ring-2 ring-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-300 placeholder:text-red-600 text-red-900"
+                      : "border-gray-200 focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/20 placeholder:text-gray-400 text-gray-900"
+                  }`}
                 />
               )}
             </div>
