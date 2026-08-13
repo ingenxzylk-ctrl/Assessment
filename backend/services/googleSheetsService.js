@@ -6,8 +6,16 @@ import {
 
 export const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
-const DEFAULT_RANGE = "Sheet1!A:N";
+// A–O now (was A–N). New column O = Kit Link.
+const DEFAULT_RANGE = "Sheet1!A:O";
 const CALL_STATUS_NEW = "New";
+
+// Fixed column order. NEVER conditionally skip a column — every entry
+// below must always push a value (even "") so nothing downstream shifts.
+// A: Date | B: Report ID | C: Name | D: Phone | E: Email | F: City |
+// G: Pincode | H: Gender | I: Age | J: AI Stage | K: Kit Name |
+// L: Result Link | M: PDF Link | N: Call Status | O: Kit Link (checkout)
+const LEAD_ROW_COLUMNS = 15;
 
 function loadServiceAccountCredentials() {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
@@ -86,7 +94,7 @@ function improveSheetsError(err) {
   if (/not found|Unable to parse range|Unable to parse/i.test(message)) {
     return [
       message,
-      "Check GOOGLE_SHEETS_SPREADSHEET_ID matches the Sheet URL and GOOGLE_SHEETS_RANGE tab name (default Sheet1!A:L).",
+      "Check GOOGLE_SHEETS_SPREADSHEET_ID matches the Sheet URL and GOOGLE_SHEETS_RANGE tab name (default Sheet1!A:O).",
     ].join(" ");
   }
 
@@ -166,31 +174,68 @@ function formatStage(scalpAnalysis = {}) {
   return cell(stage);
 }
 
-function formatKit(reportMeta = {}) {
+/** Kit NAME column (text only — no link here anymore). */
+function formatKitName(reportMeta = {}) {
   const bundle = reportMeta.recommendedBundle || {};
-  const wpBase = (process.env.WP_SITE_URL || process.env.PUBLIC_WP_SITE_URL || "https://zylkhealth.com").replace(/\/$/, "");
-  const firstProductId = bundle?.products?.[0]?.id;
-  if (firstProductId != null) {
-    const asString = String(firstProductId).trim();
-    if (/^\d+$/.test(asString)) {
-      // Numeric Woo product ID → use checkout-link to add the kit directly
-      return cell(`${wpBase}/checkout-link/?products=${encodeURIComponent(asString)}`);
-    }
-    // Otherwise assume a slug/catalog id → product page
-    return cell(`${wpBase}/product/${encodeURIComponent(asString)}`);
-  }
   return cell(bundle.bundleTitle || bundle.bundleId || bundle.name || "");
 }
 
-const LIVE_API_BASE = "https://api.zylkhealth.com";
+const LIVE_WP_BASE = "https://zylkhealth.com";
 
-function isLoopbackApiUrl(value) {
+function isLoopbackUrl(value) {
   try {
     const host = new URL(value).hostname.toLowerCase();
     return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
   } catch {
     return /localhost|127\.0\.0\.1/i.test(String(value || ""));
   }
+}
+
+/**
+ * Kit LINK column — a real, clickable purchase link for the recommended kit.
+ *
+ * Priority order:
+ *   1. reportMeta.recommendedBundle.checkoutUrl — this is the SAME link
+ *      Result.jsx builds for the "Buy Now" button (generatedCheckoutUrl),
+ *      so it always matches what the customer would actually click.
+ *   2. A numeric WooCommerce product id on the first bundle item → direct
+ *      add-to-cart checkout link.
+ *   3. A slug/catalog id on the first bundle item → product page link.
+ *   4. Empty string if none of the above is available (e.g. doctor-consult
+ *      cases with no recommended bundle).
+ */
+function formatKitLink(reportMeta = {}) {
+  const bundle = reportMeta.recommendedBundle || {};
+
+  const checkoutUrl = cell(bundle.checkoutUrl);
+  if (checkoutUrl && !isLoopbackUrl(checkoutUrl)) {
+    return checkoutUrl;
+  }
+
+  const wpBase = (
+    process.env.WP_SITE_URL ||
+    process.env.PUBLIC_WP_SITE_URL ||
+    LIVE_WP_BASE
+  ).replace(/\/$/, "");
+
+  const firstProductId = bundle?.products?.[0]?.id;
+  if (firstProductId != null) {
+    const asString = String(firstProductId).trim();
+    if (/^\d+$/.test(asString)) {
+      // Numeric Woo product ID → direct add-to-cart checkout link
+      return cell(`${wpBase}/checkout-link/?products=${encodeURIComponent(asString)}`);
+    }
+    // Slug/catalog id → product page
+    return cell(`${wpBase}/product/${encodeURIComponent(asString)}`);
+  }
+
+  return "";
+}
+
+const LIVE_API_BASE = "https://api.zylkhealth.com";
+
+function isLoopbackApiUrl(value) {
+  return isLoopbackUrl(value);
 }
 
 /**
@@ -223,7 +268,24 @@ function resolveSheetPdfUrl(reportId, pdfUrl) {
   return buildPublicPdfUrl(reportId);
 }
 
-/** Build one Sheet row (A–L) for a lead. */
+/**
+ * Pad/trim a row to exactly LEAD_ROW_COLUMNS entries.
+ * Belt-and-braces guard: if a future edit adds/removes a field and
+ * forgets to update every call site, this stops columns from silently
+ * shifting instead of failing loudly in logs.
+ */
+function normalizeRowLength(row) {
+  const out = row.slice(0, LEAD_ROW_COLUMNS);
+  while (out.length < LEAD_ROW_COLUMNS) out.push("");
+  if (row.length !== LEAD_ROW_COLUMNS) {
+    console.warn(
+      `[sheets] row had ${row.length} cells, expected ${LEAD_ROW_COLUMNS} — padded/trimmed to avoid column drift`
+    );
+  }
+  return out;
+}
+
+/** Build one Sheet row (A–O) for a lead. */
 export function buildLeadRow({
   reportId,
   reportDate,
@@ -233,22 +295,25 @@ export function buildLeadRow({
   resultPageUrl = null,
   pdfUrl = null,
 } = {}) {
-  return [
-    cell(reportDate) || new Date().toLocaleDateString("en-GB"),
-    cell(reportId),
-    cell(aboutMe.fullName || aboutMe.name || "Guest"),
-    formatPhone(aboutMe),
-    cell(aboutMe.email),
-    cell(aboutMe.city || ""),
-    cell(aboutMe.pincode || ""),
-    cell(aboutMe.gender),
-    cell(aboutMe.age || aboutMe.ageRange),
-    formatStage(scalpAnalysis),
-    formatKit(reportMeta),
-    cell(resultPageUrl),
-    resolveSheetPdfUrl(reportId, pdfUrl),
-    CALL_STATUS_NEW,
+  const row = [
+    cell(reportDate) || new Date().toLocaleDateString("en-GB"), // A: Date
+    cell(reportId),                                              // B: Report ID
+    cell(aboutMe.fullName || aboutMe.name || "Guest"),            // C: Name
+    formatPhone(aboutMe),                                         // D: Phone
+    cell(aboutMe.email),                                          // E: Email
+    cell(aboutMe.city || ""),                                     // F: City
+    cell(aboutMe.pincode || ""),                                  // G: Pincode
+    cell(aboutMe.gender),                                         // H: Gender
+    cell(aboutMe.age || aboutMe.ageRange),                        // I: Age
+    formatStage(scalpAnalysis),                                   // J: AI Stage
+    formatKitName(reportMeta),                                    // K: Kit Name
+    cell(resultPageUrl),                                          // L: Result Link
+    resolveSheetPdfUrl(reportId, pdfUrl),                         // M: PDF Link
+    CALL_STATUS_NEW,                                              // N: Call Status
+    formatKitLink(reportMeta),                                    // O: Kit Link (NEW)
   ];
+
+  return normalizeRowLength(row);
 }
 
 function sheetTabName() {
@@ -305,8 +370,8 @@ export async function appendLeadRowsBatch(rows) {
     const startRow = await findNextLeadRow(sheets, spreadsheetId);
     const endRow = startRow + rows.length - 1;
 
-    // Derive end column from the first row's length for robust writes
-    const cols = Array.isArray(rows[0]) ? rows[0].length : 0;
+    // Always use the fixed schema width, not just the first row's length,
+    // so a short/malformed row never truncates the target range.
     function colLetter(n) {
       let s = "";
       while (n > 0) {
@@ -316,7 +381,7 @@ export async function appendLeadRowsBatch(rows) {
       }
       return s || "A";
     }
-    const endCol = colLetter(cols || 12);
+    const endCol = colLetter(LEAD_ROW_COLUMNS);
     const targetRange = `${tab}!A${startRow}:${endCol}${endRow}`;
 
     const response = await sheets.spreadsheets.values.update({
@@ -353,8 +418,9 @@ export async function appendLeadRowsBatch(rows) {
 
 /**
  * Append one lead row to the team Google Sheet.
- * Columns A–L:
- * Date | Report ID | Name | Phone | Email | Gender | Age | AI Stage | Kit | Result Link | PDF Link | Call Status
+ * Columns A–O:
+ * Date | Report ID | Name | Phone | Email | City | Pincode | Gender | Age |
+ * AI Stage | Kit Name | Result Link | PDF Link | Call Status | Kit Link
  *
  * Never throws to the quiz flow — returns { skipped|ok|error }.
  */
@@ -419,9 +485,9 @@ export async function probeGoogleSheets() {
 
     const tab = sheetTabName();
     // Read first header row using current configured range's end column
-    const headerEndCol = (sheetsRange() || "Sheet1!A:N").includes("!")
+    const headerEndCol = (sheetsRange() || DEFAULT_RANGE).includes("!")
       ? sheetsRange().split("!")[1].replace(/\d+/g, "")
-      : "N";
+      : "O";
     const header = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range: `${tab}!A1:${headerEndCol}1`,
