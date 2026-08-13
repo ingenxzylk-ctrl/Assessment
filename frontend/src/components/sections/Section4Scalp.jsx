@@ -49,9 +49,9 @@ const PHOTO_QUALITY_TIPS = [
 function formatRejectionMessage(err) {
   const reasons = Array.isArray(err?.rejectionReasons) ? err.rejectionReasons.filter(Boolean) : [];
   if (reasons.length) {
-    return `Please upload a proper image. ${reasons.join("; ")}. Photos must be clear with dry hair, good lighting, no hat, and no filters.`;
+    return `Please upload a proper image. ${reasons.join("; ")}. Photos must have good lighting and no hats or coverings.`;
   }
-  return "Please upload a proper image: clear, well-lit scalp photos with dry hair, no hat, and no filters.";
+  return "Please upload a proper image: clear photos with good lighting and no hats or coverings.";
 }
 
 function imageFingerprint(dataUrl) {
@@ -255,8 +255,8 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
     const check = await precheckPhotoQuality(dataUrl);
     if (!check.ok) {
-      // Keep the "Dry hair" tip visible, but don't treat it as a blocking failure.
-      setFailedQualityKeys(["insufficientLight", "hatOrCovering", "filtersApplied"]);
+      // Only treat poor lighting and hats/coverings as failing checks.
+      setFailedQualityKeys(["insufficientLight", "hatOrCovering"]);
       setError(check.message || "Please upload a clear, well-lit photo.");
       return;
     }
@@ -429,8 +429,8 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
         const keys = Object.entries(checks)
           .filter(([, failed]) => Boolean(failed))
           .map(([key]) => key)
-          .filter((k) => k !== "wetHair"); // intentionally ignore wetHair as a reported failure
-        setFailedQualityKeys(keys.length ? keys : ["insufficientLight", "hatOrCovering", "filtersApplied"]);
+          .filter((k) => ["insufficientLight", "hatOrCovering"].includes(k)); // only care about these two
+        setFailedQualityKeys(keys.length ? keys : ["insufficientLight", "hatOrCovering"]);
         setError(formatRejectionMessage(err));
       } else {
         setFailedQualityKeys([]);

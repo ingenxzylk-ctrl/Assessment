@@ -368,8 +368,8 @@ SELF-CHECK (do silently before output): re-read your observations object. Does a
  
 CONFIDENCE: 0.90-0.98 sharp+clear all views | 0.75-0.89 minor blur, stage ±1 clear | 0.55-0.74 one view poor/borderline | <0.55 heavy occlusion/bad angle
  
-REJECT (imageRejected=true) if: not a real scalp photo, blurry, dark/backlit, hat/covering, heavy filters, wet hair.
-On reject: imageQuality="poor", list qualityChecks + rejectionReasons, error="Please upload a clear, well-lit scalp photo with dry hair, no hat, no filters."
+  REJECT (imageRejected=true) if: not a real scalp photo, blurry, dark/backlit, hat/covering.
+On reject: imageQuality="poor", list qualityChecks + rejectionReasons, error="Please upload a clear, well-lit scalp photo with no hats or coverings."
  
 Output ONE raw JSON, no markdown/fences:
 {"valid":true,"imageRejected":false,"error":"","rejectionReasons":[],
@@ -430,8 +430,8 @@ SELF-CHECK (do silently before output): re-read your observations object field-b
  
 CONFIDENCE: 0.90-0.98 front+crown sharp, bridge assessable | 0.75-0.89 minor blur/angle, stage ±1 clear | 0.55-0.74 missing crown/bridge view or borderline | <0.55 heavy occlusion/extreme angle
  
-REJECT (imageRejected=true) if: not a real scalp photo, blurry, dark/backlit, hat/covering, heavy filters, wet hair.
-On reject: imageQuality="poor", list qualityChecks + rejectionReasons, error="Please upload a clear, well-lit scalp photo with dry hair, no hat, no filters."
+REJECT (imageRejected=true) if: not a real scalp photo, blurry, dark/backlit, hat/covering.
+On reject: imageQuality="poor", list qualityChecks + rejectionReasons, error="Please upload a clear, well-lit scalp photo with no hats or coverings."
  
 Output ONE raw JSON, no markdown/fences:
 {"valid":true,"imageRejected":false,"error":"","rejectionReasons":[],
@@ -465,8 +465,10 @@ function collectRejectionReasons(parsed = {}) {
     ? parsed.rejectionReasons.map((r) => String(r || "").trim()).filter(Boolean)
     : [];
   const checks = normalizeQualityChecks(parsed.qualityChecks);
+  // Only include lighting and hat/covering as rejection reasons (other tips remain UI-only)
+  const blockingKeys = ["insufficientLight", "hatOrCovering"];
   const fromFlags = Object.entries(checks)
-    .filter(([, failed]) => failed)
+    .filter(([key, failed]) => failed && blockingKeys.includes(key))
     .map(([key]) => PHOTO_QUALITY_CRITERIA[key]);
 
   const merged = [...fromArray];
@@ -480,27 +482,27 @@ function collectRejectionReasons(parsed = {}) {
 
 function buildPhotoQualityAssessment(parsed = {}) {
   const { rejectionReasons, qualityChecks } = collectRejectionReasons(parsed);
-  const failedKeys = Object.entries(qualityChecks)
+  const allFailedKeys = Object.entries(qualityChecks)
     .filter(([, failed]) => failed)
     .map(([key]) => key);
+  // Only consider these keys as blocking failures for rejection
+  const blockingKeys = ["insufficientLight", "hatOrCovering"];
+  const failedBlockingKeys = allFailedKeys.filter((k) => blockingKeys.includes(k));
   const imageQuality = String(parsed.imageQuality || "").toLowerCase() || null;
-  const rejected =
-    parsed.imageRejected === true ||
-    parsed.valid === false ||
-    failedKeys.length > 0 ||
-    imageQuality === "poor";
+  const rejected = parsed.valid === false || failedBlockingKeys.length > 0 || imageQuality === "poor";
 
   return {
     rejected,
     imageQuality,
     qualityChecks,
-    failedCriteria: failedKeys.map((key) => ({
+    // Report failed/passed only for blocking criteria to match frontend behavior
+    failedCriteria: failedBlockingKeys.map((key) => ({
       key,
       label: PHOTO_QUALITY_CRITERIA[key],
       status: "rejected",
     })),
     passedCriteria: Object.keys(PHOTO_QUALITY_CRITERIA)
-      .filter((key) => !failedKeys.includes(key))
+      .filter((key) => !failedBlockingKeys.includes(key))
       .map((key) => ({
         key,
         label: PHOTO_QUALITY_CRITERIA[key],
@@ -508,7 +510,7 @@ function buildPhotoQualityAssessment(parsed = {}) {
       })),
     rejectionReasons,
     note: rejected
-      ? "One or more scalp photos were rejected for AI processing because they did not meet image-quality criteria. Clear, well-lit photos without hats or filters are required for reliable AI analysis."
+      ? "One or more scalp photos were rejected for AI processing because they did not meet image-quality criteria. Clear, well-lit photos without hats or coverings are required for reliable AI analysis."
       : "Uploaded scalp photos met AI processing quality criteria.",
   };
 }
@@ -1149,14 +1151,11 @@ export const analyzeScalp = async (req, res) => {
     const photoQuality = buildPhotoQualityAssessment(parsed);
     const checks = photoQuality.qualityChecks || {};
     const criticalQualityFail =
-      Boolean(checks.unclear) ||
       Boolean(checks.insufficientLight) ||
       Boolean(checks.hatOrCovering) ||
-      Boolean(checks.filtersApplied) ||
-      Boolean(checks.wetHair) ||
       String(parsed.imageQuality || "").toLowerCase() === "poor";
 
-    if (parsed.valid === false || parsed.imageRejected === true || criticalQualityFail) {
+    if (parsed.valid === false || criticalQualityFail) {
       let reasons = [...(photoQuality.rejectionReasons || [])];
       if (!reasons.length && String(parsed.imageQuality || "").toLowerCase() === "poor") {
         reasons = ["Image unclear / blurry", "Insufficient lighting / too dark"];
@@ -1167,7 +1166,7 @@ export const analyzeScalp = async (req, res) => {
           parsed.reason ||
           (reasons.length
             ? `Please upload a proper image. Rejected: ${reasons.join("; ")}`
-            : "Please upload a proper image: clear, well-lit scalp photos with dry hair, no hat, and no filters."),
+            : "Please upload a proper image: clear photos with good lighting and no hats or coverings."),
         imageRejected: true,
         rejectionReasons: reasons,
         qualityChecks: checks,
