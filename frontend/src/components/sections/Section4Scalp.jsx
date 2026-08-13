@@ -255,7 +255,8 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
 
     const check = await precheckPhotoQuality(dataUrl);
     if (!check.ok) {
-      setFailedQualityKeys(["wetHair", "insufficientLight", "hatOrCovering", "filtersApplied"]);
+      // Keep the "Dry hair" tip visible, but don't treat it as a blocking failure.
+      setFailedQualityKeys(["insufficientLight", "hatOrCovering", "filtersApplied"]);
       setError(check.message || "Please upload a clear, well-lit photo.");
       return;
     }
@@ -427,8 +428,9 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
         const checks = err.qualityChecks || err.photoQualityAssessment?.qualityChecks || {};
         const keys = Object.entries(checks)
           .filter(([, failed]) => Boolean(failed))
-          .map(([key]) => key);
-        setFailedQualityKeys(keys.length ? keys : ["wetHair", "insufficientLight", "hatOrCovering", "filtersApplied"]);
+          .map(([key]) => key)
+          .filter((k) => k !== "wetHair"); // intentionally ignore wetHair as a reported failure
+        setFailedQualityKeys(keys.length ? keys : ["insufficientLight", "hatOrCovering", "filtersApplied"]);
         setError(formatRejectionMessage(err));
       } else {
         setFailedQualityKeys([]);

@@ -307,14 +307,14 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
                       </div>
                     </button>
                     {opt === "Other" && isSelected && (
-                      <input
-                        type="text"
-                        value={otherCondition}
-                        onChange={(e) => setOtherCondition(e.target.value)}
-                        placeholder="Please specify condition details here"
-                        className="w-full h-12 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#064e3b] focus:border-[#064e3b] bg-[#fcfdfc] text-gray-900 placeholder:text-red-600 text-xs sm:text-sm font-medium transition-all shadow-xs"
-                      />
-                    )}
+  <input
+    type="text"
+    value={otherCondition}
+    onChange={(e) => setOtherCondition(e.target.value)}
+    placeholder="Please specify condition details here"
+    className="w-full h-12 px-4 py-3 border-2 border-red-300 ring-2 ring-red-300 rounded-xl focus:outline-none focus:border-red-500 focus:ring-red-300 bg-[#fcfdfc] text-gray-900 placeholder:text-red-600 text-xs sm:text-sm font-medium transition-all shadow-xs"
+  />
+)}
                   </div>
                 );
               })}
@@ -322,33 +322,27 @@ export default function Section3InternalHealthMale({ onComplete, onBack }) {
           )}
 
           {OPTIONS[currentStep] && (
-            <div className="grid grid-cols-1 gap-3">
-              {OPTIONS[currentStep].map((opt) => {
-                const isSelected = localForm[currentStep] === opt;
-                const isErrorField =
-                  currentStep === "supplements" || currentStep === "prescription_medicines";
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => handleSelect(currentStep, opt)}
-                    className={`${OPTION_BTN} ${isSelected ? getOptionSelectedClass(currentStep) : OPTION_IDLE}`}
-                  >
-                    <span className="pr-3 leading-snug">{opt}</span>
-                    <div
-                      className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                        isSelected
-                          ? isErrorField
-                            ? "border-red-300 bg-red-300"
-                            : "border-[#064e3b] bg-[#064e3b]"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
-                  </button>
-                );
-              })}
+  <div className="grid grid-cols-1 gap-3">
+    {OPTIONS[currentStep].map((opt) => {
+      const isSelected = localForm[currentStep] === opt;
+      return (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => handleSelect(currentStep, opt)}
+          className={`${OPTION_BTN} ${isSelected ? getOptionSelectedClass(currentStep) : OPTION_IDLE}`}
+        >
+          <span className="pr-3 leading-snug">{opt}</span>
+          <div
+            className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+              isSelected ? "border-[#064e3b] bg-[#064e3b]" : "border-gray-300"
+            }`}
+          >
+            {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+          </div>
+        </button>
+      );
+    })}
 
               {/* Enhanced Input Field with Concise Red Placeholder & Clean Padding */}
               {detailMeta && localForm[currentStep] === "Yes" && (

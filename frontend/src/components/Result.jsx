@@ -269,7 +269,7 @@ const MALE_TESTIMONIALS = [
       { label: "After", file: "Harish-after.png" },
     ],
   },
-  {
+ {
     name: "Arun",
     age: 32,
     city: "Thoothukudi, Tamil Nadu",
@@ -278,10 +278,9 @@ const MALE_TESTIMONIALS = [
     review:
       "The derma roller + serum combo worked better than anything I tried before. Visible baby hairs by month 5.",
     date: "Reviewed on 12th Jan 2025",
-    photoFrameClass: "aspect-[3/4]",
     photos: [
-      { label: "Before", file: "Arun-before.png", fit: "contain" },
-      { label: "After", file: "Arun-after.png", fit: "contain" },
+      { label: "Before", file: "Arun-before.png" },
+      { label: "After", file: "Arun-after.png" },
     ],
   },
 ];

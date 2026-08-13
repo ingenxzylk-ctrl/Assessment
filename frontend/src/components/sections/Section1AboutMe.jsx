@@ -16,6 +16,10 @@ const STEP_TITLES = {
   gender: { title: "How do you identify?", subtitle: "This helps us tailor the assessment to you." },
 };
 
+// Accepted email providers — extend this list if you want to allow more.
+const ALLOWED_EMAIL_DOMAIN_REGEX =
+  /^[^\s@]+@(gmail\.com|mail\.com|zoho\.com|zohomail\.in|protonmail\.com|proton\.me|icloud\.com|me\.com|mac\.com|hotmail\.com|outlook\.com|live\.com|yahoo\.com|yahoo\.co\.in|aol\.com|gmx\.com|rediffmail\.com)$/i;
+
 const COUNTRY_CODES = [
   { code: "+93", name: "Afghanistan", flag: "🇦🇫" },
   { code: "+355", name: "Albania", flag: "🇦🇱" },
@@ -250,7 +254,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
       return (
         Boolean(localForm.whatsapp.trim()) &&
         localForm.whatsapp.trim().length === 10 &&
-        (localForm.email.trim() === "" || /^[^\s@]+@gmail\.com$/i.test(localForm.email))
+        (localForm.email.trim() === "" || ALLOWED_EMAIL_DOMAIN_REGEX.test(localForm.email))
       );
     }
     if (stepIndex === 2) {
@@ -306,8 +310,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
         e.whatsapp = "WhatsApp number must be exactly 10 digits";
       }
       if (localForm.email.trim()) {
-        if (!/^[^\s@]+@gmail\.com$/i.test(localForm.email)) {
-          e.email = "Email must be a valid gmail.com address";
+        if (!ALLOWED_EMAIL_DOMAIN_REGEX.test(localForm.email)) {
+          e.email = "Please enter a valid email address";
         }
       }
     }

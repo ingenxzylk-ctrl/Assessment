@@ -100,12 +100,12 @@ const RADIO_OPTIONS = {
 const DETAIL_FIELDS = {
   supplements: {
     stateKey: "supplements_details",
-    placeholder: "Please mention which vitamins or supplements you are taking",
+    placeholder: "Mention your vitamins or supplements...",
     error: "Please mention what vitamins or supplements you are taking",
   },
   prescription_medicines: {
     stateKey: "prescription_medicines_details",
-    placeholder: "Please mention which prescription medicines you are taking",
+    placeholder: "Mention your prescription medicines...",
     error: "Please mention what prescription medicines you are taking",
   },
 };
@@ -356,7 +356,7 @@ export default function Section3Female({ onComplete, onBack }) {
                   onChange={(e) => handleDetailChange(detailMeta.stateKey, e.target.value)}
                   placeholder={detailMeta.placeholder}
                   className={`w-full min-h-[56px] px-5 border rounded-2xl focus:outline-none transition-all text-base bg-white ${
-                    currentStep === "prescription_medicines"
+                    currentStep === "prescription_medicines" || currentStep === "supplements"
                       ? "border-red-300 ring-2 ring-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-300 placeholder:text-red-600 text-red-900"
                       : "border-gray-200 focus:border-[#064e3b] focus:ring-2 focus:ring-[#064e3b]/20 placeholder:text-gray-400 text-gray-900"
                   }`}
