@@ -204,6 +204,8 @@ function collectQaPairs(payload) {
     "WhatsApp",
     aboutMe.whatsapp ? `${aboutMe.countryCode || ""} ${aboutMe.whatsapp}`.trim() : null,
   ]);
+    pairs.push(["City", aboutMe.city]);
+    pairs.push(["Pincode", aboutMe.pincode]);
   pairs.push(["Age", aboutMe.age || aboutMe.ageRange]);
   pairs.push(["Gender", aboutMe.gender]);
 
