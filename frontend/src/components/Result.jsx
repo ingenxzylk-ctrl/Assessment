@@ -659,18 +659,7 @@ function buildRootCauses(state, hasDandruff, isFemale) {
     });
   }
 
-  // Heavy shedding ← daily_loss_amount / shedding_amount
-  if (
-    ["100_150", "over_150", "much_more", "clumps"].includes(dailyLoss) ||
-    ["heavy", "clumps", "much_more"].includes(shedding)
-  ) {
-    causes.push({
-      id: "shedding",
-      label: "Heavy Shedding",
-      icon: "💨",
-      desc: "You reported heavy daily hair fall. Early fall-control is built into month 1 so density recovery can start sooner.",
-    });
-  }
+  // Heavy shedding is intentionally not shown as a root-cause card (non-blocking)
 
   // Keep section non-empty if quiz signals are sparse
   if (!causes.length) {

@@ -241,6 +241,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     fullName: state?.aboutMe?.fullName || "",
     whatsapp: state?.aboutMe?.whatsapp || "",
     email: state?.aboutMe?.email || "",
+    city: state?.aboutMe?.city || "",
+    pincode: state?.aboutMe?.pincode || "",
     countryCode: initialCountry.code,
     countryName: state?.aboutMe?.countryName || initialCountry.name,
     age: state?.aboutMe?.age || "",
@@ -495,6 +497,30 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                 {errors.email && (
                   <p className="text-sm text-red-500 font-medium">{errors.email}</p>
                 )}
+              </div>
+
+              <div className="flex gap-2 w-full min-w-0">
+                <div className="flex-1">
+                  <label className="text-sm font-semibold text-gray-700">City</label>
+                  <input
+                    type="text"
+                    value={localForm.city}
+                    onChange={(e) => handleChange({ city: e.target.value })}
+                    placeholder="City"
+                    className="w-full h-12 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-sm border-gray-200"
+                  />
+                </div>
+                <div className="w-36">
+                  <label className="text-sm font-semibold text-gray-700">Pincode</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={localForm.pincode}
+                    onChange={(e) => handleChange({ pincode: e.target.value.replace(/[^\d]/g, "").slice(0, 10) })}
+                    placeholder="PIN"
+                    className="w-full h-12 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-sm border-gray-200"
+                  />
+                </div>
               </div>
 
             </div>
