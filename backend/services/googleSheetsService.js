@@ -6,7 +6,7 @@ import {
 
 export const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
-const DEFAULT_RANGE = "Sheet1!A:L";
+const DEFAULT_RANGE = "Sheet1!A:N";
 const CALL_STATUS_NEW = "New";
 
 function loadServiceAccountCredentials() {
@@ -168,6 +168,17 @@ function formatStage(scalpAnalysis = {}) {
 
 function formatKit(reportMeta = {}) {
   const bundle = reportMeta.recommendedBundle || {};
+  const wpBase = (process.env.WP_SITE_URL || process.env.PUBLIC_WP_SITE_URL || "https://zylkhealth.com").replace(/\/$/, "");
+  const firstProductId = bundle?.products?.[0]?.id;
+  if (firstProductId != null) {
+    const asString = String(firstProductId).trim();
+    if (/^\d+$/.test(asString)) {
+      // Numeric Woo product ID → use checkout-link to add the kit directly
+      return cell(`${wpBase}/checkout-link/?products=${encodeURIComponent(asString)}`);
+    }
+    // Otherwise assume a slug/catalog id → product page
+    return cell(`${wpBase}/product/${encodeURIComponent(asString)}`);
+  }
   return cell(bundle.bundleTitle || bundle.bundleId || bundle.name || "");
 }
 
@@ -228,6 +239,8 @@ export function buildLeadRow({
     cell(aboutMe.fullName || aboutMe.name || "Guest"),
     formatPhone(aboutMe),
     cell(aboutMe.email),
+    cell(aboutMe.city || ""),
+    cell(aboutMe.pincode || ""),
     cell(aboutMe.gender),
     cell(aboutMe.age || aboutMe.ageRange),
     formatStage(scalpAnalysis),
@@ -291,7 +304,20 @@ export async function appendLeadRowsBatch(rows) {
     const tab = sheetTabName();
     const startRow = await findNextLeadRow(sheets, spreadsheetId);
     const endRow = startRow + rows.length - 1;
-    const targetRange = `${tab}!A${startRow}:L${endRow}`;
+
+    // Derive end column from the first row's length for robust writes
+    const cols = Array.isArray(rows[0]) ? rows[0].length : 0;
+    function colLetter(n) {
+      let s = "";
+      while (n > 0) {
+        const m = (n - 1) % 26;
+        s = String.fromCharCode(65 + m) + s;
+        n = Math.floor((n - 1) / 26);
+      }
+      return s || "A";
+    }
+    const endCol = colLetter(cols || 12);
+    const targetRange = `${tab}!A${startRow}:${endCol}${endRow}`;
 
     const response = await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -392,9 +418,13 @@ export async function probeGoogleSheets() {
       .filter(Boolean);
 
     const tab = sheetTabName();
+    // Read first header row using current configured range's end column
+    const headerEndCol = (sheetsRange() || "Sheet1!A:N").includes("!")
+      ? sheetsRange().split("!")[1].replace(/\d+/g, "")
+      : "N";
     const header = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${tab}!A1:L1`,
+      range: `${tab}!A1:${headerEndCol}1`,
     });
     const nextRow = await findNextLeadRow(sheets, spreadsheetId);
     const previewStart = Math.max(2, nextRow - 3);
