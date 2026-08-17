@@ -1534,8 +1534,14 @@ useEffect(() => {
 
   const kitSourceItems = useMemo(() => {
     if (!recommendedBundle) return [];
-    const bundleNumber = recommendedBundle.bundleNumber;
-    return getBundleItems(bundleNumber, false, hasDandruff).filter(
+    const fromRecommended = Array.isArray(recommendedBundle.items)
+      ? recommendedBundle.items
+      : [];
+    const fromCatalog = getBundleItems(recommendedBundle.bundleNumber, false, hasDandruff);
+    // Catalog is source of truth so a stale recommendedBundle.items list cannot
+    // keep showing the old rosemary Stage-3 kit.
+    const source = fromCatalog.length ? fromCatalog : fromRecommended;
+    return source.filter(
       (item) =>
         item.id !== "zylk-hair-health-mix" &&
         !String(item.id || "").startsWith("prod-supplements") &&
@@ -1545,18 +1551,20 @@ useEffect(() => {
 
   const kitProducts = kitSourceItems
     .map((prod) => {
-      const formatted = formatBundleProduct(prod, isFemale);
-      if (!formatted) return null;
+      const formatted = formatBundleProduct(prod, isFemale) || {};
       return {
-        ...formatted,
-        id: formatted.catalogId || prod.id,
+        id: prod.id,
+        shortName: prod.name || formatted.shortName,
         subtitle: prod.subtitle || null,
         description: prod.name || "",
         price: prod.price ?? null,
         originalPrice: prod.originalPrice ?? null,
+        imgUrl: formatted.imgUrl || prod.imgUrl,
+        imgFallbacks: formatted.imgFallbacks || prod.imgFallbacks || [],
+        catalogId: prod.id,
       };
     })
-    .filter(Boolean);
+    .filter((product) => product.shortName);
 
   const drawerProduct = kitProducts.find((product) => product.id === expandedProductId) || null;
   const drawerProductDetails = drawerProduct

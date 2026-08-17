@@ -249,20 +249,33 @@ export function getBundlePrices(bundleNumber, _hasDandruff = false, _gender = nu
 
 /**
  * Route quiz result → kit by dandruff + gender + stage.
- * 1) Stage 1 + heavy dandruff (any gender) → bundle 8 (8838)
- * 2) Female stage 3 → bundle 7 (8327)
- * 3) Female (other stages) → bundle 6 (8590)
- * 4) Male stage kits (8588 / 8594–8597). Stages 6–7 still use the stage 5+ kit,
- *    but the predicted stage itself must remain 6/7 for recommendations.
+ *
+ *   Stage 1 + heavy dandruff (male or female) → 8 (8838 Advanced Antidandruff)
+ *   Female stage 3 → 7 (8327)
+ *   Female stage 2 (any dandruff) → 6 (8590 Women Advance)
+ *   Female stage 1 moderate/no dandruff → 6 (8590)
+ *   Male stage 1 moderate/no dandruff → 1 (8588)
+ *   Male stage kits otherwise (8588 / 8594–8597)
  */
+export function normalizeQuizStage(stage) {
+  const s = String(stage ?? "").toLowerCase().trim();
+  if (!s) return "";
+  if (s.includes("overall") || s.includes("diffuse")) return "overall-thinning";
+  if (s.includes("patchy")) return "patchy-bald";
+  const numbered = s.match(/([1-7])/);
+  return numbered ? numbered[1] : s;
+}
+
 export function resolveBundleNumber(gender, stage, hasDandruff) {
-  const stageStr = String(stage ?? "");
+  const stageStr = normalizeQuizStage(stage);
   const isFemale = gender === "female";
   const isStage1 = stageStr === "1" || stageStr === "overall-thinning";
 
+  // Heavy dandruff overrides stage-1 kits only (not female stage 2).
   if (isStage1 && isHeavyDandruff(hasDandruff)) return 8;
 
   if (isFemale && stageStr === "3") return 7;
+  if (isFemale && stageStr === "2") return 6;
   if (isFemale) return 6;
 
   if (isStage1) return 1;

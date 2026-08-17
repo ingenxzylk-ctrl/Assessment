@@ -166,11 +166,36 @@ export const ZYLK_PRODUCTS = {
   },
 };
 
+export const WOMEN_ADVANCE_PRODUCT_IDS = [
+  "zylk-rosemary-oil",
+  "zylk-rosemary-mist",
+  "zylk-dermaroller",
+  "zylk-scalp-massager-complimentary",
+  "zylk-salicylic-shampoo",
+  "zylk-hair-growth-serum",
+];
+
+export const WOMEN_STAGE3_PRODUCT_IDS = [
+  "zylk-minoxidil-2",
+  "zylk-salicylic-shampoo-s3",
+  "zylk-dermaroller",
+  "zylk-advanced-hair-serum",
+  "zylk-scalp-massager",
+];
+
+export const ANTIDANDRUFF_PRODUCT_IDS = [
+  "zylk-tea-tree-oil",
+  "zylk-tea-tree-mist",
+  "zylk-antidandruff-shampoo",
+  "zylk-scalp-massager-listed",
+  "zylk-hair-growth-serum-ad",
+];
+
 /**
  * Bundle numbers → product lists
  * 1 Men Advance (stage 1)
  * 2–5 Male stage kits
- * 6 Women Advance (default)
+ * 6 Women Advance (female 1 moderate/no dandruff + female 2 any dandruff)
  * 7 Women Stage 3
  * 8 Advanced Antidandruff (stage 1 + heavy dandruff)
  */
@@ -216,31 +241,9 @@ export const BUNDLE_PRODUCT_IDS = {
     "zylk-advanced-serum",
     "zylk-scalp-massager-complimentary",
   ],
-  // Women Advance — female stage 1 (moderate/no dandruff) + female stage 2
-  6: [
-    "zylk-rosemary-oil",
-    "zylk-rosemary-mist",
-    "zylk-dermaroller",
-    "zylk-scalp-massager-complimentary",
-    "zylk-salicylic-shampoo",
-    "zylk-hair-growth-serum",
-  ],
-  // Women Stage 3 Hair Regrowth Kit
-  7: [
-    "zylk-minoxidil-2",
-    "zylk-salicylic-shampoo-s3",
-    "zylk-dermaroller",
-    "zylk-advanced-hair-serum",
-    "zylk-scalp-massager",
-  ],
-  // Advanced Antidandruff Kit (stage 1 + heavy dandruff, any gender)
-  8: [
-    "zylk-tea-tree-oil",
-    "zylk-tea-tree-mist",
-    "zylk-antidandruff-shampoo",
-    "zylk-scalp-massager-listed",
-    "zylk-hair-growth-serum-ad",
-  ],
+  6: WOMEN_ADVANCE_PRODUCT_IDS,
+  7: WOMEN_STAGE3_PRODUCT_IDS,
+  8: ANTIDANDRUFF_PRODUCT_IDS,
 };
 
 export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
@@ -256,6 +259,7 @@ export function getProductById(id) {
  * @param {boolean} [_hasDandruff=false] — unused; stage kits already include the right shampoo
  */
 export function getBundleItems(bundleNumber, _includeHealthMix = true, _hasDandruff = false) {
-  const ids = [...(BUNDLE_PRODUCT_IDS[bundleNumber] || [])];
+  const key = Number(bundleNumber);
+  const ids = [...(BUNDLE_PRODUCT_IDS[key] || BUNDLE_PRODUCT_IDS[bundleNumber] || [])];
   return ids.map((id) => getProductById(id)).filter(Boolean);
 }

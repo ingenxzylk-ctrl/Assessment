@@ -26,6 +26,9 @@ const cases = [
   ["female", "3", "no", 7, 8327, 999, 1100],
   ["female", "3", "moderate", 7, 8327, 999, 1100],
   ["female", "2", "no", 6, 8590, 749, 1125],
+  ["female", "2", "frequent", 6, 8590, 749, 1125],
+  ["female", "2", "moderate", 6, 8590, 749, 1125],
+  ["female", "Stage 3", "no", 7, 8327, 999, 1100],
   ["male", "3", "no", 3, 8595, 1199, 1595],
   ["male", "6", "no", 5, 8597, 1299, 1824],
   ["male", "2", "frequent", 2, 8594, 999, 1296],
@@ -54,10 +57,14 @@ assert(womenAdvance.includes("Rosemary Hair Oil"), "women advance missing rosema
 assert(getBundleItems(6).find((p) => p.name === "Scalp Massager")?.price === 0, "women advance massager should be free");
 
 const womenS3 = getBundleItems(7);
-assert(womenS3.some((p) => p.name === "2% Minoxidil" && p.price === 499), "stage 3 female needs 2% Minoxidil ₹499");
-assert(womenS3.some((p) => p.name === "Advanced Hair Serum" && p.price === 200), "stage 3 female needs Advanced Hair Serum ₹200");
+assert(womenS3.length === 5, `stage 3 female should have 5 products, got ${womenS3.length}`);
+assert(womenS3.some((p) => p.name === "2% Minoxidil" && p.price === 499 && p.originalPrice === 599), "stage 3 female needs 2% Minoxidil ₹499/₹599");
+assert(womenS3.some((p) => p.name === "Advanced Hair Serum" && p.price === 200 && p.originalPrice === 399), "stage 3 female needs Advanced Hair Serum ₹200/₹399");
 assert(womenS3.some((p) => p.name === "Salicylic Acid Shampoo" && p.originalPrice === 199), "stage 3 salicylic regular ₹199");
+assert(womenS3.some((p) => p.name === "Dermaroller" && p.price === 149), "stage 3 female needs Dermaroller");
+assert(womenS3.some((p) => p.name === "Scalp Massager" && p.price === 99), "stage 3 female massager ₹99");
 assert(!womenS3.some((p) => /rosemary/i.test(p.name)), "stage 3 female should not list rosemary products");
+assert(!womenS3.some((p) => p.name === "Serum" && p.originalPrice === 299), "stage 3 female must not use the generic Serum SKU");
 
 const anti = namesOf(8);
 assert(
