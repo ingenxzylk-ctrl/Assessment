@@ -32,16 +32,24 @@ const PRODUCT_CANDIDATE_BASES = {
   "prod-oil-mct-dandruff": ["progro-oil"],
   "prod-oil-jojoba-clear": ["progro-oil"],
   "zylk-minoxidil-finasteride": ["minoxidil-5"],
+  "zylk-minoxidil-2": ["minoxidil-2", "minoxidil-5"],
   "zylk-antidandruff-shampoo": ["antidandruff-shampoo"],
   "zylk-dermaroller": ["dermaroller"],
   "zylk-pumpkin-seed": ["health-mix"],
   "zylk-serum": ["progro-oil"],
   "zylk-advanced-serum": ["progro-oil"],
+  "zylk-hair-growth-serum": ["progro-oil"],
+  "zylk-advanced-hair-serum": ["progro-oil"],
+  "zylk-hair-growth-serum-ad": ["progro-oil"],
   "zylk-scalp-massager": ["scalp-massager"],
   "zylk-scalp-massager-complimentary": ["scalp-massager"],
+  "zylk-scalp-massager-listed": ["scalp-massager"],
   "zylk-rosemary-oil": ["rosemary-oil"],
   "zylk-rosemary-mist": ["rosemary-mist"],
+  "zylk-tea-tree-oil": ["progro-oil", "rosemary-oil"],
+  "zylk-tea-tree-mist": ["tea-tree-mist", "rosemary-mist"],
   "zylk-salicylic-shampoo": ["detox-shampoo"],
+  "zylk-salicylic-shampoo-s3": ["detox-shampoo"],
   "zylk-hair-health-mix": ["health-mix"],
 };
 
@@ -50,7 +58,8 @@ const KEYWORD_BASES = [
   { match: /2%|female.*minoxidil/i, bases: ["minoxidil-2"] },
   { match: /5%|finasteride|male.*minoxidil/i, bases: ["minoxidil-5"] },
   { match: /minoxidil/i, bases: ["minoxidil-5", "minoxidil-2"] },
-  { match: /tea.?tree.*mist|mist.*tea.?tree/i, bases: ["rosemary-mist", "tea-tree-mist"] },
+  { match: /tea.?tree.*mist|mist.*tea.?tree/i, bases: ["tea-tree-mist", "rosemary-mist"] },
+  { match: /tea.?tree/i, bases: ["progro-oil", "rosemary-oil"] },
   { match: /rosemary.*mist/i, bases: ["rosemary-mist"] },
   { match: /rosemary|concentrate/i, bases: ["rosemary-oil", "rosemary-mist"] },
   { match: /detox/i, bases: ["detox-shampoo"] },
@@ -131,19 +140,23 @@ export function shortenProductName(name = "", isFemale = false) {
   if (isFemale && lower.includes("finasteride")) return null;
 
   // Names must match the official Zylk Health products sheet (most-specific first)
+  if (lower.includes("2%") && lower.includes("minoxidil")) return "2% Minoxidil";
   if (lower.includes("minoxidil") && lower.includes("finasteride")) {
     return "5% Minoxidil + 0.1% Finasteride";
   }
   if (lower.includes("minoxidil")) {
-    if (lower.includes("2%")) return "Zylk Minoxidil 2% Solution";
-    return isFemale ? "Zylk Minoxidil 2% Solution" : "Zylk Minoxidil 5% Solution";
+    if (lower.includes("2%")) return "2% Minoxidil";
+    return isFemale ? "2% Minoxidil" : "Zylk Minoxidil 5% Solution";
   }
+  if (lower.includes("advanced hair serum")) return "Advanced Hair Serum";
+  if (lower.includes("hair growth serum")) return "Hair Growth Serum";
   if (lower.includes("advanced serum")) return "Advanced Serum";
   if (lower.includes("serum")) return "Serum";
   if (lower.includes("pumpkin")) return "Pumpkin Seed Softgel";
   if (lower.includes("tea tree mist") || lower.includes("tea-tree mist")) {
-    return "Zylk Tea Tree Mist Spray";
+    return "Tea Tree Mist Spray";
   }
+  if (lower.includes("tea tree") && lower.includes("oil")) return "Tea Tree Oil";
   if (lower.includes("rosemary mist")) return "Zylk Rosemary Mist Spray";
   if (lower.includes("rosemary") && lower.includes("oil")) return "Zylk Rosemary Hair Oil";
   if (lower.includes("rosemary")) return "Zylk Rosemary Hair Oil";
@@ -166,7 +179,7 @@ export function shortenProductName(name = "", isFemale = false) {
   if (lower.includes("shampoo") || lower.includes("cleanser")) {
     return "Zylk Antidandruff Shampoo";
   }
-  if (lower.includes("mist")) return "Zylk Tea Tree Mist Spray";
+  if (lower.includes("mist")) return "Tea Tree Mist Spray";
   if (lower.includes("oil")) return "Zylk ProGro Oil";
 
   return name;

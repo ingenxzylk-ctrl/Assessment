@@ -132,6 +132,61 @@ const PRODUCT_DETAIL_CONTENT = {
       ingredients: ["मिनॉक्सिडिल", "फिनास्टेराइड", "प्रोपाइलीन ग्लाइकोल", "शुद्ध पानी"],
     },
   },
+  "zylk-minoxidil-2": {
+    title: "2% Minoxidil",
+    summary: "A 2% minoxidil solution formulated for female pattern hair loss and sensitive scalps.",
+    usage: "Apply 1 ml twice daily to a clean, dry scalp on thinning areas. Avoid contact with eyes.",
+    ingredients: ["Minoxidil 2%", "Alcohol", "Propylene Glycol", "Purified Water"],
+    hindi: {
+      summary: "महिलाओं के पैटर्न हेयर लॉस के लिए तैयार 2% मिनॉक्सिडिल घोल।",
+      usage: "पतले हिस्सों पर साफ सूखी खोपड़ी पर दिन में दो बार 1 मिली लगायें।",
+      ingredients: ["मिनॉक्सिडिल 2%", "अल्कोहल", "प्रोपाइलीन ग्लाइकोल", "शुद्ध पानी"],
+    },
+  },
+  "zylk-hair-growth-serum": {
+    title: "Hair Growth Serum",
+    summary: "Lightweight serum that nourishes follicles and supports visible density.",
+    usage: "Apply 4-6 drops to the scalp daily and massage until absorbed.",
+    ingredients: ["Niacinamide", "Caffeine", "Botanical Extracts"],
+    hindi: {
+      summary: "फोलिकल को पोषण देने और घनत्व बढ़ाने वाला हल्का सीरम।",
+      usage: "रोज़ाना 4-6 बूंदें खोपड़ी पर लगायें और मसाज करें।",
+      ingredients: ["नियासिनामाइड", "कैफीन", "औषधीय अर्क"],
+    },
+  },
+  "zylk-advanced-hair-serum": {
+    title: "Advanced Hair Serum",
+    summary: "A deeper-strength serum for advanced thinning, repairing strands and boosting density.",
+    usage: "Apply daily to the scalp and massage. Use consistently for best results.",
+    ingredients: ["Peptides", "Amino Acids", "Antioxidants"],
+    hindi: {
+      summary: "एडवांस्ड थिनिंग के लिए गहरी शक्ति वाला सीरम।",
+      usage: "रोज़ाना खोपड़ी पर लगायें और मसाज करें।",
+      ingredients: ["पेप्टाइड्स", "अमीनो एसिड", "एंटीऑक्सिडेंट"],
+    },
+  },
+  "zylk-tea-tree-oil": {
+    title: "Tea Tree Oil",
+    summary: "Tea tree oil that helps calm an itchy, flaky scalp and supports a cleaner hair environment.",
+    usage: "Apply a few drops to the scalp, massage gently, and leave on before shampooing.",
+    ingredients: ["Tea Tree Oil", "Jojoba Oil", "Vitamin E"],
+    hindi: {
+      summary: "खुजली और पपड़ी वाली खोपड़ी को शांत करने वाला टी ट्री ऑयल।",
+      usage: "खोपड़ी पर कुछ बूंदें लगायें, मालिश करें और शैम्पू से पहले लगा रहने दें।",
+      ingredients: ["टी ट्री ऑयल", "जोजोबा ऑयल", "विटामिन ई"],
+    },
+  },
+  "zylk-tea-tree-mist": {
+    title: "Tea Tree Mist Spray",
+    summary: "A lightweight tea tree mist for daily scalp freshness and flake control.",
+    usage: "Spray evenly across the scalp once a day and massage lightly.",
+    ingredients: ["Tea Tree Extract", "Aloe Vera", "Botanical Hydrators"],
+    hindi: {
+      summary: "रोज़मर्रा की ताज़गी और फ्लेक कंट्रोल के लिए टी ट्री मिस्ट।",
+      usage: "रोज़ाना एक बार खोपड़ी पर स्प्रे करें और हल्के से मसाज करें।",
+      ingredients: ["टी ट्री अर्क", "एलो वेरा", "बोटैनिकल ह्यूड्रेटर्स"],
+    },
+  },
   "zylk-scalp-massager-complimentary": {
     title: "Scalp Massager",
     summary: "Improves circulation and helps products penetrate the scalp more effectively.",
@@ -151,9 +206,14 @@ function getProductDetails(product = {}, language = "english") {
       ? product
       : product?.id || "";
   const normalizedId =
-    productId === "zylk-scalp-massager-complimentary"
+    productId === "zylk-scalp-massager-complimentary" ||
+    productId === "zylk-scalp-massager-listed"
       ? "zylk-scalp-massager"
-      : productId;
+      : productId === "zylk-salicylic-shampoo-s3"
+        ? "zylk-salicylic-shampoo"
+        : productId === "zylk-hair-growth-serum-ad"
+          ? "zylk-hair-growth-serum"
+          : productId;
   const detail = PRODUCT_DETAIL_CONTENT[normalizedId] || null;
   if (detail) {
     if (language === "hindi") {
@@ -388,13 +448,16 @@ function TestimonialPhoto({
 
 function getProductPurpose(name = "") {
   const n = name.toLowerCase();
-  if (n.includes("shampoo") || n.includes("cleanser") || n.includes("dandruff")) return "For Dandruff";
-  if (n.includes("minoxidil") || n.includes("rosemary") || n.includes("serum") || n.includes("growth")) return "For Hair Regrowth";
+  if (n.includes("anti-dandruff") || n.includes("antidandruff") || n.includes("dandruff")) return "For Dandruff";
+  if (n.includes("shampoo") || n.includes("cleanser")) return "For Scalp Detox";
+  if (n.includes("minoxidil")) return "For Hair Regrowth";
+  if (n.includes("serum") || n.includes("growth")) return "For Hair Density";
+  if (n.includes("tea tree") || n.includes("rosemary")) return "For Hair Nourishment";
   if (n.includes("oil") || n.includes("progro")) return "For Scalp Nourishment";
   if (n.includes("pumpkin") || n.includes("softgel")) return "For Nutritional Support";
   if (n.includes("supplement") || n.includes("health mix") || n.includes("vitality")) return "For Internal Health";
-  if (n.includes("derma") || n.includes("roller")) return "For Absorption";
-  if (n.includes("massager")) return "For Scalp Stimulation";
+  if (n.includes("derma") || n.includes("roller")) return "For Hair Follicle Stimulation";
+  if (n.includes("massager")) return "For Daily Scalp Health";
   if (n.includes("conditioner")) return "For Scalp Care";
   return "For Hair Health";
 }

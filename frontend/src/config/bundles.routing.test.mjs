@@ -6,9 +6,14 @@ import {
   getBundlePrices,
   isHeavyDandruff,
 } from "./bundles.js";
+import { getBundleItems } from "../data/zylkProductCatalog.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
+}
+
+function namesOf(bundleNumber) {
+  return getBundleItems(bundleNumber).map((p) => p.name);
 }
 
 const cases = [
@@ -43,4 +48,21 @@ assert(STAGE_KIT_WOO_IDS.includes(8327), "8327 allow-listed");
 assert(STAGE_KIT_WOO_IDS.includes(8838), "8838 allow-listed");
 assert(BUNDLE_CONFIG[1].wooProductId === 8588, "bundle 1 is 8588");
 
-console.log(`ok ${cases.length} routing cases`);
+const womenAdvance = namesOf(6);
+assert(womenAdvance.includes("Hair Growth Serum"), `women advance missing serum: ${womenAdvance.join(", ")}`);
+assert(womenAdvance.includes("Rosemary Hair Oil"), "women advance missing rosemary oil");
+assert(getBundleItems(6).find((p) => p.name === "Scalp Massager")?.price === 0, "women advance massager should be free");
+
+const womenS3 = getBundleItems(7);
+assert(womenS3.some((p) => p.name === "2% Minoxidil" && p.price === 499), "stage 3 female needs 2% Minoxidil ₹499");
+assert(womenS3.some((p) => p.name === "Advanced Hair Serum" && p.price === 200), "stage 3 female needs Advanced Hair Serum ₹200");
+assert(womenS3.some((p) => p.name === "Salicylic Acid Shampoo" && p.originalPrice === 199), "stage 3 salicylic regular ₹199");
+assert(!womenS3.some((p) => /rosemary/i.test(p.name)), "stage 3 female should not list rosemary products");
+
+const anti = namesOf(8);
+assert(
+  anti.join("|") === "Tea Tree Oil|Tea Tree Mist Spray|Anti-Dandruff Shampoo|Scalp Massager|Hair Growth Serum",
+  `antidandruff kit items: ${anti.join(", ")}`
+);
+
+console.log(`ok ${cases.length} routing cases + kit contents`);
