@@ -10,15 +10,15 @@ const STEP_TITLES = {
   contact: {
     title: "Where should we send your report?",
     subtitle:
-      "Enter your WhatsApp number to receive your personalized hair assessment and recommendations. Add your email as a backup.",
+      "Enter your WhatsApp number and email so we can send your personalized hair assessment and recommendations.",
   },
   age: { title: "What's your age?", subtitle: "Enter your age in years so we can tailor your plan." },
   gender: { title: "How do you identify?", subtitle: "This helps us tailor the assessment to you." },
 };
 
-// Accepted email providers — extend this list if you want to allow more.
-const ALLOWED_EMAIL_DOMAIN_REGEX =
-  /^[^\s@]+@(gmail\.com|mail\.com|zoho\.com|zohomail\.in|protonmail\.com|proton\.me|icloud\.com|me\.com|mac\.com|hotmail\.com|outlook\.com|live\.com|yahoo\.com|yahoo\.co\.in|aol\.com|gmx\.com|rediffmail\.com)$/i;
+// Standard email format — do not restrict to a small provider allow-list.
+// The old allow-list made users skip email (it was optional), so Sheet rows were blank.
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 
 const COUNTRY_CODES = [
   { code: "+93", name: "Afghanistan", flag: "🇦🇫" },
@@ -256,7 +256,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
       return (
         Boolean(localForm.whatsapp.trim()) &&
         localForm.whatsapp.trim().length === 10 &&
-        (localForm.email.trim() === "" || ALLOWED_EMAIL_DOMAIN_REGEX.test(localForm.email))
+        Boolean(localForm.email.trim()) &&
+        EMAIL_REGEX.test(localForm.email.trim())
       );
     }
     if (stepIndex === 2) {
@@ -298,7 +299,20 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   const headingInfo = STEP_TITLES[currentStep];
 
   const handleChange = (fields) => {
-    setLocalForm((prev) => ({ ...prev, ...fields }));
+    setLocalForm((prev) => {
+      const next = { ...prev, ...fields };
+      if (
+        updateAboutMe &&
+        (fields.email !== undefined ||
+          fields.whatsapp !== undefined ||
+          fields.fullName !== undefined ||
+          fields.city !== undefined ||
+          fields.pincode !== undefined)
+      ) {
+        updateAboutMe(next);
+      }
+      return next;
+    });
     setErrors((prev) => ({ ...prev, [Object.keys(fields)[0]]: "" }));
   };
 
@@ -311,10 +325,11 @@ export default function Section1AboutMe({ onComplete, onBack }) {
       } else if (localForm.whatsapp.trim().length !== 10) {
         e.whatsapp = "WhatsApp number must be exactly 10 digits";
       }
-      if (localForm.email.trim()) {
-        if (!ALLOWED_EMAIL_DOMAIN_REGEX.test(localForm.email)) {
-          e.email = "Please enter a valid email address";
-        }
+      const email = localForm.email.trim();
+      if (!email) {
+        e.email = "Email is required";
+      } else if (!EMAIL_REGEX.test(email)) {
+        e.email = "Please enter a valid email address";
       }
     }
     if (step === 2) {
@@ -339,7 +354,12 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     // Persist answers as the user advances so reload mid-section can resume
     if (updateAboutMe) {
       const ageRange = ageToRange(localForm.age) || localForm.ageRange || "";
-      updateAboutMe({ ...localForm, ageRange });
+      updateAboutMe({
+        ...localForm,
+        email: localForm.email.trim(),
+        fullName: localForm.fullName.trim(),
+        ageRange,
+      });
     }
 
     if (step < STEPS.length - 1) {
@@ -481,7 +501,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
 
               <div className="flex flex-col gap-2 w-full min-w-0">
                 <label className="text-sm font-semibold text-gray-700">
-                  Email Address 
+                  Email Address
                 </label>
                 <input
                   type="email"

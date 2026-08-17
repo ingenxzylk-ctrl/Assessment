@@ -425,6 +425,8 @@ WORKED EXAMPLES (the boundaries that most often get misjudged):
 - templeL=mild, templeR=mild, crown=mild, visibleScalp=partial → "4" (rule 3 extended: temples AND crown both present, even if each alone looks mild)
 - templeL=not_visible, templeR=not_visible, crown=mild, visibleScalp=partial → "3" (rule 4: missing temple data + mild crown → floor of 3, not 2)
 - templeL=severe, templeR=severe, crown=severe, bridge=thinning → "5" (rule 2: severe crown + moderate+ temples + thinning bridge)
+- templeL=severe, templeR=severe, crown=severe, bridge=absent → "6" (rule 1: bridge gone is 6, NEVER 5)
+- visibleScalp=extensive, crown=severe, bridge=absent → "6" or "7" (rule 1: horseshoe / near-total top — NEVER collapse to 5)
  
 SELF-CHECK (do silently before output): re-read your observations object field-by-field against the DECISION TABLE in order. Confirm the first rule that matches your exact field values, and set aiPredictedStage to that rule's output — not a stage you assumed before checking. If your initial guess disagrees with the table, the table wins. Note which rule number applied in aiReasoning.
  
@@ -567,8 +569,14 @@ const stageFromCrownOnly = (observations = {}) => {
   const scalp = String(top.visibleScalp || "minimal").toLowerCase();
   const crown = isUnknownObservation(top.crownThinning) ? 0 : level(top.crownThinning);
 
-  if (crown >= 3 || scalp === "extensive" || bridge === "absent") return "5";
-  if (crown >= 2 || scalp === "partial" || bridge === "thinning") return "4";
+  // Stage 7: near-total top loss
+  if (bridge === "absent" && scalp === "extensive" && crown >= 3) return "7";
+  // Stage 6: bridge gone / horseshoe forming — must not collapse to 5
+  if (bridge === "absent" || (scalp === "extensive" && crown >= 2 && bridge !== "full" && bridge !== "thinning")) {
+    return "6";
+  }
+  if (crown >= 3 || scalp === "extensive" || bridge === "thinning") return "5";
+  if (crown >= 2 || scalp === "partial") return "4";
   // Any visible crown/center thinning with missing hairline → at least Norwood 3V
   if (crown >= 1) return "3";
   return null;
@@ -912,8 +920,8 @@ const reconcileStage = (
     if (ai) {
       const aiNum = parseInt(ai, 10);
       const crownNum = parseInt(crownStage, 10);
-      if (!Number.isNaN(aiNum) && !Number.isNaN(crownNum) && aiNum > crownNum && aiNum <= 5) {
-        return String(Math.min(5, aiNum));
+      if (!Number.isNaN(aiNum) && !Number.isNaN(crownNum) && aiNum > crownNum && aiNum <= 7) {
+        return String(aiNum);
       }
     }
     return crownStage;
@@ -967,6 +975,7 @@ const reconcileStage = (
 
     // Both advanced without strong photo evidence → temper to early/mid
     if (aiNum >= 5 && ruleNum >= 5 && !strongAdvanced) {
+      if (aiNum >= 6 || ruleNum >= 6) return String(Math.max(aiNum, ruleNum));
       return "3";
     }
 

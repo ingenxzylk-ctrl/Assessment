@@ -106,7 +106,9 @@ export const ZYLK_PRODUCTS = {
  * Bundle numbers → product lists
  * 1 Men Advance (stage 1)
  * 2–5 Male stage kits
- * 6 Women Advance (all stages)
+ * 6 Women Advance (default)
+ * 7 Women Stage 3
+ * 8 Advanced Antidandruff (stage 1 + heavy dandruff)
  */
 export const BUNDLE_PRODUCT_IDS = {
   // Men Advance Hair Regrowth Kit (stage 1 / overall thinning)
@@ -150,13 +152,30 @@ export const BUNDLE_PRODUCT_IDS = {
     "zylk-advanced-serum",
     "zylk-scalp-massager-complimentary",
   ],
-  // Women Advance Hair Regrowth Kit (all stages)
+  // Women Advance Hair Regrowth Kit (default)
   6: [
     "zylk-rosemary-oil",
     "zylk-rosemary-mist",
     "zylk-dermaroller",
     "zylk-scalp-massager",
     "zylk-salicylic-shampoo",
+  ],
+  // Women Stage 3 Hair Regrowth Kit
+  7: [
+    "zylk-rosemary-oil",
+    "zylk-rosemary-mist",
+    "zylk-dermaroller",
+    "zylk-scalp-massager",
+    "zylk-salicylic-shampoo",
+    "zylk-serum",
+  ],
+  // Advanced Antidandruff Kit (stage 1 + heavy dandruff, any gender)
+  8: [
+    "zylk-antidandruff-shampoo",
+    "zylk-salicylic-shampoo",
+    "zylk-scalp-massager",
+    "zylk-rosemary-oil",
+    "zylk-dermaroller",
   ],
 };
 

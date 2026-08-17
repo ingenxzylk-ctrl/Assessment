@@ -115,7 +115,7 @@ export function QuizProvider({ children }) {
 
   const nextStep = () => {
     setState((prev) => {
-      const nextStepNum = prev.step + 1;
+      const nextStepNum = prev.step < 1 ? 1 : prev.step + 1;
       // When entering a section forward, do not keep a stale high question index
       // that would skip unanswered questions. useSectionStep also clamps, but
       // resetting here makes forward entry always start from Q1 when incomplete.
@@ -142,7 +142,7 @@ export function QuizProvider({ children }) {
 
   const prevStep = () => {
     setState((prev) => {
-      const nextStepNum = Math.max(0, prev.step - 1);
+      const nextStepNum = Math.max(0.5, prev.step - 1);
       const next = {
         ...prev,
         step: nextStepNum,

@@ -27,7 +27,7 @@ const WP_SITE_URL = (
  * - Mobile blocks window.open ("pop-ups blocked").
  * - /cart/?add-to-cart= caused CPU spikes on the theme.
  *
- * Single kit SKUs: 8588 / 8594–8597 / 8590 (+ test kit).
+ * Single kit SKUs: 8588 / 8594–8597 / 8590 / 8327 / 8838 (+ test kit).
  */
 const CHECKOUT_LINK_URL = `${WP_SITE_URL}/checkout-link/`;
 const CHECKOUT_VERSION = "v10-checkout-link-blocks";

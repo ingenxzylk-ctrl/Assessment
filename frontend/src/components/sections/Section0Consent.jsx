@@ -138,13 +138,15 @@ export default function Section0Consent({ onComplete, onBack }) {
         
 
         <div className="flex gap-4 pt-4 border-t border-gray-100 w-full">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex-1 h-14 border border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-base cursor-pointer"
-          >
-            Back
-          </button>
+          {typeof onBack === "function" && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex-1 h-14 border border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-colors text-base cursor-pointer"
+            >
+              Back
+            </button>
+          )}
           <button
             type="button"
             disabled={!canContinue}

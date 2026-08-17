@@ -45,6 +45,42 @@ const COUNTER_DIR = REPORTS_ROOT;
 // Letting it live forever was the root cause of stale/"stuck" report reuse.
 const HASH_REUSE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
+function djb2Key(raw) {
+  let hash = 5381;
+  const s = String(raw || "");
+  for (let i = 0; i < s.length; i += 1) {
+    hash = (hash * 33) ^ s.charCodeAt(i);
+  }
+  return `id${(hash >>> 0).toString(16)}`;
+}
+
+/**
+ * Stable lead identity (quiz answers + predicted stage, no photos).
+ * Used to collapse double-submits that used to mint two PDFs when photo
+ * bytes hydrated a moment later and changed the content hash.
+ */
+function buildLeadIdentityKey({ aboutMe, hairHealth, internalHealth, scalpAnalysis } = {}) {
+  const phone = String(aboutMe?.whatsapp || aboutMe?.phone || aboutMe?.mobile || "").replace(
+    /\D/g,
+    ""
+  );
+  const name = String(aboutMe?.fullName || aboutMe?.name || "")
+    .trim()
+    .toLowerCase();
+  if (phone.length < 8 && name.length < 2) return null;
+  return djb2Key(
+    JSON.stringify({
+      phone,
+      name,
+      email: String(aboutMe?.email || "").trim().toLowerCase(),
+      gender: aboutMe?.gender || null,
+      hairHealth: hairHealth || {},
+      internalHealth: internalHealth || {},
+      stage: scalpAnalysis?.aiPredictedStage || scalpAnalysis?.finalStage || null,
+    })
+  );
+}
+
 async function readContentHashMapping(contentHash) {
   if (!contentHash) return null;
   const safe = String(contentHash).replace(/[^\w-]/g, "").slice(0, 64);
@@ -298,10 +334,19 @@ export async function submitAssessmentReport(req, res) {
       });
     }
 
+    const identityKey = buildLeadIdentityKey({
+      aboutMe,
+      hairHealth,
+      internalHealth,
+      scalpAnalysis,
+    });
+
     // Never reuse cached PDFs from older layout versions, and never reuse a
     // mapping older than HASH_REUSE_TTL_MS (see readContentHashMapping).
     // This only skips regeneration for near-instant duplicate submits.
-    const existingByHash = await readContentHashMapping(contentHash);
+    const existingByHash =
+      (await readContentHashMapping(contentHash)) ||
+      (await readContentHashMapping(identityKey));
     const hashFormatOk =
       existingByHash?.pdfFormatVersion === PDF_FORMAT_VERSION;
     if (existingByHash?.reportId && hashFormatOk) {
@@ -463,6 +508,7 @@ export async function submitAssessmentReport(req, res) {
     });
 
     await writeContentHashMapping(contentHash, reportId, reportDate);
+    await writeContentHashMapping(identityKey, reportId, reportDate);
 
     const publicPdfUrl = package_.publicPdfUrl || null;
     const storageInfo = package_.storageInfo || {};

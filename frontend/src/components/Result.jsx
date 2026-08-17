@@ -6,6 +6,7 @@ import {
   getBundleDisplayName,
   getWooProductId,
   getCheckoutWooProductIds,
+  buildKitProductUrl,
 } from "../config/bundles";
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
@@ -447,35 +448,41 @@ function writeSubmittedEntry(key, id) {
   }
 }
 
-/** Hash quiz answers + photo fingerprints — used for submit dedupe only (not Report ID). */
-function buildReportContentHash(state, analysis) {
-  const imagePrints = (state?.scalpImages || [])
-    .map((img) => {
-      const s = String(img?.dataUrl || img?.previewUrl || img?.url || "");
-      if (!s) return `${img?.type || ""}:empty`;
-      const mid = Math.floor(s.length / 2);
-      return `${img?.type || ""}:${s.length}:${s.slice(22, 70)}:${s.slice(mid, mid + 40)}`;
-    })
-    .sort()
-    .join("|");
-
-  const payload = JSON.stringify({
-    // Bump with backend PDF_FORMAT_VERSION so layout fixes regenerate Drive PDFs
-    pdfFormatVersion: "v8-dup-photo-warn",
-    aboutMe: state?.aboutMe || {},
-    hairHealth: state?.hairHealth || {},
-    internalHealth: state?.internalHealth || {},
-    stage: analysis?.predictedStage ?? analysis?.stage ?? null,
-    model: analysis?.model || null,
-    images: imagePrints,
-  });
-
-  // djb2 — short stable string hash for localStorage keys
+function djb2Hash(payload) {
   let hash = 5381;
   for (let i = 0; i < payload.length; i += 1) {
     hash = (hash * 33) ^ payload.charCodeAt(i);
   }
   return `c${(hash >>> 0).toString(16)}`;
+}
+
+/**
+ * Identity of this quiz result for submit dedupe (NOT Report ID).
+ * Intentionally excludes photo bytes — IndexedDB hydration used to change the
+ * hash after the first submit and mint a second PDF (one with images, one without).
+ */
+function buildReportContentHash(state, analysis) {
+  const payload = JSON.stringify({
+    pdfFormatVersion: "v8-dup-photo-warn",
+    aboutMe: state?.aboutMe || {},
+    hairHealth: state?.hairHealth || {},
+    internalHealth: state?.internalHealth || {},
+    stage:
+      analysis?.aiPredictedStage ??
+      analysis?.predictedStage ??
+      analysis?.stage ??
+      null,
+    model: analysis?.model || null,
+  });
+
+  return djb2Hash(payload);
+}
+
+function hasEmbeddableScalpPhotos(images = []) {
+  return (Array.isArray(images) ? images : []).some((img) => {
+    const u = String(img?.dataUrl || img?.previewUrl || img?.url || "");
+    return u.startsWith("data:image/");
+  });
 }
 
 function getDandruffLevel(state) {
@@ -1369,6 +1376,7 @@ export default function Result() {
   const reportedStage = isFemale
     ? state?.hairHealth?.hair_fall_zone
     : state?.hairHealth?.norwood_stage;
+  const dandruffLevel = getDandruffLevel(state);
   const hasDandruff = resolveHasDandruff(state);
 
   const extractImageUrl = (img) => {
@@ -1432,7 +1440,7 @@ useEffect(() => {
   const rootCauseTags = buildRootCauseTags(state, hasDandruff);
 
   const recommendedBundle = !requiresDoctorConsultation
-    ? getRecommendedBundle(gender, aiPredictedStageNumber, hasDandruff, rootCauseTags, false)
+    ? getRecommendedBundle(gender, aiPredictedStageNumber, dandruffLevel, rootCauseTags, false)
     : null;
 
   const eligibilityTimeline = getEligibilityTimeline(state, aiPredictedStageNumber);
@@ -1597,13 +1605,14 @@ const testimonial =
 
   const reportContentHash = useMemo(
     () => buildReportContentHash(state, rawAnalysis),
-    [state?.aboutMe, state?.hairHealth, state?.internalHealth, state?.scalpImages, rawAnalysis]
+    [state?.aboutMe, state?.hairHealth, state?.internalHealth, rawAnalysis]
   );
 
   // After Gemini analysis: PDF → VPS save → Sheets → return report to this page.
   const reportSubmitRef = useRef(false);
   const [reportSaveStatus, setReportSaveStatus] = useState("idle"); // idle | saving | saved | error
   const [savedReportPackage, setSavedReportPackage] = useState(null);
+  const [photoWaitExpired, setPhotoWaitExpired] = useState(false);
 
   // Display ID: archived deep-link, else server-assigned after submit.
   // NEVER invent TR-… IDs in localStorage (that caused veera/Pooja collisions).
@@ -1615,8 +1624,21 @@ const testimonial =
     savedReportPackage?.reportDate ||
     provisionalMeta.reportDate;
 
+  const photosReady = hasEmbeddableScalpPhotos(state?.scalpImages);
+
   useEffect(() => {
-    // New content may need a fresh PDF even if this Result mount already submitted once
+    if (photosReady || state?.archivedReportId) {
+      setPhotoWaitExpired(false);
+      return undefined;
+    }
+    setPhotoWaitExpired(false);
+    restorePhotosFromIdb?.();
+    const timer = window.setTimeout(() => setPhotoWaitExpired(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [photosReady, restorePhotosFromIdb, state?.archivedReportId, reportContentHash]);
+
+  useEffect(() => {
+    // Reset only when quiz answers / predicted stage change — never when photos hydrate.
     reportSubmitRef.current = false;
     setReportSaveStatus("idle");
     setSavedReportPackage(null);
@@ -1626,6 +1648,8 @@ const testimonial =
     if (reportSubmitRef.current) return;
     if (state?.archivedReportId) return;
     if (!state?.aboutMe || !rawAnalysis || analysisMissing) return;
+    // Wait for IndexedDB photos so we don't save a no-image PDF, then a second with images.
+    if (!photosReady && !photoWaitExpired) return;
 
     const submittedKey = `zylk_report_submitted_${reportContentHash}`;
     const inflightKey = `zylk_report_inflight_${reportContentHash}`;
@@ -1685,7 +1709,10 @@ const testimonial =
 
     submitAssessmentReport({
       quizId,
-      aboutMe: state.aboutMe,
+      aboutMe: {
+        ...state.aboutMe,
+        email: String(state.aboutMe?.email || "").trim(),
+      },
       hairHealth: state.hairHealth || {},
       internalHealth: state.internalHealth || {},
       scalpAnalysis: rawAnalysis,
@@ -1710,6 +1737,9 @@ const testimonial =
           ? {
               bundleId: recommendedBundle.bundleId,
               bundleTitle: kitDisplayName || recommendedBundle.bundleTitle,
+              bundleNumber: recommendedBundle.bundleNumber,
+              wooProductId: recommendedBundle.wooProductId || null,
+              kitUrl: buildKitProductUrl(recommendedBundle.wooProductId),
               price: recommendedBundle.price,
               originalPrice: recommendedBundle.originalPrice,
               products: (kitSourceItems.length ? kitSourceItems : recommendedBundle.items || [])
@@ -1789,7 +1819,9 @@ const testimonial =
     recommendedBundle,
     kitDisplayName,
     kitSourceItems,
-    hasDandruff,
+    photosReady,
+    photoWaitExpired,
+    dandruffLevel,
     isFemale,
   ]);
 

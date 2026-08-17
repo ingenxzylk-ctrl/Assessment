@@ -3,7 +3,6 @@ import { QuizProvider, useQuiz } from "./context/QuizContext";
 import { CartProvider } from "./context/CartContext";
 import CartDrawer from "./components/ui/CartDrawer";
 import ProgressBar from "./components/ProgressBar";
-import Home from "./components/Home";
 import Section1AboutMe from "./components/sections/Section1AboutMe";
 import Section2Male from "./components/sections/Section2Male";
 import Section2Female from "./components/sections/Section2Female";
@@ -190,7 +189,7 @@ function QuizFlow() {
             url.searchParams.delete("report");
             window.history.replaceState({}, "", url);
             setReportBoot({ status: "idle" });
-            goToStep(0);
+            goToStep(0.5);
           }}
         >
           Start a new assessment
@@ -208,10 +207,8 @@ function QuizFlow() {
   } else {
     switch (step) {
       case 0:
-        content = <Home onStart={() => goToStep(0.5)} />;
-        break;
       case 0.5:
-        content = <Section0Consent onComplete={() => goToStep(1)} onBack={() => goToStep(0)} />;
+        content = <Section0Consent onComplete={() => goToStep(1)} />;
         break;
       case 1:
         content = <Section1AboutMe onComplete={nextStep} onBack={() => goToStep(0.5)} />;
@@ -237,7 +234,7 @@ function QuizFlow() {
         content = <Result />;
         break;
       default:
-        content = <Home onStart={() => goToStep(0.5)} />;
+        content = <Section0Consent onComplete={() => goToStep(1)} />;
     }
   }
 
@@ -259,7 +256,7 @@ function QuizFlow() {
         </div>
       )}
 
-      <main className={`mx-auto flex justify-center items-start ${step === 0 ? "max-w-6xl" : "max-w-4xl"}`}>
+      <main className="mx-auto flex justify-center items-start max-w-4xl">
         <div className="w-full">{content}</div>
       </main>
     </div>

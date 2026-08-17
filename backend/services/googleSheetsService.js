@@ -157,6 +157,16 @@ function formatPhone(aboutMe = {}) {
   return `'${display}`;
 }
 
+function formatEmail(aboutMe = {}) {
+  return cell(
+    aboutMe.email ||
+      aboutMe.emailAddress ||
+      aboutMe.Email ||
+      aboutMe.contactEmail ||
+      ""
+  );
+}
+
 function formatStage(scalpAnalysis = {}) {
   const stage =
     scalpAnalysis.aiPredictedStage ||
@@ -166,12 +176,27 @@ function formatStage(scalpAnalysis = {}) {
   return cell(stage);
 }
 
-function formatKit(reportMeta = {}) {
-  const bundle = reportMeta.recommendedBundle || {};
-  return cell(bundle.bundleTitle || bundle.bundleId || bundle.name || "");
+const LIVE_API_BASE = "https://api.zylkhealth.com";
+const LIVE_SHOP_BASE = "https://zylkhealth.com";
+
+/**
+ * Static Woo product permalink. Plain GET of `?p=ID` — never add-to-cart —
+ * so Sheet links cannot trigger the storefront CPU spike.
+ */
+export function buildKitProductUrl(wooProductId) {
+  const id = Number(wooProductId);
+  if (!Number.isFinite(id) || id <= 0) return "";
+  return `${LIVE_SHOP_BASE}/?p=${id}`;
 }
 
-const LIVE_API_BASE = "https://api.zylkhealth.com";
+function formatKit(reportMeta = {}) {
+  const bundle = reportMeta.recommendedBundle || {};
+  const explicit = cell(bundle.kitUrl);
+  if (explicit && !isLoopbackApiUrl(explicit)) return explicit;
+  const fromId = buildKitProductUrl(bundle.wooProductId || bundle.wooProductIdNoMix);
+  if (fromId) return fromId;
+  return cell(bundle.bundleTitle || bundle.bundleId || bundle.name || "");
+}
 
 function isLoopbackApiUrl(value) {
   try {
@@ -227,7 +252,7 @@ export function buildLeadRow({
     cell(reportId),
     cell(aboutMe.fullName || aboutMe.name || "Guest"),
     formatPhone(aboutMe),
-    cell(aboutMe.email),
+    formatEmail(aboutMe),
     cell(aboutMe.gender),
     cell(aboutMe.age || aboutMe.ageRange),
     formatStage(scalpAnalysis),
@@ -328,7 +353,7 @@ export async function appendLeadRowsBatch(rows) {
 /**
  * Append one lead row to the team Google Sheet.
  * Columns A–L:
- * Date | Report ID | Name | Phone | Email | Gender | Age | AI Stage | Kit | Result Link | PDF Link | Call Status
+ * Date | Report ID | Name | Phone | Email | Gender | Age | AI Stage | Kit Link | Result Link | PDF Link | Call Status
  *
  * Never throws to the quiz flow — returns { skipped|ok|error }.
  */

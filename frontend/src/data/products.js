@@ -5,6 +5,7 @@ import {
   getBundlePrices,
   getCheckoutWooProductIds,
   usesSeparateHealthMixProduct,
+  isDandruffPresent,
   HAIR_HEALTH_MIX_ID,
 } from "../config/bundles";
 import {
@@ -32,7 +33,9 @@ export const getCustomBundle = (gender, stage, hasDandruff, rootCauses = []) => 
 };
 
 /**
- * Routes quiz result → stage kit (male 8588/8594–8597, female 8590).
+ * Routes quiz result → kit (male 8588/8594–8597, female 8590/8327, heavy dandruff 8838).
+ * `hasDandruff` should be the raw quiz `dandruff_experience` value ("frequent" | "moderate" | "no")
+ * so stage-1 heavy-dandruff routing can fire. Booleans still work for presence checks.
  */
 export const getRecommendedBundle = (
   gender,
@@ -42,11 +45,12 @@ export const getRecommendedBundle = (
   includeHealthMix = true
 ) => {
   const bundleNumber = resolveBundleNumber(gender, stage, hasDandruff);
+  const dandruffFlag = isDandruffPresent(hasDandruff);
   const config = BUNDLE_CONFIG[bundleNumber];
-  const prices = getBundlePrices(bundleNumber, Boolean(hasDandruff), gender);
+  const prices = getBundlePrices(bundleNumber, dandruffFlag, gender);
   const displayName = getBundleDisplayName(bundleNumber, gender, stage);
 
-  const items = getBundleItems(bundleNumber, includeHealthMix, Boolean(hasDandruff)).map(
+  const items = getBundleItems(bundleNumber, includeHealthMix, dandruffFlag).map(
     (item) => {
       if (item.id === CATALOG_MIX_ID || item.id === HAIR_HEALTH_MIX_ID) {
         return {
@@ -63,12 +67,12 @@ export const getRecommendedBundle = (
 
   const separateMix = usesSeparateHealthMixProduct(
     bundleNumber,
-    Boolean(hasDandruff),
+    dandruffFlag,
     gender
   );
   const { kitId, mixId } = getCheckoutWooProductIds({
     bundleNumber,
-    hasDandruff: Boolean(hasDandruff),
+    hasDandruff: dandruffFlag,
     includeHealthMix,
     gender,
   });
@@ -83,7 +87,7 @@ export const getRecommendedBundle = (
     price: prices.priceWithoutMix,
     originalPrice: prices.originalPrice,
     includeHealthMix: false,
-    hasDandruff: Boolean(hasDandruff),
+    hasDandruff: dandruffFlag,
     usesSeparateHealthMix: separateMix,
     wooProductId: kitId,
     wooHealthMixProductId: mixId,

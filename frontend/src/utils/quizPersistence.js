@@ -7,11 +7,13 @@ export const STORAGE_KEY = "zylk_quiz_state_v1";
 export const CHECKOUT_RETURN_KEY = "zylk_checkout_return";
 
 export const INITIAL_QUIZ_STATE = {
-  step: 0,
+  step: 0.5,
   aboutMe: {
     fullName: "",
     whatsapp: "",
     email: "",
+    city: "",
+    pincode: "",
     countryCode: "+91",
     countryName: "India",
     age: "",
@@ -99,9 +101,12 @@ export function loadPersistedState() {
       sectionSteps.section4Scalp = "upload";
     }
 
+    const restoredStep = parsed.step === 0 ? 0.5 : parsed.step;
+
     return {
       ...INITIAL_QUIZ_STATE,
       ...parsed,
+      step: restoredStep,
       aboutMe: { ...INITIAL_QUIZ_STATE.aboutMe, ...(parsed.aboutMe || {}) },
       hairHealth: { ...INITIAL_QUIZ_STATE.hairHealth, ...(parsed.hairHealth || {}) },
       internalHealth: { ...(parsed.internalHealth || {}) },
