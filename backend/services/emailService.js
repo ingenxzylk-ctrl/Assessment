@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { formatInternationalPhone } from "../utils/phone.js";
 
 function isEmailConfigured() {
   return Boolean(
@@ -84,7 +85,9 @@ export async function sendReportToOrganisation({
       `Report ID: ${reportId}`,
       `Date: ${reportDate || "—"}`,
       `Stage: ${stage}`,
-      aboutMe.whatsapp ? `WhatsApp: ${aboutMe.whatsapp}` : "",
+      aboutMe.whatsapp
+        ? `WhatsApp: ${formatInternationalPhone(aboutMe.whatsapp, aboutMe.countryCode || "+91") || aboutMe.whatsapp}`
+        : "",
       aboutMe.email ? `Email: ${aboutMe.email}` : "",
       "",
       resultLink ? `Result page (open in app):\n${resultLink}` : "",
@@ -107,7 +110,7 @@ export async function sendReportToOrganisation({
           <strong>Report ID:</strong> ${reportId}<br/>
           <strong>Date:</strong> ${reportDate || "—"}<br/>
           <strong>Stage:</strong> ${stage}
-          ${aboutMe.whatsapp ? `<br/><strong>WhatsApp:</strong> ${aboutMe.whatsapp}` : ""}
+          ${aboutMe.whatsapp ? `<br/><strong>WhatsApp:</strong> ${formatInternationalPhone(aboutMe.whatsapp, aboutMe.countryCode || "+91") || aboutMe.whatsapp}` : ""}
           ${aboutMe.email ? `<br/><strong>Email:</strong> ${aboutMe.email}` : ""}
         </p>
         ${

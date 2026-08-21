@@ -3,6 +3,7 @@ import {
   hasOAuthConfig,
   hasServiceAccountConfig,
 } from "./googleDriveService.js";
+import { formatPhoneForSheets } from "../utils/phone.js";
 
 export const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
@@ -129,32 +130,10 @@ function cell(value) {
  * Format phone for Google Sheets.
  * Values starting with "+" become #ERROR! under USER_ENTERED (treated as formulas),
  * so we force a text value with a leading apostrophe.
+ * Strips a pasted +91 / 0 prefix so the local 10 digits are kept (not truncated).
  */
 function formatPhone(aboutMe = {}) {
-  const code = cell(aboutMe.countryCode) || "+91";
-  let phone = cell(aboutMe.whatsapp || aboutMe.phone || aboutMe.mobile);
-  if (!phone) return "";
-
-  // Digits only for the local number part when possible
-  const digits = phone.replace(/[^\d]/g, "");
-  let display = phone;
-
-  if (phone.startsWith("+")) {
-    display = phone.replace(/\s+/g, " ");
-  } else if (code.startsWith("+") && digits) {
-    // Avoid duplicating country code if already prefixed as digits (e.g. 91XXXXXXXXXX)
-    const codeDigits = code.replace(/[^\d]/g, "");
-    if (digits.startsWith(codeDigits) && digits.length > codeDigits.length) {
-      display = `+${digits}`;
-    } else {
-      display = `${code} ${digits}`.trim();
-    }
-  } else if (digits) {
-    display = digits;
-  }
-
-  // Leading ' makes Sheets store as plain text (not a formula)
-  return `'${display}`;
+  return formatPhoneForSheets(aboutMe);
 }
 
 function formatEmail(aboutMe = {}) {

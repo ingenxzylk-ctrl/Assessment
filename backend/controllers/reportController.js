@@ -35,6 +35,7 @@ import {
   isValidReportId,
   REPORTS_ROOT,
 } from "../services/reportIdService.js";
+import { leadContactKeys, normalizeLocalPhone } from "../utils/phone.js";
 
 const COUNTER_DIR = REPORTS_ROOT;
 
@@ -55,30 +56,13 @@ function djb2Key(raw) {
 }
 
 /**
- * Stable lead identity (quiz answers + predicted stage, no photos).
- * Used to collapse double-submits that used to mint two PDFs when photo
- * bytes hydrated a moment later and changed the content hash.
+ * Stable lead identity from contact details only (normalized phone + email).
+ * Quiz answers / predicted stage must NOT be part of this key — a user who
+ * changes stress (or whose phone formatting flips from "+91 72…" to a
+ * truncated "91…") used to mint extra TR- IDs for the same person.
  */
-function buildLeadIdentityKey({ aboutMe, hairHealth, internalHealth, scalpAnalysis } = {}) {
-  const phone = String(aboutMe?.whatsapp || aboutMe?.phone || aboutMe?.mobile || "").replace(
-    /\D/g,
-    ""
-  );
-  const name = String(aboutMe?.fullName || aboutMe?.name || "")
-    .trim()
-    .toLowerCase();
-  if (phone.length < 8 && name.length < 2) return null;
-  return djb2Key(
-    JSON.stringify({
-      phone,
-      name,
-      email: String(aboutMe?.email || "").trim().toLowerCase(),
-      gender: aboutMe?.gender || null,
-      hairHealth: hairHealth || {},
-      internalHealth: internalHealth || {},
-      stage: scalpAnalysis?.aiPredictedStage || scalpAnalysis?.finalStage || null,
-    })
-  );
+function buildLeadIdentityKeys(aboutMe = {}) {
+  return leadContactKeys(aboutMe).map(djb2Key);
 }
 
 async function readContentHashMapping(contentHash) {
@@ -334,19 +318,27 @@ export async function submitAssessmentReport(req, res) {
       });
     }
 
-    const identityKey = buildLeadIdentityKey({
-      aboutMe,
-      hairHealth,
-      internalHealth,
-      scalpAnalysis,
-    });
+    if (aboutMe && typeof aboutMe === "object") {
+      const local = normalizeLocalPhone(
+        aboutMe.whatsapp || aboutMe.phone || aboutMe.mobile,
+        aboutMe.countryCode || "+91"
+      );
+      if (local) aboutMe.whatsapp = local;
+    }
+
+    const identityKeys = buildLeadIdentityKeys(aboutMe);
 
     // Never reuse cached PDFs from older layout versions, and never reuse a
     // mapping older than HASH_REUSE_TTL_MS (see readContentHashMapping).
-    // This only skips regeneration for near-instant duplicate submits.
-    const existingByHash =
-      (await readContentHashMapping(contentHash)) ||
-      (await readContentHashMapping(identityKey));
+    // Identity keys are contact-only (normalized phone / email) so a changed
+    // stress answer or +91 paste cannot mint a second TR- ID.
+    let existingByHash = await readContentHashMapping(contentHash);
+    if (!existingByHash?.reportId) {
+      for (const key of identityKeys) {
+        existingByHash = await readContentHashMapping(key);
+        if (existingByHash?.reportId) break;
+      }
+    }
     const hashFormatOk =
       existingByHash?.pdfFormatVersion === PDF_FORMAT_VERSION;
     if (existingByHash?.reportId && hashFormatOk) {
@@ -362,6 +354,22 @@ export async function submitAssessmentReport(req, res) {
           incomingId: incoming?.incomingId || null,
           status: "ok",
         });
+        try {
+          await writeContentHashMapping(
+            contentHash,
+            existingByHash.reportId,
+            existingByHash.reportDate
+          );
+          for (const key of identityKeys) {
+            await writeContentHashMapping(
+              key,
+              existingByHash.reportId,
+              existingByHash.reportDate
+            );
+          }
+        } catch {
+          // Reuse still succeeds if mapping refresh fails
+        }
         return res.json({
           ok: true,
           success: true,
@@ -508,7 +516,9 @@ export async function submitAssessmentReport(req, res) {
     });
 
     await writeContentHashMapping(contentHash, reportId, reportDate);
-    await writeContentHashMapping(identityKey, reportId, reportDate);
+    for (const key of identityKeys) {
+      await writeContentHashMapping(key, reportId, reportDate);
+    }
 
     const publicPdfUrl = package_.publicPdfUrl || null;
     const storageInfo = package_.storageInfo || {};

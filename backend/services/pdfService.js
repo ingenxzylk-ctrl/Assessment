@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import { formatInternationalPhone } from "../utils/phone.js";
 
 /**
  * Bump whenever PDF layout / live Result URL changes.
@@ -202,7 +203,7 @@ function collectQaPairs(payload) {
   pairs.push(["Email", aboutMe.email]);
   pairs.push([
     "WhatsApp",
-    aboutMe.whatsapp ? `${aboutMe.countryCode || ""} ${aboutMe.whatsapp}`.trim() : null,
+    formatInternationalPhone(aboutMe.whatsapp, aboutMe.countryCode || "+91") || null,
   ]);
     pairs.push(["City", aboutMe.city]);
     pairs.push(["Pincode", aboutMe.pincode]);
@@ -556,9 +557,8 @@ export function buildAssessmentPdf(payload) {
       aboutMe.gender ? labelize(aboutMe.gender, labelOpts) : null,
       aboutMe.age || aboutMe.ageRange ? `Age ${aboutMe.age || aboutMe.ageRange}` : null,
       aboutMe.email || null,
-      aboutMe.whatsapp
-        ? `${aboutMe.countryCode || ""} ${aboutMe.whatsapp}`.trim()
-        : null,
+      formatInternationalPhone(aboutMe.whatsapp, aboutMe.countryCode || "+91") ||
+        null,
     ]
       .filter(Boolean)
       .join("  ·  ");

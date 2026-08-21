@@ -13,6 +13,7 @@ import { formatBundleProduct } from "../config/productImages";
 import { getBundleItems } from "../data/zylkProductCatalog";
 import { submitAssessmentReport } from "../api/quizApi";
 import { redirectToWordPressCheckout } from "../utils/wordpressCheckout";
+import { normalizeLocalPhone, leadContactKeys } from "../utils/phone";
 import { motion, useMotionValue, animate } from "framer-motion";
 
 const AVATAR_FALLBACK =
@@ -521,23 +522,17 @@ function djb2Hash(payload) {
 
 /**
  * Identity of this quiz result for submit dedupe (NOT Report ID).
- * Intentionally excludes photo bytes — IndexedDB hydration used to change the
- * hash after the first submit and mint a second PDF (one with images, one without).
+ * Contact only — phone/email — so changing stress or phone formatting cannot
+ * mint a second report for the same person. Photo bytes are also excluded.
  */
-function buildReportContentHash(state, analysis) {
+function buildReportIdentityHash(state) {
+  const aboutMe = state?.aboutMe || {};
   const payload = JSON.stringify({
-    pdfFormatVersion: "v8-dup-photo-warn",
-    aboutMe: state?.aboutMe || {},
-    hairHealth: state?.hairHealth || {},
-    internalHealth: state?.internalHealth || {},
-    stage:
-      analysis?.aiPredictedStage ??
-      analysis?.predictedStage ??
-      analysis?.stage ??
-      null,
-    model: analysis?.model || null,
+    keys: leadContactKeys({
+      ...aboutMe,
+      whatsapp: normalizeLocalPhone(aboutMe.whatsapp, aboutMe.countryCode || "+91"),
+    }),
   });
-
   return djb2Hash(payload);
 }
 
@@ -1674,9 +1669,9 @@ const testimonial =
     else window.history.back();
   };
 
-  const reportContentHash = useMemo(
-    () => buildReportContentHash(state, rawAnalysis),
-    [state?.aboutMe, state?.hairHealth, state?.internalHealth, rawAnalysis]
+  const reportIdentityHash = useMemo(
+    () => buildReportIdentityHash(state),
+    [state?.aboutMe?.whatsapp, state?.aboutMe?.phone, state?.aboutMe?.mobile, state?.aboutMe?.email, state?.aboutMe?.countryCode]
   );
 
   // After Gemini analysis: PDF → VPS save → Sheets → return report to this page.
@@ -1706,14 +1701,15 @@ const testimonial =
     restorePhotosFromIdb?.();
     const timer = window.setTimeout(() => setPhotoWaitExpired(true), 2500);
     return () => window.clearTimeout(timer);
-  }, [photosReady, restorePhotosFromIdb, state?.archivedReportId, reportContentHash]);
+  }, [photosReady, restorePhotosFromIdb, state?.archivedReportId, reportIdentityHash]);
 
   useEffect(() => {
-    // Reset only when quiz answers / predicted stage change — never when photos hydrate.
+    // Reset only when contact identity (phone/email) changes — never when
+    // photos hydrate or the user edits a quiz answer like stress.
     reportSubmitRef.current = false;
     setReportSaveStatus("idle");
     setSavedReportPackage(null);
-  }, [reportContentHash]);
+  }, [reportIdentityHash]);
 
   useEffect(() => {
     if (reportSubmitRef.current) return;
@@ -1722,8 +1718,8 @@ const testimonial =
     // Wait for IndexedDB photos so we don't save a no-image PDF, then a second with images.
     if (!photosReady && !photoWaitExpired) return;
 
-    const submittedKey = `zylk_report_submitted_${reportContentHash}`;
-    const inflightKey = `zylk_report_inflight_${reportContentHash}`;
+    const submittedKey = `zylk_report_submitted_${reportIdentityHash}`;
+    const inflightKey = `zylk_report_inflight_${reportIdentityHash}`;
 
     const existingId = readSubmittedEntry(submittedKey);
     const inflightActive = Boolean(window.localStorage.getItem(inflightKey));
@@ -1783,6 +1779,10 @@ const testimonial =
       aboutMe: {
         ...state.aboutMe,
         email: String(state.aboutMe?.email || "").trim(),
+        whatsapp: normalizeLocalPhone(
+          state.aboutMe?.whatsapp,
+          state.aboutMe?.countryCode || "+91"
+        ),
       },
       hairHealth: state.hairHealth || {},
       internalHealth: state.internalHealth || {},
@@ -1798,7 +1798,7 @@ const testimonial =
       // Server ignores this for allocation; kept only for debug logs
       clientReportId: null,
       clientReportDate: reportDate,
-      contentHash: reportContentHash,
+      contentHash: reportIdentityHash,
       appOrigin,
       resultPageUrl,
       reportMeta: {
@@ -1842,12 +1842,12 @@ const testimonial =
         const id = data?.reportId;
         try {
           if (id) {
-            writeSubmittedEntry(`zylk_report_submitted_${reportContentHash}`, id);
+            writeSubmittedEntry(`zylk_report_submitted_${reportIdentityHash}`, id);
           }
           if (data?.pdfUrl && id) {
             window.localStorage.setItem(`zylk_report_pdf_${id}`, data.pdfUrl);
           }
-          window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
+          window.localStorage.removeItem(`zylk_report_inflight_${reportIdentityHash}`);
         } catch {
           // ignore
         }
@@ -1867,7 +1867,7 @@ const testimonial =
         setReportSaveStatus("error");
         setSavedReportPackage(null);
         try {
-          window.localStorage.removeItem(`zylk_report_inflight_${reportContentHash}`);
+          window.localStorage.removeItem(`zylk_report_inflight_${reportIdentityHash}`);
         } catch {
           // ignore
         }
@@ -1883,7 +1883,7 @@ const testimonial =
     analysisMissing,
     gender,
     reportDate,
-    reportContentHash,
+    reportIdentityHash,
     provisionalMeta.reportDate,
     rootCauses,
     eligibilityTimeline,

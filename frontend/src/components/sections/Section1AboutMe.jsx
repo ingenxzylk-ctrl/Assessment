@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
 import { ageToRange } from "../../utils/eligibilityTimeline";
+import { normalizeLocalPhone } from "../../utils/phone";
 
 const STEPS = ["name", "contact", "age", "gender"];
 
@@ -239,7 +240,10 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   
   const [localForm, setLocalForm] = useState({
     fullName: state?.aboutMe?.fullName || "",
-    whatsapp: state?.aboutMe?.whatsapp || "",
+    whatsapp: normalizeLocalPhone(
+      state?.aboutMe?.whatsapp || "",
+      state?.aboutMe?.countryCode || DEFAULT_COUNTRY.code
+    ),
     email: state?.aboutMe?.email || "",
     city: state?.aboutMe?.city || "",
     pincode: state?.aboutMe?.pincode || "",
@@ -253,9 +257,9 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   const isStepAnswered = (stepIndex) => {
     if (stepIndex === 0) return Boolean(localForm.fullName.trim());
     if (stepIndex === 1) {
+      const phone = normalizeLocalPhone(localForm.whatsapp, localForm.countryCode);
       return (
-        Boolean(localForm.whatsapp.trim()) &&
-        localForm.whatsapp.trim().length === 10 &&
+        phone.length === 10 &&
         Boolean(localForm.email.trim()) &&
         EMAIL_REGEX.test(localForm.email.trim())
       );
@@ -320,9 +324,10 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     const e = {};
     if (step === 0 && !localForm.fullName.trim()) e.fullName = "Name is required";
     if (step === 1) {
-      if (!localForm.whatsapp.trim()) {
+      const phone = normalizeLocalPhone(localForm.whatsapp, localForm.countryCode);
+      if (!phone) {
         e.whatsapp = "WhatsApp number is required";
-      } else if (localForm.whatsapp.trim().length !== 10) {
+      } else if (phone.length !== 10) {
         e.whatsapp = "WhatsApp number must be exactly 10 digits";
       }
       const email = localForm.email.trim();
@@ -485,7 +490,9 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     autoComplete="tel"
     value={localForm.whatsapp}
     onChange={(e) =>
-      handleChange({ whatsapp: e.target.value.replace(/\D/g, "").slice(0, 10) })
+      handleChange({
+        whatsapp: normalizeLocalPhone(e.target.value, localForm.countryCode || selectedCountry.code),
+      })
     }
     placeholder="Phone number"
     className={`flex-1 min-w-0 basis-0 h-14 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-base ${
