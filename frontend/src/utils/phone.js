@@ -44,6 +44,15 @@ export function normalizeLocalPhone(raw, countryCode = "+91", maxDigits = 10) {
   return digits.slice(0, maxDigits);
 }
 
+/**
+ * Live typing only: keep the first 10 digits.
+ * Do not take last-10 (that drops the leading digit when the user types an 11th).
+ * Use normalizeLocalPhone on paste/blur for +91 / 0 prefixes.
+ */
+export function sanitizePhoneInput(raw, maxDigits = 10) {
+  return digitsOnly(raw).slice(0, maxDigits);
+}
+
 export function formatInternationalPhone(raw, countryCode = "+91") {
   const local = normalizeLocalPhone(raw, countryCode);
   if (!local) return "";

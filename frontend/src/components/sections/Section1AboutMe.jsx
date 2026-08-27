@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
 import { ageToRange } from "../../utils/eligibilityTimeline";
-import { normalizeLocalPhone } from "../../utils/phone";
+import { normalizeLocalPhone, sanitizePhoneInput } from "../../utils/phone";
 import {
   isValidIndianPincode,
   normalizeIndianPincode,
@@ -237,6 +237,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   const countryMenuRef = useRef(null);
   const pinLookupSeq = useRef(0);
   const lastLookedUpPin = useRef("");
+  const persistTimer = useRef(null);
+  const localFormRef = useRef(null);
   const [pinLookup, setPinLookup] = useState("idle");
   const [geoStatus, setGeoStatus] = useState("idle");
 
@@ -263,6 +265,41 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     ageRange: state?.aboutMe?.ageRange || "",
     gender: state?.aboutMe?.gender || "",
   });
+  localFormRef.current = localForm;
+
+  const toAboutMePayload = (form) => ({
+    fullName: form.fullName,
+    whatsapp: form.whatsapp,
+    email: form.email,
+    city: form.city,
+    pincode: form.pincode,
+    state: form.state,
+    countryCode: form.countryCode,
+    countryName: form.countryName,
+    age: form.age,
+    ageRange: form.ageRange,
+    gender: form.gender,
+  });
+
+  const flushAboutMe = () => {
+    if (persistTimer.current) {
+      clearTimeout(persistTimer.current);
+      persistTimer.current = null;
+    }
+    if (updateAboutMe && localFormRef.current) {
+      updateAboutMe(toAboutMePayload(localFormRef.current));
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      if (updateAboutMe && localFormRef.current) {
+        updateAboutMe(toAboutMePayload(localFormRef.current));
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isStepAnswered = (stepIndex) => {
     if (stepIndex === 0) return Boolean(localForm.fullName.trim());
@@ -390,6 +427,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   const handleChange = (fields) => {
     setLocalForm((prev) => {
       const next = { ...prev, ...fields };
+      localFormRef.current = next;
       if (
         updateAboutMe &&
         (fields.email !== undefined ||
@@ -399,7 +437,10 @@ export default function Section1AboutMe({ onComplete, onBack }) {
           fields.pincode !== undefined ||
           fields.state !== undefined)
       ) {
-        updateAboutMe(next);
+        if (persistTimer.current) clearTimeout(persistTimer.current);
+        persistTimer.current = setTimeout(() => {
+          updateAboutMe(toAboutMePayload(localFormRef.current));
+        }, 400);
       }
       return next;
     });
@@ -456,12 +497,15 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     // Persist answers as the user advances so reload mid-section can resume
     if (updateAboutMe) {
       const ageRange = ageToRange(localForm.age) || localForm.ageRange || "";
-      updateAboutMe({
-        ...localForm,
+      const next = {
+        ...toAboutMePayload(localForm),
         email: localForm.email.trim(),
         fullName: localForm.fullName.trim(),
+        whatsapp: normalizeLocalPhone(localForm.whatsapp, localForm.countryCode),
         ageRange,
-      });
+      };
+      localFormRef.current = { ...localForm, ...next };
+      flushAboutMe();
     }
 
     if (step < STEPS.length - 1) {
@@ -584,13 +628,33 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   <input
     type="tel"
     inputMode="numeric"
-    autoComplete="tel"
+    autoComplete="off"
+    autoCorrect="off"
+    autoCapitalize="off"
+    spellCheck={false}
     value={localForm.whatsapp}
     onChange={(e) =>
-      handleChange({
-        whatsapp: normalizeLocalPhone(e.target.value, localForm.countryCode || selectedCountry.code),
-      })
+      handleChange({ whatsapp: sanitizePhoneInput(e.target.value) })
     }
+    onPaste={(e) => {
+      const text = e.clipboardData?.getData("text");
+      if (text == null) return;
+      e.preventDefault();
+      handleChange({
+        whatsapp: normalizeLocalPhone(
+          text,
+          localForm.countryCode || selectedCountry.code
+        ),
+      });
+    }}
+    onBlur={() => {
+      const next = normalizeLocalPhone(
+        localForm.whatsapp,
+        localForm.countryCode || selectedCountry.code
+      );
+      if (next !== localForm.whatsapp) handleChange({ whatsapp: next });
+      flushAboutMe();
+    }}
     placeholder="Phone number"
     className={`flex-1 min-w-0 basis-0 h-14 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-base ${
       errors.whatsapp ? "border-red-500" : "border-gray-200"

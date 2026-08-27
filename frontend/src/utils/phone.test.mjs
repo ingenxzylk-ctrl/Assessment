@@ -1,5 +1,6 @@
 import {
   normalizeLocalPhone,
+  sanitizePhoneInput,
   formatInternationalPhone,
   leadContactKeys,
 } from "./phone.js";
@@ -47,5 +48,11 @@ assert(
   keysA.join("|") === keysB.join("|"),
   `identity should match across phone formats: ${keysA} vs ${keysB}`
 );
+
+assert(
+  sanitizePhoneInput("63803803177") === "6380380317",
+  "typing an 11th digit must keep the first 10, not slide the number"
+);
+assert(sanitizePhoneInput("72005780691") === "7200578069", "cap at 10 from the start");
 
 console.log(`ok ${cases.length} phone cases + identity keys`);
