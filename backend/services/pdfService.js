@@ -206,6 +206,7 @@ function collectQaPairs(payload) {
     formatInternationalPhone(aboutMe.whatsapp, aboutMe.countryCode || "+91") || null,
   ]);
     pairs.push(["City", aboutMe.city]);
+    pairs.push(["State", aboutMe.state || aboutMe.region]);
     pairs.push(["Pincode", aboutMe.pincode]);
   pairs.push(["Age", aboutMe.age || aboutMe.ageRange]);
   pairs.push(["Gender", aboutMe.gender]);
@@ -559,6 +560,8 @@ export function buildAssessmentPdf(payload) {
       aboutMe.email || null,
       formatInternationalPhone(aboutMe.whatsapp, aboutMe.countryCode || "+91") ||
         null,
+      [aboutMe.city, aboutMe.state].filter(Boolean).join(", ") || null,
+      aboutMe.pincode ? `PIN ${aboutMe.pincode}` : null,
     ]
       .filter(Boolean)
       .join("  ·  ");

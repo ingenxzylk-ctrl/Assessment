@@ -129,3 +129,45 @@ export async function fetchAssessmentReport(reportId) {
   }
   return data;
 }
+
+export async function lookupPincode(pincode) {
+  const pin = encodeURIComponent(String(pincode || "").trim());
+  const res = await fetch(`${API_URL}/pincode/${pin}`);
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = { ok: false, reason: "upstream_error" };
+  }
+  return data;
+}
+
+export async function reverseGeocodeLocation({ lat, lng }) {
+  const res = await fetch(`${API_URL}/geo/reverse`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lat, lng }),
+  });
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = { ok: false, reason: "upstream_error" };
+  }
+  return data;
+}
+
+export async function markCheckoutClicked({ reportId, aboutMe } = {}) {
+  const id = encodeURIComponent(String(reportId || "").trim());
+  if (!id) return { ok: false, skipped: true, reason: "no_report_id" };
+  try {
+    const res = await fetch(`${API_URL}/report/${id}/checkout-click`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reportId, aboutMe: aboutMe || {} }),
+    });
+    return await res.json();
+  } catch {
+    return { ok: false, skipped: true, reason: "network" };
+  }
+}

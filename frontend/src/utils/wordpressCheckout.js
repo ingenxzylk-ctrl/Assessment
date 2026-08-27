@@ -58,11 +58,17 @@ function resolveKitId(item) {
 }
 
 /** Build the Woo shareable checkout URL for one kit. */
-export function buildCheckoutLinkUrl(kitId, quantity = 1) {
+export function buildCheckoutLinkUrl(kitId, quantity = 1, extras = {}) {
   const id = Number(kitId);
   const qty = Math.max(1, Number(quantity) || 1);
   const products = qty > 1 ? `${id}:${qty}` : String(id);
-  return `${CHECKOUT_LINK_URL}?products=${encodeURIComponent(products)}`;
+  const url = new URL(CHECKOUT_LINK_URL);
+  url.searchParams.set("products", products);
+  const reportId = String(extras.reportId || "").trim();
+  if (reportId) url.searchParams.set("zylk_report", reportId);
+  const phone = String(extras.phone || "").replace(/\D/g, "");
+  if (phone) url.searchParams.set("zylk_phone", phone.slice(-10));
+  return url.toString();
 }
 
 /**
@@ -95,7 +101,14 @@ export async function redirectToWordPressCheckout(cartItems, quizState, options 
   }
   markCheckoutReturn();
 
-  const url = buildCheckoutLinkUrl(kitId, qty);
+  const reportId =
+    options.reportId || quizState?.archivedReportId || quizState?.reportId || "";
+  const phone =
+    options.phone ||
+    quizState?.aboutMe?.whatsapp ||
+    quizState?.aboutMe?.phone ||
+    "";
+  const url = buildCheckoutLinkUrl(kitId, qty, { reportId, phone });
   console.info(`[zylk-checkout] ${CHECKOUT_VERSION} navigate`, { url });
   window.location.assign(url);
 }

@@ -4,11 +4,62 @@ import {
   hasServiceAccountConfig,
 } from "./googleDriveService.js";
 import { formatPhoneForSheets } from "../utils/phone.js";
+import {
+  mergePurchaseStatus,
+  PURCHASE_STATUS,
+} from "../utils/purchaseStatus.js";
+import { extraLeadCells } from "../utils/leadRow.js";
 
 export const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 
-const DEFAULT_RANGE = "Sheet1!A:L";
+const DEFAULT_RANGE = "Sheet1!A:R";
 const CALL_STATUS_NEW = "New";
+
+/** A–L stay as they are so Call Status dropdowns on L are not shifted. */
+export const LEAD_HEADERS = [
+  "Date",
+  "Report ID",
+  "Name",
+  "Phone",
+  "Email",
+  "Gender",
+  "Age",
+  "AI Stage",
+  "Kit Link",
+  "Result Link",
+  "PDF Link",
+  "Call Status",
+  "Pincode",
+  "City",
+  "State",
+  "Kit Name",
+  "Purchased",
+  "Order ID",
+];
+
+export const LEAD_COL = {
+  DATE: 0,
+  REPORT_ID: 1,
+  NAME: 2,
+  PHONE: 3,
+  EMAIL: 4,
+  GENDER: 5,
+  AGE: 6,
+  STAGE: 7,
+  KIT_LINK: 8,
+  RESULT: 9,
+  PDF: 10,
+  CALL_STATUS: 11,
+  PINCODE: 12,
+  CITY: 13,
+  STATE: 14,
+  KIT_NAME: 15,
+  PURCHASED: 16,
+  ORDER_ID: 17,
+};
+
+const LEAD_LAST_COL = "R";
+const LEAD_WIDTH = LEAD_HEADERS.length;
 
 function loadServiceAccountCredentials() {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
@@ -174,7 +225,7 @@ function formatKit(reportMeta = {}) {
   if (explicit && !isLoopbackApiUrl(explicit)) return explicit;
   const fromId = buildKitProductUrl(bundle.wooProductId || bundle.wooProductIdNoMix);
   if (fromId) return fromId;
-  return cell(bundle.bundleTitle || bundle.bundleId || bundle.name || "");
+  return "";
 }
 
 function isLoopbackApiUrl(value) {
@@ -216,7 +267,7 @@ function resolveSheetPdfUrl(reportId, pdfUrl) {
   return buildPublicPdfUrl(reportId);
 }
 
-/** Build one Sheet row (A–L) for a lead. */
+/** Build one Sheet row (A–R) for a lead. A–L are unchanged from the live sheet. */
 export function buildLeadRow({
   reportId,
   reportDate,
@@ -225,8 +276,10 @@ export function buildLeadRow({
   reportMeta = {},
   resultPageUrl = null,
   pdfUrl = null,
+  purchased = PURCHASE_STATUS.NO,
+  orderId = "",
 } = {}) {
-  return [
+  const row = [
     cell(reportDate) || new Date().toLocaleDateString("en-GB"),
     cell(reportId),
     cell(aboutMe.fullName || aboutMe.name || "Guest"),
@@ -239,13 +292,54 @@ export function buildLeadRow({
     cell(resultPageUrl),
     resolveSheetPdfUrl(reportId, pdfUrl),
     CALL_STATUS_NEW,
+    ...extraLeadCells({ aboutMe, reportMeta, purchased, orderId }),
   ];
+  while (row.length < LEAD_WIDTH) row.push("");
+  return row.slice(0, LEAD_WIDTH);
 }
 
 function sheetTabName() {
   const range = sheetsRange();
   const tab = range.includes("!") ? range.split("!")[0].trim() : "Sheet1";
   return tab || "Sheet1";
+}
+
+/**
+ * Write Pincode…Order ID headers in M1:R1 if those cells are empty.
+ * Never rewrites A1:L1 (Call Status dropdown lives on L).
+ */
+async function ensureLeadHeaders(sheets, spreadsheetId, tab) {
+  try {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${tab}!A1:${LEAD_LAST_COL}1`,
+    });
+    const existing = res?.data?.values?.[0] || [];
+    const next = existing.slice();
+    while (next.length < LEAD_WIDTH) next.push("");
+    let changed = false;
+    for (let i = LEAD_COL.PINCODE; i < LEAD_WIDTH; i += 1) {
+      if (!String(next[i] || "").trim()) {
+        next[i] = LEAD_HEADERS[i];
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${tab}!M1:${LEAD_LAST_COL}1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [next.slice(LEAD_COL.PINCODE)] },
+    });
+  } catch (err) {
+    console.warn("[sheets] could not ensure extra headers:", err?.message || err);
+  }
+}
+
+function digitsLast10(raw) {
+  const n = String(raw || "").replace(/\D/g, "");
+  if (n.length >= 10) return n.slice(-10);
+  return n;
 }
 
 /**
@@ -295,7 +389,8 @@ export async function appendLeadRowsBatch(rows) {
     const tab = sheetTabName();
     const startRow = await findNextLeadRow(sheets, spreadsheetId);
     const endRow = startRow + rows.length - 1;
-    const targetRange = `${tab}!A${startRow}:L${endRow}`;
+    await ensureLeadHeaders(sheets, spreadsheetId, tab);
+    const targetRange = `${tab}!A${startRow}:${LEAD_LAST_COL}${endRow}`;
 
     const response = await sheets.spreadsheets.values.update({
       spreadsheetId,
@@ -331,8 +426,9 @@ export async function appendLeadRowsBatch(rows) {
 
 /**
  * Append one lead row to the team Google Sheet.
- * Columns A–L:
+ * Columns A–R:
  * Date | Report ID | Name | Phone | Email | Gender | Age | AI Stage | Kit Link | Result Link | PDF Link | Call Status
+ * | Pincode | City | State | Kit Name | Purchased | Order ID
  *
  * Never throws to the quiz flow — returns { skipped|ok|error }.
  */
@@ -398,7 +494,7 @@ export async function probeGoogleSheets() {
     const tab = sheetTabName();
     const header = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${tab}!A1:L1`,
+      range: `${tab}!A1:${LEAD_LAST_COL}1`,
     });
     const nextRow = await findNextLeadRow(sheets, spreadsheetId);
     const previewStart = Math.max(2, nextRow - 3);
@@ -433,5 +529,100 @@ export async function probeGoogleSheets() {
       error: improveSheetsError(err),
       authMode: getSheetsStatus().authMode,
     };
+  }
+}
+
+/**
+ * Find a lead row by Report ID, then phone, then email.
+ * Returns 1-based sheet row number or null.
+ */
+export async function findLeadRowNumber({ reportId, phone, email } = {}) {
+  if (!isSheetsConfigured()) return null;
+  const sheets = await getSheetsClient();
+  const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  const tab = sheetTabName();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${tab}!B:E`,
+  });
+  const rows = res?.data?.values || [];
+  const wantId = String(reportId || "").trim().toUpperCase();
+  const wantPhone = digitsLast10(phone);
+  const wantEmail = String(email || "").trim().toLowerCase();
+
+  if (wantId) {
+    for (let i = 1; i < rows.length; i += 1) {
+      if (String(rows[i]?.[0] || "").trim().toUpperCase() === wantId) {
+        return i + 1;
+      }
+    }
+  }
+  if (wantPhone && wantPhone.length === 10) {
+    for (let i = rows.length - 1; i >= 1; i -= 1) {
+      if (digitsLast10(rows[i]?.[2]) === wantPhone) return i + 1;
+    }
+  }
+  if (wantEmail && wantEmail.includes("@")) {
+    for (let i = rows.length - 1; i >= 1; i -= 1) {
+      if (String(rows[i]?.[3] || "").trim().toLowerCase() === wantEmail) {
+        return i + 1;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Update Purchased / Order ID on an existing lead. Does not touch Call Status.
+ */
+export async function updateLeadPurchase({
+  reportId,
+  phone,
+  email,
+  purchased,
+  orderId,
+} = {}) {
+  if (!isSheetsConfigured()) {
+    return { skipped: true, reason: "not_configured" };
+  }
+  try {
+    const sheets = await getSheetsClient();
+    const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+    const tab = sheetTabName();
+    const rowNumber = await findLeadRowNumber({ reportId, phone, email });
+    if (!rowNumber) {
+      return { ok: false, skipped: false, error: "lead_row_not_found", reportId };
+    }
+
+    const current = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${tab}!Q${rowNumber}:R${rowNumber}`,
+    });
+    const cells = current?.data?.values?.[0] || [];
+    const nextPurchased = mergePurchaseStatus(cells[0], purchased);
+    const nextOrderId = cell(orderId) || cell(cells[1]) || "";
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${tab}!Q${rowNumber}:R${rowNumber}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [[nextPurchased, nextOrderId]] },
+    });
+
+    console.log(
+      `[sheets] purchase ${nextPurchased} row ${rowNumber} report=${reportId || ""} order=${nextOrderId}`
+    );
+    return {
+      ok: true,
+      skipped: false,
+      rowNumber,
+      purchased: nextPurchased,
+      orderId: nextOrderId,
+      reportId: reportId || null,
+    };
+  } catch (err) {
+    const message = improveSheetsError(err);
+    console.error("[sheets] purchase update failed:", message);
+    return { ok: false, skipped: false, error: message };
   }
 }

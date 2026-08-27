@@ -3,6 +3,11 @@ import { useQuiz } from "../../context/QuizContext";
 import { useSectionStep } from "../../hooks/useSectionStep";
 import { ageToRange } from "../../utils/eligibilityTimeline";
 import { normalizeLocalPhone } from "../../utils/phone";
+import {
+  isValidIndianPincode,
+  normalizeIndianPincode,
+} from "../../utils/pincode";
+import { lookupPincode, reverseGeocodeLocation } from "../../api/quizApi";
 
 const STEPS = ["name", "contact", "age", "gender"];
 
@@ -11,7 +16,7 @@ const STEP_TITLES = {
   contact: {
     title: "Where should we send your report?",
     subtitle:
-      "Enter your WhatsApp number and email so we can send your personalized hair assessment and recommendations.",
+      "WhatsApp, email, and a 6-digit pincode so we can send your report and fill your city.",
   },
   age: { title: "What's your age?", subtitle: "Enter your age in years so we can tailor your plan." },
   gender: { title: "How do you identify?", subtitle: "This helps us tailor the assessment to you." },
@@ -230,6 +235,10 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   const [errors, setErrors] = useState({});
   const [countryMenuOpen, setCountryMenuOpen] = useState(false);
   const countryMenuRef = useRef(null);
+  const pinLookupSeq = useRef(0);
+  const lastLookedUpPin = useRef("");
+  const [pinLookup, setPinLookup] = useState("idle");
+  const [geoStatus, setGeoStatus] = useState("idle");
 
   const initialCountry =
     COUNTRY_CODES.find(
@@ -246,7 +255,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     ),
     email: state?.aboutMe?.email || "",
     city: state?.aboutMe?.city || "",
-    pincode: state?.aboutMe?.pincode || "",
+    pincode: normalizeIndianPincode(state?.aboutMe?.pincode || ""),
+    state: state?.aboutMe?.state || "",
     countryCode: initialCountry.code,
     countryName: state?.aboutMe?.countryName || initialCountry.name,
     age: state?.aboutMe?.age || "",
@@ -258,10 +268,14 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     if (stepIndex === 0) return Boolean(localForm.fullName.trim());
     if (stepIndex === 1) {
       const phone = normalizeLocalPhone(localForm.whatsapp, localForm.countryCode);
+      const pin = normalizeIndianPincode(localForm.pincode);
       return (
         phone.length === 10 &&
         Boolean(localForm.email.trim()) &&
-        EMAIL_REGEX.test(localForm.email.trim())
+        EMAIL_REGEX.test(localForm.email.trim()) &&
+        isValidIndianPincode(pin) &&
+        pinLookup !== "invalid" &&
+        Boolean(localForm.city.trim())
       );
     }
     if (stepIndex === 2) {
@@ -299,6 +313,77 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [countryMenuOpen]);
 
+  useEffect(() => {
+    const pin = normalizeIndianPincode(localForm.pincode);
+    if (!isValidIndianPincode(pin)) {
+      if (pinLookup !== "idle" && pin.length < 6) setPinLookup("idle");
+      return undefined;
+    }
+    if (lastLookedUpPin.current === pin && pinLookup === "found") return undefined;
+
+    const seq = (pinLookupSeq.current += 1);
+    lastLookedUpPin.current = pin;
+    setPinLookup("loading");
+    lookupPincode(pin)
+      .then((data) => {
+        if (seq !== pinLookupSeq.current) return;
+        if (!data?.ok) {
+          setPinLookup(data?.reason === "not_found" ? "invalid" : "error");
+          return;
+        }
+        setPinLookup("found");
+        handleChange({
+          city: data.city || localForm.city,
+          state: data.state || localForm.state,
+          pincode: pin,
+        });
+      })
+      .catch(() => {
+        if (seq !== pinLookupSeq.current) return;
+        setPinLookup("error");
+      });
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localForm.pincode]);
+
+  const handleUseLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoStatus("error");
+      return;
+    }
+    setGeoStatus("locating");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const data = await reverseGeocodeLocation({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          });
+          if (!data?.ok) {
+            setGeoStatus("error");
+            return;
+          }
+          lastLookedUpPin.current = data.pincode || "";
+          if (data.pincode && isValidIndianPincode(data.pincode)) {
+            setPinLookup("found");
+          }
+          handleChange({
+            pincode: data.pincode || localForm.pincode,
+            city: data.city || localForm.city,
+            state: data.state || localForm.state,
+          });
+          setGeoStatus("idle");
+        } catch {
+          setGeoStatus("error");
+        }
+      },
+      (err) => {
+        setGeoStatus(err?.code === 1 ? "denied" : "error");
+      },
+      { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 }
+    );
+  };
+
   const currentStep = STEPS[step];
   const headingInfo = STEP_TITLES[currentStep];
 
@@ -311,7 +396,8 @@ export default function Section1AboutMe({ onComplete, onBack }) {
           fields.whatsapp !== undefined ||
           fields.fullName !== undefined ||
           fields.city !== undefined ||
-          fields.pincode !== undefined)
+          fields.pincode !== undefined ||
+          fields.state !== undefined)
       ) {
         updateAboutMe(next);
       }
@@ -335,6 +421,17 @@ export default function Section1AboutMe({ onComplete, onBack }) {
         e.email = "Email is required";
       } else if (!EMAIL_REGEX.test(email)) {
         e.email = "Please enter a valid email address";
+      }
+      const pin = normalizeIndianPincode(localForm.pincode);
+      if (!pin) {
+        e.pincode = "Pincode is required";
+      } else if (!isValidIndianPincode(pin)) {
+        e.pincode = "Enter a valid 6-digit pincode";
+      } else if (pinLookup === "invalid") {
+        e.pincode = "This pincode was not found — please check it";
+      }
+      if (!localForm.city.trim()) {
+        e.city = pinLookup === "loading" ? "Looking up city…" : "City is required";
       }
     }
     if (step === 2) {
@@ -526,25 +623,94 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                 )}
               </div>
 
+              <div className="flex flex-col gap-2 w-full min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Pincode
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleUseLocation}
+                    disabled={geoStatus === "locating"}
+                    className="text-xs font-semibold text-[#064e3b] hover:underline disabled:opacity-50 cursor-pointer"
+                  >
+                    {geoStatus === "locating" ? "Finding location…" : "Use my location"}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  value={localForm.pincode}
+                  onChange={(e) =>
+                    handleChange({
+                      pincode: normalizeIndianPincode(e.target.value),
+                    })
+                  }
+                  placeholder="6-digit PIN"
+                  className={`w-full h-12 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-sm ${
+                    errors.pincode ? "border-red-500" : "border-gray-200"
+                  }`}
+                />
+                {pinLookup === "loading" && (
+                  <p className="text-xs text-gray-500">Looking up city…</p>
+                )}
+                {pinLookup === "found" && localForm.city && (
+                  <p className="text-xs text-[#064e3b]">
+                    {localForm.city}
+                    {localForm.state ? `, ${localForm.state}` : ""}
+                  </p>
+                )}
+                {pinLookup === "invalid" && (
+                  <p className="text-sm text-red-500 font-medium">
+                    This pincode was not found — please check it
+                  </p>
+                )}
+                {pinLookup === "error" && (
+                  <p className="text-xs text-gray-500">
+                    Couldn’t auto-fill city — please type it
+                  </p>
+                )}
+                {geoStatus === "denied" && (
+                  <p className="text-xs text-gray-500">
+                    Location permission denied — enter pincode instead
+                  </p>
+                )}
+                {geoStatus === "error" && (
+                  <p className="text-xs text-gray-500">
+                    Couldn’t read location — enter pincode instead
+                  </p>
+                )}
+                {errors.pincode && pinLookup !== "invalid" && (
+                  <p className="text-sm text-red-500 font-medium">{errors.pincode}</p>
+                )}
+              </div>
+
               <div className="flex gap-2 w-full min-w-0">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <label className="text-sm font-semibold text-gray-700">City</label>
                   <input
                     type="text"
+                    autoComplete="address-level2"
                     value={localForm.city}
                     onChange={(e) => handleChange({ city: e.target.value })}
                     placeholder="City"
-                    className="w-full h-12 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-sm border-gray-200"
+                    className={`w-full h-12 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-sm ${
+                      errors.city ? "border-red-500" : "border-gray-200"
+                    }`}
                   />
+                  {errors.city && (
+                    <p className="text-sm text-red-500 font-medium mt-1">{errors.city}</p>
+                  )}
                 </div>
-                <div className="w-36">
-                  <label className="text-sm font-semibold text-gray-700">Pincode</label>
+                <div className="w-36 shrink-0">
+                  <label className="text-sm font-semibold text-gray-700">State</label>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    value={localForm.pincode}
-                    onChange={(e) => handleChange({ pincode: e.target.value.replace(/[^\d]/g, "").slice(0, 10) })}
-                    placeholder="PIN"
+                    autoComplete="address-level1"
+                    value={localForm.state}
+                    onChange={(e) => handleChange({ state: e.target.value })}
+                    placeholder="State"
                     className="w-full h-12 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-sm border-gray-200"
                   />
                 </div>

@@ -14,6 +14,7 @@ export const INITIAL_QUIZ_STATE = {
     email: "",
     city: "",
     pincode: "",
+    state: "",
     countryCode: "+91",
     countryName: "India",
     age: "",

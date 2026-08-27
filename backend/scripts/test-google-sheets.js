@@ -52,9 +52,18 @@ const result = await appendLeadToGoogleSheet({
     age: 30,
     whatsapp: "9999999999",
     countryCode: "+91",
+    pincode: "600001",
+    city: "Chennai",
+    state: "Tamil Nadu",
   },
   scalpAnalysis: { aiPredictedStage: 1 },
-  reportMeta: { recommendedBundle: { bundleTitle: "Sheets Probe Kit" } },
+  reportMeta: {
+    recommendedBundle: {
+      bundleTitle: "Men Advance Hair Regrowth Kit",
+      wooProductId: 8588,
+      kitUrl: "https://zylkhealth.com/?p=8588",
+    },
+  },
   resultPageUrl: `https://quiz.zylkhealth.com/?report=${reportId}`,
   pdfUrl: `https://api.zylkhealth.com/api/report/${reportId}/pdf`,
 });

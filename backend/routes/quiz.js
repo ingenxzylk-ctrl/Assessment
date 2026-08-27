@@ -8,6 +8,14 @@ import {
   getAssessmentReportPhoto,
 } from "../controllers/reportController.js";
 import {
+  getPincodeLookup,
+  postReverseGeocode,
+} from "../controllers/locationController.js";
+import {
+  markCheckoutClick,
+  handleWooCommerceWebhook,
+} from "../controllers/purchaseController.js";
+import {
   PDF_FORMAT_VERSION,
   PDF_TARGET_PAGES,
 } from "../services/pdfService.js";
@@ -77,14 +85,14 @@ router.get("/health", async (req, res) => {
       configured: sheetsConfigured,
       hasSpreadsheetId: Boolean(process.env.GOOGLE_SHEETS_SPREADSHEET_ID),
       spreadsheetId: process.env.GOOGLE_SHEETS_SPREADSHEET_ID || null,
-      range: process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:L",
+      range: process.env.GOOGLE_SHEETS_RANGE || "Sheet1!A:R",
       authMode: hasOAuthConfig()
         ? "oauth"
         : hasServiceAccountConfig()
           ? "service_account"
           : "none",
       hint: sheetsConfigured
-        ? "Sheets lead sync enabled — new assessments append a row with Call Status=New. Add ?probeSheets=1 to verify live access."
+        ? "Sheets lead sync enabled — new assessments append a row with Call Status=New. Extra columns M–R: Pincode, City, State, Kit Name, Purchased, Order ID. Add ?probeSheets=1 to verify live access."
         : "Sheets sync disabled — set GOOGLE_SHEETS_SPREADSHEET_ID + prefer service account (share Sheet with SA email as Editor); OAuth also works if Sheets scope is on the refresh token",
       probe: sheetsProbe,
     },
@@ -93,6 +101,10 @@ router.get("/health", async (req, res) => {
 router.post("/analyze", analyzeScalp);
 router.post("/result", generateResult);
 router.post("/report/submit", submitAssessmentReport);
+router.post("/report/:reportId/checkout-click", markCheckoutClick);
+router.post("/webhooks/woocommerce", handleWooCommerceWebhook);
+router.get("/pincode/:pincode", getPincodeLookup);
+router.post("/geo/reverse", postReverseGeocode);
 
 router.get("/report/:reportId/pdf", getAssessmentReportPdf);
 router.get("/report/:reportId/photo/:type", getAssessmentReportPhoto);

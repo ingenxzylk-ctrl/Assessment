@@ -11,7 +11,7 @@ import {
 import { getEligibilityTimeline } from "../utils/eligibilityTimeline";
 import { formatBundleProduct } from "../config/productImages";
 import { getBundleItems } from "../data/zylkProductCatalog";
-import { submitAssessmentReport } from "../api/quizApi";
+import { submitAssessmentReport, markCheckoutClicked } from "../api/quizApi";
 import { redirectToWordPressCheckout } from "../utils/wordpressCheckout";
 import { normalizeLocalPhone, leadContactKeys } from "../utils/phone";
 import { motion, useMotionValue, animate } from "framer-motion";
@@ -1648,6 +1648,15 @@ const testimonial =
       { open: false }
     );
 
+    const checkoutReportId =
+      state?.archivedReportId || savedReportPackage?.reportId || null;
+    if (checkoutReportId) {
+      markCheckoutClicked({
+        reportId: checkoutReportId,
+        aboutMe: state?.aboutMe,
+      }).catch(() => {});
+    }
+
     redirectToWordPressCheckout(
       [
         {
@@ -1658,7 +1667,11 @@ const testimonial =
           quantity: 1,
         },
       ],
-      state
+      state,
+      {
+        reportId: checkoutReportId,
+        phone: state?.aboutMe?.whatsapp,
+      }
     );
   };
 

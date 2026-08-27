@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useQuiz } from "../../context/QuizContext";
 import { redirectToWordPressCheckout } from "../../utils/wordpressCheckout";
+import { markCheckoutClicked } from "../../api/quizApi";
 
 export default function CartDrawer() {
   const { state, flushPersistence } = useQuiz();
@@ -25,8 +26,14 @@ export default function CartDrawer() {
     setCheckoutStatus("Adding your kit…");
     try {
       if (flushPersistence) flushPersistence();
+      const reportId = state?.archivedReportId || null;
+      if (reportId) {
+        markCheckoutClicked({ reportId, aboutMe: state?.aboutMe }).catch(() => {});
+      }
       await redirectToWordPressCheckout(cartItems, state, {
         onStatus: setCheckoutStatus,
+        reportId,
+        phone: state?.aboutMe?.whatsapp,
       });
       // On success the page navigates to /checkout; if not, re-enable.
       setCheckoutBusy(false);
