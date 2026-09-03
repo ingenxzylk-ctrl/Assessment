@@ -1610,7 +1610,18 @@ const testimonial =
 }, [isFemale]);
   
   const handleScheduleConsultation = () => {
-    alert("Connecting you with a Zylk trichology specialist...");
+    const name = String(state?.aboutMe?.fullName || "").trim();
+    const stageLabel = aiPredictedStageNumber
+      ? `Stage ${aiPredictedStageNumber}`
+      : "scalp assessment";
+    const message = [
+      "Hi, I would like to schedule a Zylk trichology consultation.",
+      name ? `Name: ${name}` : null,
+      `Assessment: ${stageLabel}`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    window.location.href = `https://wa.me/919894377521?text=${encodeURIComponent(message)}`;
   };
 
   const handleBuyNow = () => {
