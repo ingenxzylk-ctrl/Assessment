@@ -2,16 +2,16 @@
  * Bundle config — Men stage kits + Women kits + special-case SKUs
  *
  * Male:
- *   Stage 1 / overall thinning → 8588 (Men Advance) ₹749
+ *   Stage 1 / overall thinning → 8588 (Men Advance) ₹999 / ₹1125
  *   Stage 2 → 8594 ₹999
  *   Stage 3 → 8595 ₹1199
  *   Stage 4 → 8596 ₹1199
  *   Stage 5+ → 8597 ₹1299
  * Female:
  *   Stage 3 → 8327 ₹999
- *   Other stages → 8590 (Women Advance) ₹749
+ *   Stage 1–2 → 8590 (Female Advance) ₹999 / ₹1125
  * Any gender:
- *   Stage 1 + heavy dandruff → 8838 (Advanced Antidandruff Kit) ₹749
+ *   Stage 1 + heavy dandruff → 8838 (Advanced Antidandruff Kit) ₹749 / ₹829
  *
  * Checkout adds ONE product via same-tab /checkout-link/?products=KIT
  * (Woo Blocks Store API — never popups, never /cart/?add-to-cart=).
@@ -22,8 +22,8 @@ export const BUNDLE_CONFIG = {
     label: "Men Advance Hair Regrowth Kit",
     wooProductId: 8588,
     wooProductIdNoMix: 8588,
-    priceWithMix: 749,
-    priceWithoutMix: 749,
+    priceWithMix: 999,
+    priceWithoutMix: 999,
     originalPrice: 1125,
   },
   // Male stage 2
@@ -62,13 +62,13 @@ export const BUNDLE_CONFIG = {
     priceWithoutMix: 1299,
     originalPrice: 1824,
   },
-  // Female — default (non-stage-3)
+  // Female — stage 1 / early thinning + stage 2 (moderate or no dandruff)
   6: {
-    label: "Women Advance Hair Regrowth Kit",
+    label: "Female Advance Hair Regrowth Kit",
     wooProductId: 8590,
     wooProductIdNoMix: 8590,
-    priceWithMix: 749,
-    priceWithoutMix: 749,
+    priceWithMix: 999,
+    priceWithoutMix: 999,
     originalPrice: 1125,
   },
   // Female stage 3
@@ -199,8 +199,8 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
 
   if (bundleNumber === 6 || (gender === "female" && bundleNumber !== 1)) {
     return stageLabel
-      ? `Women Advance Hair Regrowth Kit — ${stageLabel}`
-      : "Women Advance Hair Regrowth Kit";
+      ? `Female Advance Hair Regrowth Kit — ${stageLabel}`
+      : "Female Advance Hair Regrowth Kit";
   }
 
   if (bundleNumber === 1) {
@@ -252,9 +252,9 @@ export function getBundlePrices(bundleNumber, _hasDandruff = false, _gender = nu
  *
  *   Stage 1 + heavy dandruff (male or female) → 8 (8838 Advanced Antidandruff)
  *   Female stage 3 → 7 (8327)
- *   Female stage 2 (any dandruff) → 6 (8590 Women Advance)
- *   Female stage 1 moderate/no dandruff → 6 (8590)
- *   Male stage 1 moderate/no dandruff → 1 (8588)
+ *   Female stage 2 (any dandruff) → 6 (8590 Female Advance)
+ *   Female stage 1 moderate/no dandruff → 6 (8590, ₹999)
+ *   Male stage 1 moderate/no dandruff → 1 (8588, ₹999)
  *   Male stage kits otherwise (8588 / 8594–8597)
  */
 export function normalizeQuizStage(stage) {
