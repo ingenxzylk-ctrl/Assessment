@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useQuiz } from "../../context/QuizContext";
-import { compressImage } from "../../utils/compressImage";
+import { compressImage, ensureDataUrl } from "../../utils/compressImage";
 import { precheckPhotoQuality } from "../../utils/photoQualityPrecheck";
 
 const MALE_GUIDES = [
@@ -388,10 +388,13 @@ export default function Section4ScalpAssessment({ onComplete, onBack }) {
           ];
 
       const imagePayloads = await Promise.all(
-        rawPayloads.map(async (img) => ({
-          ...img,
-          dataUrl: await compressImage(img.dataUrl, 1280, 0.88),
-        }))
+        rawPayloads.map(async (img) => {
+          const safe = await ensureDataUrl(img.dataUrl);
+          return {
+            ...img,
+            dataUrl: await compressImage(safe, 1280, 0.88),
+          };
+        })
       );
 
       setAnalysisStatus("Running AI diagnostics (20–60 sec)...");

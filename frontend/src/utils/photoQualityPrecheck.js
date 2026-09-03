@@ -3,14 +3,7 @@
  * Catches obviously dark / blurry images before AI analysis.
  */
 
-function loadImage(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Could not read the selected image."));
-    img.src = dataUrl;
-  });
-}
+import { imageSourceToBlob } from "./compressImage";
 
 /**
  * @returns {Promise<{ ok: true } | { ok: false, reasons: string[], message: string }>}
@@ -25,20 +18,28 @@ export async function precheckPhotoQuality(dataUrl) {
   }
 
   try {
-    const img = await loadImage(dataUrl);
+    const blob = await imageSourceToBlob(dataUrl);
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(blob);
+    } catch {
+      return { ok: true };
+    }
     const maxSide = 320;
-    const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-    const w = Math.max(32, Math.round(img.width * scale));
-    const h = Math.max(32, Math.round(img.height * scale));
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(32, Math.round(bitmap.width * scale));
+    const h = Math.max(32, Math.round(bitmap.height * scale));
 
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) {
+      bitmap.close?.();
       return { ok: true };
     }
-    ctx.drawImage(img, 0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
     const { data } = ctx.getImageData(0, 0, w, h);
 
     let sum = 0;
