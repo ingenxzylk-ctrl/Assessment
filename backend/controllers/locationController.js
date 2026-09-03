@@ -23,6 +23,8 @@ export async function postReverseGeocode(req, res) {
     ? 200
     : result.reason === "invalid_coords" || result.reason === "outside_india"
       ? 400
-      : 502;
+      : result.reason === "not_found"
+        ? 404
+        : 502;
   return res.status(status).json(result);
 }

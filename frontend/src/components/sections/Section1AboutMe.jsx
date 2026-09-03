@@ -406,17 +406,30 @@ export default function Section1AboutMe({ onComplete, onBack }) {
         data = await reverseGeocodeBrowserFallback({ lat, lng });
       }
       if (!isUsableGeoResult(data)) {
-        setGeoStatus(data?.reason === "outside_india" ? "outside" : "error");
+        setGeoStatus(
+          data?.reason === "outside_india"
+            ? "outside"
+            : data?.reason === "not_found"
+              ? "no_pin"
+              : "error"
+        );
         return;
       }
-      lastLookedUpPin.current = data.pincode || "";
-      if (data.pincode && isValidIndianPincode(data.pincode)) {
-        setPinLookup("found");
+      let city = data.city || "";
+      let state = data.state || "";
+      if (!city || !state) {
+        const official = await lookupPincode(data.pincode);
+        if (official?.ok) {
+          city = official.city || city;
+          state = official.state || state;
+        }
       }
+      lastLookedUpPin.current = data.pincode;
+      setPinLookup("found");
       handleChange({
-        pincode: data.pincode || localForm.pincode,
-        city: data.city || localForm.city,
-        state: data.state || localForm.state,
+        pincode: data.pincode,
+        city,
+        state,
       });
       setGeoStatus("idle");
     } catch (err) {
@@ -761,6 +774,11 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                 {geoStatus === "outside" && (
                   <p className="text-xs text-gray-500">
                     Location is outside India — enter pincode instead
+                  </p>
+                )}
+                {geoStatus === "no_pin" && (
+                  <p className="text-xs text-gray-500">
+                    Couldn’t find a pincode for this spot — enter it instead
                   </p>
                 )}
                 {geoStatus === "error" && (
