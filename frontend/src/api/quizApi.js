@@ -1,4 +1,22 @@
-const API_URL = import.meta.env.VITE_API_URL || "https://api.zylkhealth.com/api";
+const PRODUCTION_API_URL = "https://api.zylkhealth.com/api";
+
+/** Never call localhost from the live quiz — only from local dev. */
+function resolveApiUrl() {
+  const fromEnv = String(import.meta.env.VITE_API_URL || "").trim();
+  const fallback = PRODUCTION_API_URL;
+  if (!fromEnv) return fallback;
+
+  const onLocalHost =
+    typeof window !== "undefined" &&
+    /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+
+  if (fromEnv.includes("localhost") && !onLocalHost) {
+    return fallback;
+  }
+  return fromEnv;
+}
+
+const API_URL = resolveApiUrl();
 
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {
