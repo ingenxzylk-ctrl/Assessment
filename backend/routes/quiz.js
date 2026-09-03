@@ -10,6 +10,7 @@ import {
 import {
   getPincodeLookup,
   postReverseGeocode,
+  getIpLocation,
 } from "../controllers/locationController.js";
 import {
   markCheckoutClick,
@@ -105,6 +106,7 @@ router.post("/report/:reportId/checkout-click", markCheckoutClick);
 router.post("/webhooks/woocommerce", handleWooCommerceWebhook);
 router.get("/pincode/:pincode", getPincodeLookup);
 router.post("/geo/reverse", postReverseGeocode);
+router.get("/geo/ip", getIpLocation);
 
 router.get("/report/:reportId/pdf", getAssessmentReportPdf);
 router.get("/report/:reportId/photo/:type", getAssessmentReportPhoto);

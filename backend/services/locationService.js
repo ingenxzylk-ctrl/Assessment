@@ -4,11 +4,14 @@ import {
   extractIndianPincode,
 } from "../utils/pincode.js";
 import { parseGoogleGeocodeResult } from "../utils/googleGeocode.js";
+import { isPrivateIp, normalizeClientIp } from "../utils/clientIp.js";
+import { parseIpLocationPayload } from "../utils/ipLocation.js";
 
 const PIN_TTL_MS = 24 * 60 * 60 * 1000;
 const GEO_TTL_MS = 6 * 60 * 60 * 1000;
 const pinCache = new Map();
 const geoCache = new Map();
+const ipCache = new Map();
 
 const POSTAL_URL = "https://api.postalpincode.in/pincode/";
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse";
@@ -245,4 +248,39 @@ export async function reverseGeocode(lat, lng) {
     console.warn("[geo] reverse geocode failed:", err?.message || err);
     return { ok: false, reason: "upstream_error" };
   }
+}
+
+/**
+ * City/state only from the visitor IP. Never fill pincode — IP postal codes are often wrong.
+ */
+export async function lookupIpLocation(rawIp) {
+  const ip = normalizeClientIp(rawIp);
+  if (!ip || isPrivateIp(ip)) {
+    return { ok: false, reason: "private_ip" };
+  }
+
+  const cached = cacheGet(ipCache, ip, GEO_TTL_MS);
+  if (cached) return cached;
+
+  const urls = [
+    `https://ipwho.is/${encodeURIComponent(ip)}?fields=success,city,region,country,country_code`,
+    `https://ipapi.co/${encodeURIComponent(ip)}/json/`,
+  ];
+
+  for (const url of urls) {
+    try {
+      const data = await fetchJson(url, { timeoutMs: 5000 });
+      const parsed = parseIpLocationPayload(data);
+      if (parsed.ok || parsed.reason === "outside_india") {
+        cacheSet(ipCache, ip, parsed);
+        return parsed;
+      }
+    } catch (err) {
+      console.warn("[geo] ip lookup failed:", err?.message || err);
+    }
+  }
+
+  const miss = { ok: false, reason: "not_found" };
+  cacheSet(ipCache, ip, miss);
+  return miss;
 }

@@ -161,6 +161,21 @@ export async function reverseGeocodeLocation({ lat, lng, accuracy }) {
   }
 }
 
+export async function guessLocationFromIp() {
+  try {
+    const res = await fetch(`${API_URL}/geo/ip`);
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {
+      data = { ok: false, reason: "upstream_error" };
+    }
+    return data;
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+}
+
 export async function markCheckoutClicked({ reportId, aboutMe } = {}) {
   const id = encodeURIComponent(String(reportId || "").trim());
   if (!id) return { ok: false, skipped: true, reason: "no_report_id" };

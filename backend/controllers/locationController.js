@@ -1,5 +1,6 @@
-import { lookupPincode, reverseGeocode } from "../services/locationService.js";
+import { lookupPincode, reverseGeocode, lookupIpLocation } from "../services/locationService.js";
 import { isValidIndianPincode } from "../utils/pincode.js";
+import { pickClientIp } from "../utils/clientIp.js";
 
 export async function getPincodeLookup(req, res) {
   const pin = req.params.pincode || req.query.pincode;
@@ -26,6 +27,19 @@ export async function postReverseGeocode(req, res) {
       ? 400
       : result.reason === "not_found"
         ? 404
+        : 502;
+  return res.status(status).json(result);
+}
+
+export async function getIpLocation(req, res) {
+  const ip = pickClientIp(req.headers, req.ip || req.socket?.remoteAddress);
+  const result = await lookupIpLocation(ip);
+  const status = result.ok
+    ? 200
+    : result.reason === "outside_india"
+      ? 400
+      : result.reason === "private_ip" || result.reason === "not_found"
+        ? 200
         : 502;
   return res.status(status).json(result);
 }
