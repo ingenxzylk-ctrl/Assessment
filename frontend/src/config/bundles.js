@@ -1,7 +1,6 @@
 /**
- * Bundle config — Men stage kits + Women Advance kit (single Woo SKUs)
+ * Bundle config — Men stage kits + Women kits + special-case SKUs
  *
-<<<<<<< Updated upstream
  * Male stage 1 (dandruff):
  *   Heavy → 8838 Advanced Antidandruff ₹749 / ₹829
  *   Moderate / no → 8588 Men Advance ₹999 / ₹1125
@@ -11,15 +10,6 @@
  *   Moderate / no → 8590 Female Advance ₹999 / ₹1125
  * Female stage 2 → 8590 ₹999 / ₹1125
  * Female stage 3 → 8327 ₹999 / ₹1100
-=======
- * Male:
- *   Stage 1 / overall thinning → 8588 (Men Advance) ₹749
- *   Stage 2 → 8594 ₹999
- *   Stage 3 → 8595 ₹1199
- *   Stage 4 → 8596 ₹1199
- *   Stage 5+ → 8597 ₹1299
- * Female (all stages) → 8590 (Women Advance) ₹749
->>>>>>> Stashed changes
  *
  * Checkout adds ONE product via same-tab /checkout-link/?products=KIT
  * (Woo Blocks Store API — never popups, never /cart/?add-to-cart=).
@@ -28,17 +18,10 @@ export const BUNDLE_CONFIG = {
   // Male stage 1 / overall thinning — Men Advance Hair Regrowth Kit
   1: {
     label: "Men Advance Hair Regrowth Kit",
-<<<<<<< Updated upstream
     wooProductId: 8588,
     wooProductIdNoMix: 8588,
     priceWithMix: 999,
     priceWithoutMix: 999,
-=======
-    wooProductId: 8590 ,
-    wooProductIdNoMix: 8590 ,
-    priceWithMix: 749,
-    priceWithoutMix: 749,
->>>>>>> Stashed changes
     originalPrice: 1125,
   },
   // Male stage 2
@@ -77,11 +60,7 @@ export const BUNDLE_CONFIG = {
     priceWithoutMix: 1299,
     originalPrice: 1824,
   },
-<<<<<<< Updated upstream
   // Female — stage 1 / early thinning + stage 2 (moderate or no dandruff)
-=======
-  // Female — all stages
->>>>>>> Stashed changes
   6: {
     label: "Female Advance Hair Regrowth Kit",
     wooProductId: 8590,
@@ -89,6 +68,24 @@ export const BUNDLE_CONFIG = {
     priceWithMix: 999,
     priceWithoutMix: 999,
     originalPrice: 1125,
+  },
+  // Female stage 3
+  7: {
+    label: "Women Stage 3 Hair Regrowth Kit",
+    wooProductId: 8327,
+    wooProductIdNoMix: 8327,
+    priceWithMix: 999,
+    priceWithoutMix: 999,
+    originalPrice: 1100,
+  },
+  // Stage 1 + heavy dandruff (any gender)
+  8: {
+    label: "Advanced Antidandruff Kit",
+    wooProductId: 8838,
+    wooProductIdNoMix: 8838,
+    priceWithMix: 749,
+    priceWithoutMix: 749,
+    originalPrice: 829,
   },
   99: {
     label: "₹1 Test Bundle",
@@ -101,11 +98,48 @@ export const BUNDLE_CONFIG = {
 };
 
 /** Production kit Woo IDs used by checkout allow-list */
-export const STAGE_KIT_WOO_IDS = [8588, 8594, 8595, 8596, 8597, 8590];
+export const STAGE_KIT_WOO_IDS = [8588, 8594, 8595, 8596, 8597, 8590, 8327, 8838];
 
 export const TEST_BUNDLE_NUMBER = 99;
 export const HAIR_HEALTH_MIX_ID = "zylk-hair-health-mix";
 export const SEPARATE_HEALTH_MIX_WOO_ID = 8303;
+
+const LIVE_SHOP_BASE = "https://zylkhealth.com";
+
+/**
+ * Static product permalink. A plain GET of `?p=ID` — never add-to-cart —
+ * so Sheet / team links cannot trigger the Woo theme CPU spike.
+ */
+export function buildKitProductUrl(wooProductId) {
+  const id = Number(wooProductId);
+  if (!Number.isFinite(id) || id <= 0) return "";
+  return `${LIVE_SHOP_BASE}/?p=${id}`;
+}
+
+/** Quiz values: frequent = heavy dandruff. Also accept "heavy" / "severe". */
+export function isHeavyDandruff(value) {
+  if (value === true) return false;
+  const s = String(value ?? "")
+    .toLowerCase()
+    .trim();
+  if (!s || s === "true" || s === "false") return false;
+  return s === "frequent" || s === "heavy" || s === "severe";
+}
+
+export function isDandruffPresent(value) {
+  if (value === true) return true;
+  if (value === false || value == null) return false;
+  const s = String(value).toLowerCase().trim();
+  if (!s || s === "no" || s === "none" || s === "false") return false;
+  return (
+    s === "frequent" ||
+    s === "moderate" ||
+    s === "heavy" ||
+    s === "mild" ||
+    s === "severe" ||
+    s === "true"
+  );
+}
 
 /**
  * New kits are single WooCommerce products — no separate Health Mix line item.
@@ -149,7 +183,19 @@ export function getBundleDisplayName(bundleNumber, gender, stage) {
 
   if (bundleNumber === 99) return "Zylk ₹1 Test Kit";
 
-  if (bundleNumber === 6 || gender === "female") {
+  if (bundleNumber === 8) {
+    return stageLabel
+      ? `Advanced Antidandruff Kit — ${stageLabel}`
+      : "Advanced Antidandruff Kit";
+  }
+
+  if (bundleNumber === 7) {
+    return stageLabel
+      ? `Women Stage 3 Hair Regrowth Kit — ${stageLabel}`
+      : "Women Stage 3 Hair Regrowth Kit";
+  }
+
+  if (bundleNumber === 6 || (gender === "female" && bundleNumber !== 1)) {
     return stageLabel
       ? `Female Advance Hair Regrowth Kit — ${stageLabel}`
       : "Female Advance Hair Regrowth Kit";
@@ -200,7 +246,6 @@ export function getBundlePrices(bundleNumber, _hasDandruff = false, _gender = nu
 }
 
 /**
-<<<<<<< Updated upstream
  * Route quiz result → kit by dandruff + gender + stage.
  *
  *   Stage 1 + heavy dandruff (male or female) → 8 (8838 Advanced Antidandruff)
@@ -223,25 +268,22 @@ export function normalizeQuizStage(stage) {
 
 export function resolveBundleNumber(gender, stage, hasDandruff) {
   const stageStr = normalizeQuizStage(stage);
-=======
- * Route quiz result → kit by gender + stage.
- * Female always gets Women Advance (8590).
- * Male gets stage-specific kit (8588 / 8594–8597).
- */
-export function resolveBundleNumber(gender, stage, _hasDandruff) {
-  const stageStr = String(stage ?? "");
->>>>>>> Stashed changes
   const isFemale = gender === "female";
+  const isStage1 = stageStr === "1" || stageStr === "overall-thinning";
 
+  // Heavy dandruff overrides stage-1 kits only (not female stage 2).
+  if (isStage1 && isHeavyDandruff(hasDandruff)) return 8;
+
+  if (isFemale && stageStr === "3") return 7;
+  if (isFemale && stageStr === "2") return 6;
   if (isFemale) return 6;
 
-  if (stageStr === "1" || stageStr === "overall-thinning") return 1;
+  if (isStage1) return 1;
   if (stageStr === "2") return 2;
   if (stageStr === "3") return 3;
   if (stageStr === "4") return 4;
   if (stageStr === "5" || stageStr === "6" || stageStr === "7") return 5;
 
-  // Fallback → Men Advance
   return 1;
 }
 
