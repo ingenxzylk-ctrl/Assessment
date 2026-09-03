@@ -195,7 +195,7 @@ export const ANTIDANDRUFF_PRODUCT_IDS = [
  * Bundle numbers → product lists
  * 1 Men Advance (stage 1)
  * 2–5 Male stage kits
- * 6 Women Advance (female 1 moderate/no dandruff + female 2 any dandruff)
+ * 6 Female Advance (female 1 moderate/no dandruff + female 2 any dandruff)
  * 7 Women Stage 3
  * 8 Advanced Antidandruff (stage 1 + heavy dandruff)
  */
