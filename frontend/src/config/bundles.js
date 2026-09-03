@@ -1,17 +1,15 @@
 /**
  * Bundle config — Men stage kits + Women kits + special-case SKUs
  *
- * Male:
- *   Stage 1 / overall thinning → 8588 (Men Advance) ₹999 / ₹1125
- *   Stage 2 → 8594 ₹999
- *   Stage 3 → 8595 ₹1199
- *   Stage 4 → 8596 ₹1199
- *   Stage 5+ → 8597 ₹1299
- * Female:
- *   Stage 3 → 8327 ₹999
- *   Stage 1–2 → 8590 (Female Advance) ₹999 / ₹1125
- * Any gender:
- *   Stage 1 + heavy dandruff → 8838 (Advanced Antidandruff Kit) ₹749 / ₹829
+ * Male stage 1 (dandruff):
+ *   Heavy → 8838 Advanced Antidandruff ₹749 / ₹829
+ *   Moderate / no → 8588 Men Advance ₹999 / ₹1125
+ * Male later: 8594 ₹999/₹1296, 8595 ₹1199/₹1595, 8596 ₹1199/₹1724, 8597 ₹1299/₹1824
+ * Female stage 1 / early thinning (dandruff):
+ *   Heavy → 8838 Advanced Antidandruff ₹749 / ₹829
+ *   Moderate / no → 8590 Female Advance ₹999 / ₹1125
+ * Female stage 2 → 8590 ₹999 / ₹1125
+ * Female stage 3 → 8327 ₹999 / ₹1100
  *
  * Checkout adds ONE product via same-tab /checkout-link/?products=KIT
  * (Woo Blocks Store API — never popups, never /cart/?add-to-cart=).
@@ -260,7 +258,9 @@ export function getBundlePrices(bundleNumber, _hasDandruff = false, _gender = nu
 export function normalizeQuizStage(stage) {
   const s = String(stage ?? "").toLowerCase().trim();
   if (!s) return "";
-  if (s.includes("overall") || s.includes("diffuse")) return "overall-thinning";
+  if (s.includes("overall") || s.includes("diffuse") || s.includes("early")) {
+    return "overall-thinning";
+  }
   if (s.includes("patchy")) return "patchy-bald";
   const numbered = s.match(/([1-7])/);
   return numbered ? numbered[1] : s;
