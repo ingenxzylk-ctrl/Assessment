@@ -1493,6 +1493,8 @@ useEffect(() => {
   const requiresDoctorConsultation =
     (gender === "male" && ["6", "7"].includes(String(aiPredictedStageNumber))) ||
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
+  const isMaleStage5 =
+    gender === "male" && String(aiPredictedStageNumber) === "5";
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
   const rootCauseTags = buildRootCauseTags(state, hasDandruff);
@@ -1607,9 +1609,13 @@ const testimonial =
   return () => clearInterval(timer);
 }, [isFemale]);
   
+  const handleScheduleConsultation = () => {
+    alert("Connecting you with a Zylk trichology specialist...");
+  };
+
   const handleBuyNow = () => {
     if (requiresDoctorConsultation) {
-      alert("Connecting you with a Zylk trichology specialist...");
+      handleScheduleConsultation();
       return;
     }
     if (!recommendedBundle) return;
@@ -2566,11 +2572,20 @@ money back guarantee contact our customer support</p>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
+                  {isMaleStage5 && (
+                    <button
+                      type="button"
+                      onClick={handleScheduleConsultation}
+                      className="w-full bg-white hover:bg-[#f4faf4] text-[#1b5e20] font-bold text-sm py-3.5 px-5 rounded-lg tracking-wide cursor-pointer transition-all border-2 border-[#2e7d32]"
+                    >
+                      Schedule Consultation
+                    </button>
+                  )}
                 </>
               ) : (
                 <button
                   type="button"
-                  onClick={handleBuyNow}
+                  onClick={requiresDoctorConsultation ? handleScheduleConsultation : handleBuyNow}
                   className="w-full bg-gradient-to-r from-[#2e7d32] to-[#1b5e20] hover:from-[#1b5e20] hover:to-[#0c3810] text-white font-bold text-sm py-3.5 rounded-lg tracking-wide cursor-pointer shadow-md transition-all"
                 >
                   {requiresDoctorConsultation ? "Schedule Consultation" : "Continue"}
@@ -2596,7 +2611,7 @@ money back guarantee contact our customer support</p>
             <p className="text-xs text-gray-500">Speak with a Zylk trichology specialist to explore next steps.</p>
             <button
               type="button"
-              onClick={handleBuyNow}
+              onClick={handleScheduleConsultation}
               className="w-full bg-gradient-to-r from-[#2e7d32] to-[#1b5e20] hover:from-[#1b5e20] hover:to-[#0c3810] text-white font-bold text-sm py-3.5 rounded-lg uppercase tracking-wide cursor-pointer shadow-md transition-all"
             >
               Schedule Consultation
@@ -2643,11 +2658,20 @@ money back guarantee contact our customer support</p>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
+              {isMaleStage5 && (
+                <button
+                  type="button"
+                  onClick={handleScheduleConsultation}
+                  className="w-full bg-white hover:bg-[#f4faf4] text-[#1b5e20] font-bold text-sm py-3 px-5 rounded-lg tracking-wide cursor-pointer transition-all border-2 border-[#2e7d32]"
+                >
+                  Schedule Consultation
+                </button>
+              )}
             </>
           ) : (
             <button
               type="button"
-              onClick={handleBuyNow}
+              onClick={requiresDoctorConsultation ? handleScheduleConsultation : handleBuyNow}
               className="w-full bg-gradient-to-r from-[#2e7d32] to-[#1b5e20] hover:from-[#1b5e20] hover:to-[#0c3810] text-white font-bold text-sm py-3.5 rounded-lg tracking-wide cursor-pointer shadow-md transition-all"
             >
               {requiresDoctorConsultation ? "Schedule Consultation" : "Continue"}
