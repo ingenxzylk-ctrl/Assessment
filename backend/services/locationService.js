@@ -3,7 +3,7 @@ import {
   normalizeIndianPincode,
   extractIndianPincode,
 } from "../utils/pincode.js";
-import { locationFillLevel, placesOverlap } from "../utils/geoPin.js";
+import { parseGoogleGeocodeResult } from "../utils/googleGeocode.js";
 
 const PIN_TTL_MS = 24 * 60 * 60 * 1000;
 const GEO_TTL_MS = 6 * 60 * 60 * 1000;
@@ -105,32 +105,16 @@ function roundCoord(n) {
   return Number(n).toFixed(3);
 }
 
-function hintsFromNominatim(data = {}) {
-  const address = data.address || {};
-  return [
-    address.city,
-    address.town,
-    address.village,
-    address.suburb,
-    address.county,
-    address.state_district,
-    address.municipality,
-    address.city_district,
-  ].filter(Boolean);
-}
-
 function pickLocalityCity(address = {}) {
-  return (
-    String(
+  return String(
+    address.city ||
+      address.town ||
       address.state_district ||
-        address.county ||
-        address.city ||
-        address.town ||
-        address.village ||
-        address.municipality ||
-        ""
-    ).trim()
-  );
+      address.county ||
+      address.village ||
+      address.municipality ||
+      ""
+  ).trim();
 }
 
 async function nominatimReverse(latitude, longitude, zoom) {
@@ -145,13 +129,88 @@ async function nominatimReverse(latitude, longitude, zoom) {
   });
 }
 
+function googleGeocodingKey() {
+  return String(
+    process.env.GOOGLE_MAPS_GEOCODING_KEY || process.env.GOOGLE_MAPS_API_KEY || ""
+  ).trim();
+}
+
+async function reverseGoogle(latitude, longitude) {
+  const key = googleGeocodingKey();
+  if (!key) return null;
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${encodeURIComponent(
+    latitude
+  )},${encodeURIComponent(longitude)}&language=en&region=in&key=${encodeURIComponent(key)}`;
+  const data = await fetchJson(url, { timeoutMs: 10000 });
+  if (String(data?.status || "") !== "OK" || !Array.isArray(data.results) || !data.results.length) {
+    return null;
+  }
+  const parsed = parseGoogleGeocodeResult(data.results[0]);
+  const country = String(parsed.country || "").toLowerCase();
+  if (country && country !== "india") {
+    return { ok: false, reason: "outside_india" };
+  }
+  return {
+    source: "google",
+    pincode: parsed.pincode || "",
+    city: parsed.city || "",
+    state: parsed.state || "",
+  };
+}
+
+async function reverseNominatimPlace(latitude, longitude) {
+  const area = await nominatimReverse(latitude, longitude, 12);
+  const address = area?.address || {};
+  const city = pickLocalityCity(address);
+  const state = String(address.state || "").trim();
+  let pincode = "";
+  try {
+    const detail = await nominatimReverse(latitude, longitude, 18);
+    pincode =
+      extractIndianPincode(detail?.address?.postcode) ||
+      extractIndianPincode(detail?.extratags?.postcode) ||
+      extractIndianPincode(detail?.display_name);
+  } catch {
+    pincode = "";
+  }
+  return { source: "osm", pincode, city, state };
+}
+
+async function withIndiaPost(place) {
+  const pin = isValidIndianPincode(place.pincode) ? place.pincode : "";
+  if (pin) {
+    const official = await lookupPincode(pin);
+    if (official.ok) {
+      return {
+        ok: true,
+        fill: "pin",
+        pincode: official.pincode,
+        city: official.city || place.city || "",
+        state: official.state || place.state || "",
+        pinGuess: true,
+        source: place.source,
+      };
+    }
+  }
+  if (!place.city && !place.state && !pin) {
+    return { ok: false, reason: "not_found" };
+  }
+  return {
+    ok: true,
+    fill: pin ? "pin" : "city",
+    pincode: pin,
+    city: place.city || "",
+    state: place.state || "",
+    pinGuess: Boolean(pin),
+    source: place.source,
+  };
+}
+
 /**
- * Real-world fill policy:
- *   GPS ≤ 500m  → pincode + city/state (India Post)
- *   GPS ≤ 4km   → city/state only, user types pincode
- *   Coarser     → fill nothing (desktop IP guesses the wrong town)
+ * Fill city/state from reverse geocode. Pincode is best-effort and should be verified.
+ * Google Geocoding is used when GOOGLE_MAPS_GEOCODING_KEY is set; otherwise OSM.
  */
-export async function reverseGeocode(lat, lng, { accuracy } = {}) {
+export async function reverseGeocode(lat, lng) {
   const latitude = Number(lat);
   const longitude = Number(lng);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
@@ -161,91 +220,27 @@ export async function reverseGeocode(lat, lng, { accuracy } = {}) {
     return { ok: false, reason: "outside_india" };
   }
 
-  const fill = locationFillLevel(accuracy);
-  const key = `v5:${fill}:${roundCoord(latitude)},${roundCoord(longitude)}`;
+  const key = `v6:${roundCoord(latitude)},${roundCoord(longitude)}:${googleGeocodingKey() ? "g" : "o"}`;
   const cached = cacheGet(geoCache, key, GEO_TTL_MS);
   if (cached) return cached;
 
-  if (fill === "none") {
-    const none = { ok: true, fill: "none", reason: "coarse", pincode: "", city: "", state: "" };
-    cacheSet(geoCache, key, none);
-    return none;
-  }
-
   try {
-    const area = await nominatimReverse(latitude, longitude, 12);
-    const address = area?.address || {};
-    const city = pickLocalityCity(address);
-    const state = String(address.state || "").trim();
-    const hints = hintsFromNominatim(area);
-    if (!city && !state) {
-      const miss = { ok: false, reason: "not_found" };
-      cacheSet(geoCache, key, miss);
-      return miss;
+    let place = null;
+    try {
+      place = await reverseGoogle(latitude, longitude);
+    } catch (err) {
+      console.warn("[geo] google reverse failed:", err?.message || err);
     }
-
-    if (fill === "city") {
-      const cityOnly = {
-        ok: true,
-        fill: "city",
-        pincode: "",
-        city,
-        state,
-        source: "gps",
-      };
-      cacheSet(geoCache, key, cityOnly);
-      return cityOnly;
+    if (place?.reason === "outside_india") {
+      cacheSet(geoCache, key, place);
+      return place;
     }
-
-    const detail = await nominatimReverse(latitude, longitude, 18);
-    const pin =
-      extractIndianPincode(detail?.address?.postcode) ||
-      extractIndianPincode(detail?.extratags?.postcode) ||
-      extractIndianPincode(detail?.display_name);
-    if (!isValidIndianPincode(pin)) {
-      const cityOnly = {
-        ok: true,
-        fill: "city",
-        pincode: "",
-        city,
-        state,
-        source: "gps",
-      };
-      cacheSet(geoCache, key, cityOnly);
-      return cityOnly;
+    if (!place?.city && !place?.state && !place?.pincode) {
+      place = await reverseNominatimPlace(latitude, longitude);
     }
-
-    const official = await lookupPincode(pin);
-    if (
-      official.ok &&
-      placesOverlap(
-        [...hints, city],
-        [official.city, official.district, official.postOffice]
-      )
-    ) {
-      const pinFill = {
-        ok: true,
-        fill: "pin",
-        pincode: official.pincode,
-        city: official.city || city,
-        state: official.state || state,
-        district: official.district || "",
-        source: "gps",
-      };
-      cacheSet(geoCache, key, pinFill);
-      return pinFill;
-    }
-
-    const fallbackCity = {
-      ok: true,
-      fill: "city",
-      pincode: "",
-      city,
-      state,
-      source: "gps",
-    };
-    cacheSet(geoCache, key, fallbackCity);
-    return fallbackCity;
+    const result = await withIndiaPost(place || {});
+    cacheSet(geoCache, key, result);
+    return result;
   } catch (err) {
     console.warn("[geo] reverse geocode failed:", err?.message || err);
     return { ok: false, reason: "upstream_error" };

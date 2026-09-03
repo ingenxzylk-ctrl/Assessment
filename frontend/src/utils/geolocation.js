@@ -11,14 +11,13 @@ function getCurrentPosition(options) {
 }
 
 /**
- * Mobile: try GPS, then network so the button still works indoors.
- * Desktop: network/IP is usually 5–50 km off — caller must not fill a pincode from that.
+ * GPS first (8s), then a network reading so mobile indoor still works.
  */
 export async function readDevicePosition() {
   try {
     return await getCurrentPosition({
       enableHighAccuracy: true,
-      timeout: 12000,
+      timeout: 8000,
       maximumAge: 0,
     });
   } catch (err) {
@@ -39,6 +38,7 @@ export function geolocationBlockReason() {
 
 export function geolocationErrorStatus(err) {
   if (err?.code === 1) return "denied";
+  if (err?.code === 2) return "unavailable";
   if (err?.code === 3) return "timeout";
   return "error";
 }

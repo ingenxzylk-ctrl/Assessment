@@ -405,33 +405,19 @@ export default function Section1AboutMe({ onComplete, onBack }) {
         setGeoStatus("outside");
         return;
       }
-      if (!data?.ok) {
+      if (!data?.ok || (!data.city && !data.state && !data.pincode)) {
         setGeoStatus(data?.reason === "not_found" ? "no_pin" : "error");
         return;
       }
-      if (data.fill === "pin" && isValidIndianPincode(data.pincode)) {
-        lastLookedUpPin.current = data.pincode;
-        setPinLookup("found");
-        handleChange({
-          pincode: data.pincode,
-          city: data.city || "",
-          state: data.state || "",
-        });
-        setGeoStatus("idle");
-        return;
-      }
-      if (data.fill === "city" && (data.city || data.state)) {
-        lastLookedUpPin.current = "";
-        setPinLookup("idle");
-        handleChange({
-          pincode: "",
-          city: data.city || "",
-          state: data.state || "",
-        });
-        setGeoStatus("enter_pin");
-        return;
-      }
-      setGeoStatus("coarse");
+      const pin = isValidIndianPincode(data.pincode) ? data.pincode : "";
+      lastLookedUpPin.current = pin;
+      setPinLookup(pin ? "found" : "idle");
+      handleChange({
+        pincode: pin,
+        city: data.city || "",
+        state: data.state || "",
+      });
+      setGeoStatus(pin ? "verify_pin" : "enter_pin");
     } catch (err) {
       setGeoStatus(geolocationErrorStatus(err));
     }
@@ -722,20 +708,25 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                   inputMode="numeric"
                   autoComplete="postal-code"
                   value={localForm.pincode}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     handleChange({
                       pincode: normalizeIndianPincode(e.target.value),
-                    })
-                  }
+                    });
+                    if (geoStatus === "verify_pin") setGeoStatus("idle");
+                  }}
                   placeholder="6-digit PIN"
                   className={`w-full h-12 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-sm ${
-                    errors.pincode ? "border-red-500" : "border-gray-200"
+                    errors.pincode
+                      ? "border-red-500"
+                      : geoStatus === "verify_pin"
+                        ? "border-amber-400 bg-amber-50"
+                        : "border-gray-200"
                   }`}
                 />
                 {pinLookup === "loading" && (
                   <p className="text-xs text-gray-500">Looking up city…</p>
                 )}
-                {pinLookup === "found" && localForm.city && (
+                {pinLookup === "found" && localForm.city && geoStatus !== "verify_pin" && (
                   <p className="text-xs text-[#064e3b]">
                     {localForm.city}
                     {localForm.state ? `, ${localForm.state}` : ""}
@@ -753,12 +744,17 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                 )}
                 {geoStatus === "denied" && (
                   <p className="text-xs text-gray-500">
-                    Location permission denied — enter pincode instead
+                    Location access denied — please enter your pincode manually
+                  </p>
+                )}
+                {geoStatus === "unavailable" && (
+                  <p className="text-xs text-gray-500">
+                    Location unavailable — please enter your pincode manually
                   </p>
                 )}
                 {geoStatus === "timeout" && (
                   <p className="text-xs text-gray-500">
-                    Location timed out — turn on GPS and try again, or enter pincode
+                    Location request timed out — please enter your pincode manually
                   </p>
                 )}
                 {geoStatus === "insecure" && (
@@ -776,24 +772,24 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                     Location is outside India — enter pincode instead
                   </p>
                 )}
-                {geoStatus === "enter_pin" && (
-                  <p className="text-xs text-[#064e3b]">
-                    City filled. Enter your 6-digit pincode to confirm the area
+                {geoStatus === "verify_pin" && (
+                  <p className="text-xs text-amber-700">
+                    Check this pincode — GPS can land in a neighbouring PIN. City and state are filled from your area.
                   </p>
                 )}
-                {geoStatus === "coarse" && (
-                  <p className="text-xs text-gray-500">
-                    This device can only guess your town — enter pincode for the exact area
+                {geoStatus === "enter_pin" && (
+                  <p className="text-xs text-[#064e3b]">
+                    We got your town, but couldn’t confirm the exact pincode — please check it
                   </p>
                 )}
                 {geoStatus === "no_pin" && (
                   <p className="text-xs text-gray-500">
-                    Couldn’t match this spot — enter pincode instead
+                    Couldn’t determine your area — please enter manually
                   </p>
                 )}
                 {geoStatus === "error" && (
                   <p className="text-xs text-gray-500">
-                    Couldn’t read location — allow permission, turn on GPS, and try again, or enter pincode
+                    Couldn’t read location — please enter your pincode manually
                   </p>
                 )}
                 {errors.pincode && pinLookup !== "invalid" && (
