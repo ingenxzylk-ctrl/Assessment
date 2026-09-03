@@ -1,4 +1,5 @@
-import { isIP } from "node:net";
+import net from "net";
+const isIP = net.isIP || (() => 0);
 
 export function normalizeClientIp(raw) {
   let ip = String(raw || "")
