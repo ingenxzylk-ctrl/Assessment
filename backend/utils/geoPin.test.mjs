@@ -1,4 +1,4 @@
-import { nearestOsmPin, pinFromOsmTags, placesOverlap, locationFillLevel } from "./geoPin.js";
+import { nearestOsmPin, pinFromOsmTags, placesOverlap, locationFillLevel, reconcilePinWithPlace } from "./geoPin.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -31,5 +31,41 @@ assert(locationFillLevel(40) === "pin", "GPS lock can fill pincode");
 assert(locationFillLevel(1200) === "city", "cell accuracy can fill city only");
 assert(locationFillLevel(15000) === "none", "desktop/network guess must not auto-fill");
 assert(locationFillLevel(undefined) === "none", "missing accuracy must not auto-fill");
+
+const dropped = reconcilePinWithPlace(
+  { city: "Tirunelveli", state: "Tamil Nadu", source: "osm" },
+  {
+    ok: true,
+    pincode: "605755",
+    city: "Villupuram",
+    district: "Villupuram",
+    postOffice: "Mogaiyur",
+    state: "Tamil Nadu",
+  }
+);
+assert(dropped.fill === "city", "wrong PIN must not win");
+assert(dropped.city === "Tirunelveli", "keep GPS city");
+assert(dropped.pincode === "", "drop Villupuram PIN 605755");
+
+const kept = reconcilePinWithPlace(
+  { city: "Tirunelveli", state: "Tamil Nadu", source: "google" },
+  {
+    ok: true,
+    pincode: "627007",
+    city: "Tirunelveli",
+    district: "Tirunelveli",
+    postOffice: "Reddiarpatti",
+    state: "Tamil Nadu",
+  }
+);
+assert(kept.fill === "pin" && kept.pincode === "627007", "matching Tirunelveli PIN is kept");
+assert(kept.city === "Tirunelveli", "matching PIN keeps GPS city");
+
+const noPin = reconcilePinWithPlace(
+  { city: "Tirunelveli", state: "Tamil Nadu" },
+  { ok: true, pincode: "627007", city: "Tirunelveli", district: "Tirunelveli" },
+  { allowPin: false }
+);
+assert(noPin.pincode === "" && noPin.city === "Tirunelveli", "coarse GPS fills city only");
 
 console.log("ok geoPin nearest postal code");

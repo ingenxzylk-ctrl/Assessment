@@ -61,3 +61,45 @@ export function placesOverlap(hints = [], places = []) {
   if (!hay.length || !needles.length) return false;
   return needles.some((n) => hay.some((h) => h.includes(n) || n.includes(h)));
 }
+
+/**
+ * Keep reverse-geocode city. Only keep a PIN when India Post agrees with that city.
+ * A Villupuram PIN must never replace Tirunelveli.
+ */
+export function reconcilePinWithPlace(place = {}, official = null, { allowPin = true } = {}) {
+  const city = String(place.city || "").trim();
+  const state = String(place.state || "").trim();
+  const pin = allowPin && official?.ok ? String(official.pincode || "").trim() : "";
+
+  if (pin && city) {
+    const matches = placesOverlap(
+      [city, state],
+      [official.city, official.district, official.postOffice]
+    );
+    if (matches) {
+      return {
+        ok: true,
+        fill: "pin",
+        pincode: pin,
+        city,
+        state: state || String(official.state || "").trim(),
+        pinGuess: true,
+        source: place.source,
+      };
+    }
+  }
+
+  if (city || state) {
+    return {
+      ok: true,
+      fill: "city",
+      pincode: "",
+      city,
+      state,
+      pinGuess: false,
+      source: place.source,
+    };
+  }
+
+  return { ok: false, reason: "not_found" };
+}

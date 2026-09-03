@@ -11,22 +11,25 @@ function getCurrentPosition(options) {
 }
 
 /**
- * GPS first (8s, high accuracy, no cache), then a network reading so indoor still works.
+ * GPS first (8s, high accuracy, no cache). A network-only reading is marked
+ * so the quiz does not treat ISP/wifi triangulation as the user's town.
  */
 export async function readDevicePosition() {
   try {
-    return await getCurrentPosition({
+    const position = await getCurrentPosition({
       enableHighAccuracy: true,
       timeout: 8000,
       maximumAge: 0,
     });
+    return { position, highAccuracy: true };
   } catch (err) {
     if (err?.code === 1) throw err;
-    return getCurrentPosition({
+    const position = await getCurrentPosition({
       enableHighAccuracy: false,
       timeout: 8000,
       maximumAge: 0,
     });
+    return { position, highAccuracy: false };
   }
 }
 
@@ -43,39 +46,26 @@ export function geolocationErrorStatus(err) {
   return "error";
 }
 
-function placeHasArea(data) {
-  return Boolean(data?.ok && (data.city || data.state || data.pincode));
-}
-
 /**
- * GPS (permission + HTTPS) then IP city/state. Never treat IP postal as a pincode.
+ * GPS only. Coarse/IP-level readings are not used — they can land in the wrong district.
  */
-export async function resolveQuizLocation({ reverseGeocode, lookupIp }) {
+export async function resolveQuizLocation({ reverseGeocode }) {
   const blocked = geolocationBlockReason();
-  let gpsStatus = blocked;
-  if (!blocked) {
-    try {
-      const pos = await readDevicePosition();
-      const data = await reverseGeocode({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracy: pos.coords.accuracy,
-      });
-      if (data?.reason === "outside_india") return { kind: "outside" };
-      if (placeHasArea(data)) return { kind: "gps", data };
-      gpsStatus = data?.reason === "not_found" ? "no_pin" : "error";
-    } catch (err) {
-      gpsStatus = geolocationErrorStatus(err);
-    }
-  }
+  if (blocked) return { kind: "fail", status: blocked };
 
   try {
-    const ip = await lookupIp();
-    if (ip?.reason === "outside_india") return { kind: "outside" };
-    if (ip?.ok && (ip.city || ip.state)) return { kind: "ip", data: ip };
-  } catch {
-    // IP is a fallback only
+    const { position: pos, highAccuracy } = await readDevicePosition();
+    if (!highAccuracy) return { kind: "coarse" };
+    const data = await reverseGeocode({
+      lat: pos.coords.latitude,
+      lng: pos.coords.longitude,
+      accuracy: pos.coords.accuracy,
+    });
+    if (data?.reason === "outside_india") return { kind: "outside" };
+    if (data?.reason === "low_accuracy") return { kind: "coarse" };
+    if (data?.ok && (data.city || data.state)) return { kind: "gps", data };
+    return { kind: "fail", status: data?.reason === "not_found" ? "no_pin" : "error" };
+  } catch (err) {
+    return { kind: "fail", status: geolocationErrorStatus(err) };
   }
-
-  return { kind: "fail", status: gpsStatus || "error" };
 }

@@ -7,7 +7,7 @@ import {
   isValidIndianPincode,
   normalizeIndianPincode,
 } from "../../utils/pincode";
-import { lookupPincode, reverseGeocodeLocation, guessLocationFromIp } from "../../api/quizApi";
+import { lookupPincode, reverseGeocodeLocation } from "../../api/quizApi";
 import { resolveQuizLocation } from "../../utils/geolocation";
 
 const STEPS = ["name", "contact", "age", "gender"];
@@ -240,7 +240,6 @@ export default function Section1AboutMe({ onComplete, onBack }) {
   const lastLookedUpPin = useRef("");
   const persistTimer = useRef(null);
   const localFormRef = useRef(null);
-  const ipGuessTried = useRef(false);
   const [pinLookup, setPinLookup] = useState("idle");
   const [geoStatus, setGeoStatus] = useState("idle");
 
@@ -385,27 +384,15 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localForm.pincode]);
 
-  const applyIpGuess = (data) => {
-    if (!data?.ok || (!data.city && !data.state)) return false;
-    const form = localFormRef.current || {};
-    handleChange({
-      city: data.city || form.city || "",
-      state: data.state || form.state || "",
-    });
-    setGeoStatus("ip_guess");
-    return true;
-  };
-
   const handleUseLocation = async () => {
     setGeoStatus("locating");
-    ipGuessTried.current = true;
     const result = await resolveQuizLocation({
       reverseGeocode: reverseGeocodeLocation,
-      lookupIp: guessLocationFromIp,
     });
     if (result.kind === "gps") {
       const data = result.data;
-      const pin = isValidIndianPincode(data.pincode) ? data.pincode : "";
+      const pin =
+        data.fill === "pin" && isValidIndianPincode(data.pincode) ? data.pincode : "";
       lastLookedUpPin.current = pin;
       setPinLookup(pin ? "found" : "idle");
       handleChange({
@@ -416,7 +403,10 @@ export default function Section1AboutMe({ onComplete, onBack }) {
       setGeoStatus(pin ? "verify_pin" : "enter_pin");
       return;
     }
-    if (result.kind === "ip" && applyIpGuess(result.data)) return;
+    if (result.kind === "coarse") {
+      setGeoStatus("coarse");
+      return;
+    }
     if (result.kind === "outside") {
       setGeoStatus("outside");
       return;
@@ -449,24 +439,6 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     });
     setErrors((prev) => ({ ...prev, [Object.keys(fields)[0]]: "" }));
   };
-
-  useEffect(() => {
-    if (currentStep !== "contact" || ipGuessTried.current) return undefined;
-    const form = localFormRef.current;
-    if (form?.city || form?.state || form?.pincode) return undefined;
-    ipGuessTried.current = true;
-    let cancelled = false;
-    guessLocationFromIp().then((data) => {
-      if (cancelled) return;
-      const latest = localFormRef.current;
-      if (latest?.city || latest?.state || latest?.pincode) return;
-      applyIpGuess(data);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep]);
 
   const validate = () => {
     const e = {};
@@ -731,9 +703,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                     handleChange({
                       pincode: normalizeIndianPincode(e.target.value),
                     });
-                    if (geoStatus === "verify_pin" || geoStatus === "ip_guess") {
-                      setGeoStatus("idle");
-                    }
+                    if (geoStatus === "verify_pin") setGeoStatus("idle");
                   }}
                   placeholder="6-digit PIN"
                   className={`w-full h-12 px-3 border rounded-2xl text-gray-900 focus:outline-none focus:border-[#064e3b] transition-all text-sm ${
@@ -747,7 +717,7 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                 {pinLookup === "loading" && (
                   <p className="text-xs text-gray-500">Looking up city…</p>
                 )}
-                {pinLookup === "found" && localForm.city && geoStatus !== "verify_pin" && geoStatus !== "ip_guess" && (
+                {pinLookup === "found" && localForm.city && geoStatus !== "verify_pin" && (
                   <p className="text-xs text-[#064e3b]">
                     {localForm.city}
                     {localForm.state ? `, ${localForm.state}` : ""}
@@ -793,9 +763,9 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                     Location is outside India — enter pincode instead
                   </p>
                 )}
-                {geoStatus === "ip_guess" && (
+                {geoStatus === "coarse" && (
                   <p className="text-xs text-amber-700">
-                    Guessed city from your network — enter pincode to confirm
+                    Location isn’t precise enough — enter your pincode so we can fill the right city
                   </p>
                 )}
                 {geoStatus === "verify_pin" && (

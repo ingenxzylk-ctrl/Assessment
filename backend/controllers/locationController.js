@@ -27,7 +27,9 @@ export async function postReverseGeocode(req, res) {
       ? 400
       : result.reason === "not_found"
         ? 404
-        : 502;
+        : result.reason === "low_accuracy"
+          ? 200
+          : 502;
   return res.status(status).json(result);
 }
 

@@ -6,6 +6,7 @@ import {
 import { parseGoogleGeocodeResult } from "../utils/googleGeocode.js";
 import { isPrivateIp, normalizeClientIp } from "../utils/clientIp.js";
 import { parseIpLocationPayload } from "../utils/ipLocation.js";
+import { locationFillLevel, reconcilePinWithPlace } from "../utils/geoPin.js";
 
 const PIN_TTL_MS = 24 * 60 * 60 * 1000;
 const GEO_TTL_MS = 6 * 60 * 60 * 1000;
@@ -110,9 +111,9 @@ function roundCoord(n) {
 
 function pickLocalityCity(address = {}) {
   return String(
-    address.city ||
+    address.state_district ||
+      address.city ||
       address.town ||
-      address.state_district ||
       address.county ||
       address.village ||
       address.municipality ||
@@ -172,48 +173,24 @@ async function reverseNominatimPlace(latitude, longitude) {
     pincode =
       extractIndianPincode(detail?.address?.postcode) ||
       extractIndianPincode(detail?.extratags?.postcode) ||
-      extractIndianPincode(detail?.display_name);
+      "";
   } catch {
     pincode = "";
   }
   return { source: "osm", pincode, city, state };
 }
 
-async function withIndiaPost(place) {
-  const pin = isValidIndianPincode(place.pincode) ? place.pincode : "";
-  if (pin) {
-    const official = await lookupPincode(pin);
-    if (official.ok) {
-      return {
-        ok: true,
-        fill: "pin",
-        pincode: official.pincode,
-        city: official.city || place.city || "",
-        state: official.state || place.state || "",
-        pinGuess: true,
-        source: place.source,
-      };
-    }
-  }
-  if (!place.city && !place.state && !pin) {
-    return { ok: false, reason: "not_found" };
-  }
-  return {
-    ok: true,
-    fill: pin ? "pin" : "city",
-    pincode: pin,
-    city: place.city || "",
-    state: place.state || "",
-    pinGuess: Boolean(pin),
-    source: place.source,
-  };
+async function withIndiaPost(place, { allowPin = true } = {}) {
+  const pin = allowPin && isValidIndianPincode(place.pincode) ? place.pincode : "";
+  const official = pin ? await lookupPincode(pin) : null;
+  return reconcilePinWithPlace(place, official, { allowPin: Boolean(pin) });
 }
 
 /**
- * Fill city/state from reverse geocode. Pincode is best-effort and should be verified.
- * Google Geocoding is used when GOOGLE_MAPS_GEOCODING_KEY is set; otherwise OSM.
+ * Fill city/state from reverse geocode. Pincode is kept only when it matches that city
+ * and GPS accuracy is tight enough. Coarse/IP-level readings are not auto-filled.
  */
-export async function reverseGeocode(lat, lng) {
+export async function reverseGeocode(lat, lng, { accuracy } = {}) {
   const latitude = Number(lat);
   const longitude = Number(lng);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
@@ -223,9 +200,16 @@ export async function reverseGeocode(lat, lng) {
     return { ok: false, reason: "outside_india" };
   }
 
-  const key = `v6:${roundCoord(latitude)},${roundCoord(longitude)}:${googleGeocodingKey() ? "g" : "o"}`;
+  const level = locationFillLevel(accuracy);
+  const key = `v7:${roundCoord(latitude)},${roundCoord(longitude)}:${googleGeocodingKey() ? "g" : "o"}:${level}`;
   const cached = cacheGet(geoCache, key, GEO_TTL_MS);
   if (cached) return cached;
+
+  if (level === "none") {
+    const skip = { ok: false, reason: "low_accuracy" };
+    cacheSet(geoCache, key, skip);
+    return skip;
+  }
 
   try {
     let place = null;
@@ -241,7 +225,7 @@ export async function reverseGeocode(lat, lng) {
     if (!place?.city && !place?.state && !place?.pincode) {
       place = await reverseNominatimPlace(latitude, longitude);
     }
-    const result = await withIndiaPost(place || {});
+    const result = await withIndiaPost(place || {}, { allowPin: level === "pin" });
     cacheSet(geoCache, key, result);
     return result;
   } catch (err) {
