@@ -1,4 +1,4 @@
-import { nearestOsmPin, pinFromOsmTags } from "./geoPin.js";
+import { nearestOsmPin, pinFromOsmTags, placesOverlap } from "./geoPin.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -17,5 +17,14 @@ const pin = nearestOsmPin(
   77.7567
 );
 assert(pin === "627002", `nearest pin should be 627002, got ${pin}`);
+
+assert(
+  placesOverlap(["Palayamkottai", "Tirunelveli"], ["Tirunelveli"]),
+  "Tirunelveli GPS should match Tirunelveli PIN"
+);
+assert(
+  !placesOverlap(["Tirunelveli", "Palayamkottai"], ["Villupuram"]),
+  "Tirunelveli GPS must not accept Villupuram PIN"
+);
 
 console.log("ok geoPin nearest postal code");

@@ -35,3 +35,20 @@ export function nearestOsmPin(elements = [], lat, lng) {
   }
   return best?.pin || "";
 }
+
+export function normalizePlaceName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/tamil\s*nadu/g, "")
+    .replace(/[^a-z]/g, "")
+    .replace(/(district|nagar|city|corporation|india)$/g, "");
+}
+
+/** True when GPS locality and India Post place names refer to the same area. */
+export function placesOverlap(hints = [], places = []) {
+  const hay = hints.map(normalizePlaceName).filter((s) => s.length >= 5);
+  const needles = places.map(normalizePlaceName).filter((s) => s.length >= 5);
+  if (!hay.length || !needles.length) return false;
+  return needles.some((n) => hay.some((h) => h.includes(n) || n.includes(h)));
+}

@@ -401,17 +401,20 @@ export default function Section1AboutMe({ onComplete, onBack }) {
       const pos = await readDevicePosition();
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
-      let data = await reverseGeocodeLocation({ lat, lng });
-      if (!isUsableGeoResult(data)) {
+      const accuracy = pos.coords.accuracy;
+      let data = await reverseGeocodeLocation({ lat, lng, accuracy });
+      if (!isUsableGeoResult(data) && data?.reason !== "inaccurate" && data?.reason !== "mismatch") {
         data = await reverseGeocodeBrowserFallback({ lat, lng });
       }
       if (!isUsableGeoResult(data)) {
         setGeoStatus(
           data?.reason === "outside_india"
             ? "outside"
-            : data?.reason === "not_found"
-              ? "no_pin"
-              : "error"
+            : data?.reason === "inaccurate"
+              ? "inaccurate"
+              : data?.reason === "not_found" || data?.reason === "mismatch"
+                ? "no_pin"
+                : "error"
         );
         return;
       }
@@ -756,9 +759,9 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                     Location permission denied — enter pincode instead
                   </p>
                 )}
-                {geoStatus === "timeout" && (
+                {geoStatus === "inaccurate" && (
                   <p className="text-xs text-gray-500">
-                    Location timed out — turn on GPS and try again, or enter pincode
+                    GPS is not precise yet — turn on location, step outdoors, and try again, or enter pincode
                   </p>
                 )}
                 {geoStatus === "insecure" && (

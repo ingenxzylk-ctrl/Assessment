@@ -3,7 +3,7 @@ import {
   normalizeIndianPincode,
   extractIndianPincode,
 } from "../utils/pincode.js";
-import { nearestOsmPin } from "../utils/geoPin.js";
+import { nearestOsmPin, placesOverlap } from "../utils/geoPin.js";
 
 const PIN_TTL_MS = 24 * 60 * 60 * 1000;
 const GEO_TTL_MS = 6 * 60 * 60 * 1000;
@@ -130,6 +130,8 @@ async function enrichWithPostal(result) {
       pincode: official.pincode,
       city: official.city || "",
       state: official.state || result.state || "",
+      district: official.district || "",
+      postOffice: official.postOffice || "",
       source: "gps",
     };
   }
@@ -142,8 +144,23 @@ async function enrichWithPostal(result) {
   };
 }
 
+function hintsFromNominatim(data = {}) {
+  const address = data.address || {};
+  return [
+    address.city,
+    address.town,
+    address.village,
+    address.suburb,
+    address.county,
+    address.state_district,
+    address.municipality,
+    address.city_district,
+  ].filter(Boolean);
+}
+
 async function reverseNominatim(latitude, longitude) {
-  for (const zoom of [18, 16]) {
+  let hints = [];
+  for (const zoom of [18, 16, 12]) {
     const url = `${NOMINATIM_URL}?format=jsonv2&lat=${encodeURIComponent(
       latitude
     )}&lon=${encodeURIComponent(
@@ -155,13 +172,16 @@ async function reverseNominatim(latitude, longitude) {
     });
     const address = data?.address || {};
     const extras = data?.extratags || {};
+    hints = [...hints, ...hintsFromNominatim(data)];
     const pin =
       extractIndianPincode(address.postcode) ||
       extractIndianPincode(extras.postcode) ||
       extractIndianPincode(data?.display_name);
-    if (isValidIndianPincode(pin)) return pinOnly(pin, { state: address.state || "" });
+    if (isValidIndianPincode(pin)) {
+      return { ...pinOnly(pin, { state: address.state || "" }), hints };
+    }
   }
-  return { ok: false, reason: "not_found" };
+  return { ok: false, reason: "not_found", hints };
 }
 
 async function reversePhoton(latitude, longitude) {
@@ -211,7 +231,7 @@ async function reverseBigDataCloud(latitude, longitude) {
  * Browser lat/lng → Indian PIN, then official India Post city/state.
  * Never returns a city without a validated PIN (that filled the wrong place).
  */
-export async function reverseGeocode(lat, lng) {
+export async function reverseGeocode(lat, lng, { accuracy } = {}) {
   const latitude = Number(lat);
   const longitude = Number(lng);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
@@ -220,17 +240,25 @@ export async function reverseGeocode(lat, lng) {
   if (latitude < 6 || latitude > 38 || longitude < 68 || longitude > 98) {
     return { ok: false, reason: "outside_india" };
   }
+  const acc = Number(accuracy);
+  if (Number.isFinite(acc) && acc > 8000) {
+    return { ok: false, reason: "inaccurate" };
+  }
 
-  const key = `v3:${roundCoord(latitude)},${roundCoord(longitude)}`;
+  const key = `v4:${roundCoord(latitude)},${roundCoord(longitude)}`;
   const cached = cacheGet(geoCache, key, GEO_TTL_MS);
   if (cached) return cached;
 
   const providers = [reverseNominatim, reversePhoton, reverseOverpass, reverseBigDataCloud];
   let last = { ok: false, reason: "not_found" };
+  let hints = [];
 
   for (const provider of providers) {
     try {
       const raw = await provider(latitude, longitude);
+      if (Array.isArray(raw?.hints) && raw.hints.length) {
+        hints = [...hints, ...raw.hints];
+      }
       if (raw?.reason === "outside_india") {
         cacheSet(geoCache, key, raw);
         return raw;
@@ -240,10 +268,19 @@ export async function reverseGeocode(lat, lng) {
         continue;
       }
       const result = await enrichWithPostal(raw);
-      if (isValidIndianPincode(result.pincode)) {
-        cacheSet(geoCache, key, result);
-        return result;
+      if (!isValidIndianPincode(result.pincode)) {
+        last = result;
+        continue;
       }
+      if (
+        hints.length &&
+        !placesOverlap(hints, [result.city, result.district, result.postOffice])
+      ) {
+        last = { ok: false, reason: "mismatch", pincode: result.pincode };
+        continue;
+      }
+      cacheSet(geoCache, key, result);
+      return result;
     } catch (err) {
       console.warn("[geo] reverse geocode failed:", err?.message || err);
       last = { ok: false, reason: "upstream_error" };

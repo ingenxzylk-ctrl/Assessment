@@ -142,12 +142,12 @@ export async function lookupPincode(pincode) {
   return data;
 }
 
-export async function reverseGeocodeLocation({ lat, lng }) {
+export async function reverseGeocodeLocation({ lat, lng, accuracy }) {
   try {
     const res = await fetch(`${API_URL}/geo/reverse`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lat, lng }),
+      body: JSON.stringify({ lat, lng, accuracy }),
     });
     let data = {};
     try {

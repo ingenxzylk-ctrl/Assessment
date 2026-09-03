@@ -3,7 +3,16 @@ import {
   isValidIndianPincode,
 } from "./pincode";
 
-function getCurrentPosition(options) {
+/** Reject network/IP guesses. Tirunelveli vs Villupuram is hundreds of km. */
+const GOOD_ACCURACY_M = 100;
+const MAX_ACCURACY_M = 2000;
+const GPS_WAIT_MS = 22000;
+
+/**
+ * Wait for a real GPS lock. Do not fall back to coarse network location —
+ * that is what filled Villupuram for a Tirunelveli user.
+ */
+export function readDevicePosition() {
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       const err = new Error("Geolocation is not supported");
@@ -11,28 +20,48 @@ function getCurrentPosition(options) {
       reject(err);
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, options);
-  });
-}
 
-/**
- * Fresh GPS first — a stale Wi‑Fi fix is the usual cause of the wrong city.
- */
-export async function readDevicePosition() {
-  const attempts = [
-    { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 },
-    { enableHighAccuracy: false, timeout: 20000, maximumAge: 15000 },
-  ];
-  let lastErr;
-  for (const options of attempts) {
-    try {
-      return await getCurrentPosition(options);
-    } catch (err) {
-      lastErr = err;
-      if (err?.code === 1) throw err;
-    }
-  }
-  throw lastErr || new Error("Location unavailable");
+    let best = null;
+    let settled = false;
+    let watchId = null;
+    let timer = null;
+
+    const stop = () => {
+      if (watchId != null && navigator.geolocation.clearWatch) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+      if (timer) clearTimeout(timer);
+    };
+
+    const finish = (pos, err) => {
+      if (settled) return;
+      settled = true;
+      stop();
+      if (pos && Number(pos.coords.accuracy) <= MAX_ACCURACY_M) {
+        resolve(pos);
+        return;
+      }
+      const fail = err || new Error("inaccurate");
+      if (!fail.code) fail.code = "inaccurate";
+      fail.accuracy = pos?.coords?.accuracy ?? best?.coords?.accuracy;
+      reject(fail);
+    };
+
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const acc = Number(pos.coords.accuracy);
+        if (!Number.isFinite(acc)) return;
+        if (!best || acc < Number(best.coords.accuracy)) best = pos;
+        if (acc <= GOOD_ACCURACY_M) finish(pos);
+      },
+      (err) => {
+        if (err?.code === 1) finish(null, err);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: GPS_WAIT_MS }
+    );
+
+    timer = setTimeout(() => finish(best), GPS_WAIT_MS);
+  });
 }
 
 export function geolocationBlockReason() {
@@ -44,6 +73,7 @@ export function geolocationBlockReason() {
 export function geolocationErrorStatus(err) {
   if (err?.code === 1) return "denied";
   if (err?.code === 3) return "timeout";
+  if (err?.code === "inaccurate") return "inaccurate";
   return "error";
 }
 
@@ -57,19 +87,6 @@ async function pinFromPhoton(lat, lng) {
   return extractIndianPincode(props.postcode);
 }
 
-async function pinFromBigDataCloud(lat, lng) {
-  const res = await fetch(
-    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(
-      lat
-    )}&longitude=${encodeURIComponent(lng)}&localityLanguage=en`
-  );
-  if (!res.ok) return { pin: "", outside: false };
-  const data = await res.json();
-  const country = String(data?.countryCode || "").toUpperCase();
-  if (country && country !== "IN") return { pin: "", outside: true };
-  return { pin: extractIndianPincode(data?.postcode), outside: false };
-}
-
 /**
  * Browser fallback used only when the backend did not return a valid PIN.
  * City/state are filled later from India Post using that PIN.
@@ -77,15 +94,6 @@ async function pinFromBigDataCloud(lat, lng) {
 export async function reverseGeocodeBrowserFallback({ lat, lng }) {
   try {
     const pin = await pinFromPhoton(lat, lng);
-    if (isValidIndianPincode(pin)) {
-      return { ok: true, pincode: pin, city: "", state: "", source: "gps" };
-    }
-  } catch {
-    /* try next provider */
-  }
-  try {
-    const { pin, outside } = await pinFromBigDataCloud(lat, lng);
-    if (outside) return { ok: false, reason: "outside_india" };
     if (isValidIndianPincode(pin)) {
       return { ok: true, pincode: pin, city: "", state: "", source: "gps" };
     }
