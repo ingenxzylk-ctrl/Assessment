@@ -1412,6 +1412,113 @@ function RoadmapTimeline({ roadmap, resultMonths }) {
   );
 }
 
+function Stage5SpecialistIcon({ color }) {
+  return (
+    <svg viewBox="0 0 64 64" className="h-11 w-11" aria-hidden="true">
+      <ellipse cx="32" cy="11" rx="5.2" ry="4.4" fill={color} />
+      <path
+        d="M19.5 26c.6-9 5.8-15.2 12.5-15.2S43.9 17 44.5 26c0 1.4-.4 3.2-1.2 4.4-1.2-5.6-5.2-9-11.3-9s-10.1 3.4-11.3 9c-.8-1.2-1.2-3-1.2-4.4z"
+        fill={color}
+      />
+      <circle cx="32" cy="23" r="8" fill={color} />
+      <path d="M17 58c1.4-14.5 7.6-21 15-21s13.6 6.5 15 21v3H17v-3z" fill={color} />
+      <path
+        d="M23 39.5c1 10.5 4.4 16 9 16"
+        fill="none"
+        stroke={color}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <path
+        d="M41 39.5h3.2"
+        fill="none"
+        stroke={color}
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <circle cx="46.2" cy="39.5" r="3.1" fill={color} />
+    </svg>
+  );
+}
+
+function Stage5KitIcon({ color }) {
+  const inner = color === "#6b7280" ? "#e5e7eb" : "#e7f0e3";
+  return (
+    <svg viewBox="0 0 64 64" className="h-11 w-11" aria-hidden="true">
+      <rect x="20" y="14" width="8" height="13" rx="1.6" fill={color} />
+      <rect x="21.6" y="11" width="4.8" height="4.2" rx="1" fill={color} opacity="0.7" />
+      <rect x="36" y="16" width="8" height="11" rx="1.6" fill={color} />
+      <rect x="37.6" y="13" width="4.8" height="4.2" rx="1" fill={color} opacity="0.7" />
+      <rect x="12" y="26" width="40" height="26" rx="4" fill={color} />
+      <rect x="18" y="32" width="7" height="13" rx="1.4" fill={inner} />
+      <rect x="28.5" y="32" width="7" height="13" rx="1.4" fill={inner} />
+      <path
+        d="M46 35.5v11M40.5 41h11"
+        fill="none"
+        stroke={inner}
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function Stage5PathPicker({ selected, onSelectConsult, onSelectKit }) {
+  const consultSelected = selected !== "kit";
+  const consultColor = consultSelected ? "#2f6b32" : "#6b7280";
+  const kitColor = selected === "kit" ? "#2f6b32" : "#6b7280";
+  return (
+    <div className="grid grid-cols-2 gap-3 pt-3">
+      <button
+        type="button"
+        onClick={onSelectConsult}
+        aria-pressed={consultSelected}
+        className={`relative flex flex-col items-center text-center rounded-2xl px-2.5 pt-6 pb-4 min-h-[176px] cursor-pointer transition-all ${
+          consultSelected
+            ? "bg-[#f3f8f0] border border-[#3d6b2f] shadow-sm"
+            : "bg-white border border-gray-200 hover:border-gray-300"
+        }`}
+      >
+        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#2f6b32] px-2.5 py-0.5 text-[9px] font-bold tracking-wide text-white">
+          Recommended for Stage 5
+        </span>
+        <span
+          className={`mt-1 flex h-16 w-16 items-center justify-center rounded-full ${
+            consultSelected ? "bg-[#dcead4]" : "bg-gray-100"
+          }`}
+        >
+          <Stage5SpecialistIcon color={consultColor} />
+        </span>
+        <span className="mt-3 text-[13px] font-bold leading-snug text-gray-900">
+          Talk to a hair specialist
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={onSelectKit}
+        aria-pressed={selected === "kit"}
+        className={`flex flex-col items-center text-center rounded-2xl px-2.5 pt-6 pb-4 min-h-[176px] cursor-pointer transition-all ${
+          selected === "kit"
+            ? "bg-[#f3f8f0] border border-[#3d6b2f] shadow-sm"
+            : "bg-white border border-gray-200 hover:border-gray-300"
+        }`}
+      >
+        <span
+          className={`mt-1 flex h-16 w-16 items-center justify-center rounded-full ${
+            selected === "kit" ? "bg-[#dcead4]" : "bg-gray-100"
+          }`}
+        >
+          <Stage5KitIcon color={kitColor} />
+        </span>
+        <span className="mt-3 text-[13px] font-bold leading-snug text-gray-900">
+          Start with a kit
+        </span>
+      </button>
+    </div>
+  );
+}
+
 export default function Result() {
   const { state, resetQuiz, prevStep, setLoading, setError, restorePhotosFromIdb } = useQuiz();
   const { addToCart, cartCount, setIsCartOpen } = useCart();
@@ -1422,6 +1529,7 @@ export default function Result() {
   const [expandedProductId, setExpandedProductId] = useState(null);
   const [drawerLanguage, setDrawerLanguage] = useState("english");
   const [showStickyBar, setShowStickyBar] = useState(false);
+  const [stage5Path, setStage5Path] = useState("consult");
   const rootCausesRef = useRef(null);
   const rawAnalysis = state?.scalpAnalysis || {};
   const gender = state?.aboutMe?.gender || "male";
@@ -1495,6 +1603,7 @@ useEffect(() => {
     (gender === "female" && aiPredictedStageNumber === "patchy-bald");
   const isMaleStage5 =
     gender === "male" && String(aiPredictedStageNumber) === "5";
+  const showStage5KitDetails = !isMaleStage5 || stage5Path === "kit";
 
   const rootCauses = useMemo(() => buildRootCauses(state, hasDandruff, isFemale), [state, hasDandruff, isFemale]);
   const rootCauseTags = buildRootCauseTags(state, hasDandruff);
@@ -2206,6 +2315,18 @@ const testimonial =
               )}
             </div>
 
+            {isMaleStage5 && (
+              <Stage5PathPicker
+                selected={stage5Path}
+                onSelectConsult={() => {
+                  setStage5Path("consult");
+                  handleScheduleConsultation();
+                }}
+                onSelectKit={() => setStage5Path("kit")}
+              />
+            )}
+
+            {showStage5KitDetails && (
             <div className="space-y-3">
               {coreKitProducts.map((product, index) => {
                 const isExpanded = expandedProductId === product.id;
@@ -2280,10 +2401,11 @@ const testimonial =
                 );
               })}
             </div>
+            )}
           </div>
         )}
 
-        {!requiresDoctorConsultation && (
+        {!requiresDoctorConsultation && showStage5KitDetails && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
             <div className="flex justify-center mb-4">
               <span className="text-[11px] font-bold uppercase tracking-wider border-2 border-[#064e3b] text-[#064e3b] rounded-full px-4 py-1">
@@ -2471,6 +2593,18 @@ money back guarantee contact our customer support</p>
               )}
             </div>
 
+            {isMaleStage5 && (
+              <Stage5PathPicker
+                selected={stage5Path}
+                onSelectConsult={() => {
+                  setStage5Path("consult");
+                  handleScheduleConsultation();
+                }}
+                onSelectKit={() => setStage5Path("kit")}
+              />
+            )}
+
+            {showStage5KitDetails && (
             <div className="space-y-3">
               {coreKitProducts.map((product, index) => {
                 const isExpanded = expandedProductId === product.id;
@@ -2545,11 +2679,10 @@ money back guarantee contact our customer support</p>
                 );
               })}
             </div>
-
-            
+            )}
 
             <div className="border-t border-gray-100 pt-4 flex flex-col gap-3">
-              {recommendedBundle && !requiresDoctorConsultation ? (
+              {recommendedBundle && !requiresDoctorConsultation && showStage5KitDetails ? (
                 <>
                   <div className="flex flex-col gap-1 text-left">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wide uppercase">Your treatment plan price</span>
@@ -2583,23 +2716,14 @@ money back guarantee contact our customer support</p>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
-                  {isMaleStage5 && (
-                    <button
-                      type="button"
-                      onClick={handleScheduleConsultation}
-                      className="w-full bg-white hover:bg-[#f4faf4] text-[#1b5e20] font-bold text-sm py-3.5 px-5 rounded-lg tracking-wide cursor-pointer transition-all border-2 border-[#2e7d32]"
-                    >
-                      Schedule Consultation
-                    </button>
-                  )}
                 </>
               ) : (
                 <button
                   type="button"
-                  onClick={requiresDoctorConsultation ? handleScheduleConsultation : handleBuyNow}
+                  onClick={requiresDoctorConsultation || isMaleStage5 ? handleScheduleConsultation : handleBuyNow}
                   className="w-full bg-gradient-to-r from-[#2e7d32] to-[#1b5e20] hover:from-[#1b5e20] hover:to-[#0c3810] text-white font-bold text-sm py-3.5 rounded-lg tracking-wide cursor-pointer shadow-md transition-all"
                 >
-                  {requiresDoctorConsultation ? "Schedule Consultation" : "Continue"}
+                  {requiresDoctorConsultation || isMaleStage5 ? "Schedule Consultation" : "Continue"}
                 </button>
               )}
 
@@ -2635,7 +2759,7 @@ money back guarantee contact our customer support</p>
 
       <div className={`md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.08)] transform transition-transform duration-300 ease-in-out ${showStickyBar ? "translate-y-0" : "translate-y-full"}`}>
         <div className="max-w-lg mx-auto px-4 py-3 flex flex-col gap-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {recommendedBundle && !requiresDoctorConsultation ? (
+          {recommendedBundle && !requiresDoctorConsultation && showStage5KitDetails ? (
             <>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[10px] font-medium text-gray-500 tracking-wide uppercase">Your treatment plan price</span>
@@ -2669,23 +2793,14 @@ money back guarantee contact our customer support</p>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-              {isMaleStage5 && (
-                <button
-                  type="button"
-                  onClick={handleScheduleConsultation}
-                  className="w-full bg-white hover:bg-[#f4faf4] text-[#1b5e20] font-bold text-sm py-3 px-5 rounded-lg tracking-wide cursor-pointer transition-all border-2 border-[#2e7d32]"
-                >
-                  Schedule Consultation
-                </button>
-              )}
             </>
           ) : (
             <button
               type="button"
-              onClick={requiresDoctorConsultation ? handleScheduleConsultation : handleBuyNow}
+              onClick={requiresDoctorConsultation || isMaleStage5 ? handleScheduleConsultation : handleBuyNow}
               className="w-full bg-gradient-to-r from-[#2e7d32] to-[#1b5e20] hover:from-[#1b5e20] hover:to-[#0c3810] text-white font-bold text-sm py-3.5 rounded-lg tracking-wide cursor-pointer shadow-md transition-all"
             >
-              {requiresDoctorConsultation ? "Schedule Consultation" : "Continue"}
+              {requiresDoctorConsultation || isMaleStage5 ? "Schedule Consultation" : "Continue"}
             </button>
           )}
 
