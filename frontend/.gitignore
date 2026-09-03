@@ -1,0 +1,6 @@
+# Local overrides — use for machine-specific VITE_* (never commit)
+.env.local
+.env.*.local
+
+# Build output
+dist
