@@ -1,6 +1,7 @@
 import {
   isValidIndianPincode,
   normalizeIndianPincode,
+  extractIndianPincode,
 } from "./pincode.js";
 
 function assert(cond, msg) {
@@ -16,5 +17,9 @@ assert(normalizeIndianPincode("6000011") === "600001", "extra digits sliced");
 assert(isValidIndianPincode("600001"), "chennai pin");
 assert(isValidIndianPincode("720057"), "valid first digit 7");
 assert(!isValidIndianPincode(""), "empty");
+
+assert(extractIndianPincode("600001") === "600001", "plain pin");
+assert(extractIndianPincode("Chennai 600 001 Tamil Nadu") === "600001", "spaced pin in address");
+assert(extractIndianPincode("No postcode here") === "", "no pin");
 
 console.log("ok pincode validation");

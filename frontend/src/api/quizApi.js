@@ -143,18 +143,22 @@ export async function lookupPincode(pincode) {
 }
 
 export async function reverseGeocodeLocation({ lat, lng }) {
-  const res = await fetch(`${API_URL}/geo/reverse`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ lat, lng }),
-  });
-  let data = {};
   try {
-    data = await res.json();
+    const res = await fetch(`${API_URL}/geo/reverse`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat, lng }),
+    });
+    let data = {};
+    try {
+      data = await res.json();
+    } catch {
+      data = { ok: false, reason: "upstream_error" };
+    }
+    return data;
   } catch {
-    data = { ok: false, reason: "upstream_error" };
+    return { ok: false, reason: "network" };
   }
-  return data;
 }
 
 export async function markCheckoutClicked({ reportId, aboutMe } = {}) {

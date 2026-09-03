@@ -8,6 +8,13 @@ import {
   normalizeIndianPincode,
 } from "../../utils/pincode";
 import { lookupPincode, reverseGeocodeLocation } from "../../api/quizApi";
+import {
+  geolocationBlockReason,
+  geolocationErrorStatus,
+  isUsableGeoResult,
+  readDevicePosition,
+  reverseGeocodeBrowserFallback,
+} from "../../utils/geolocation";
 
 const STEPS = ["name", "contact", "age", "gender"];
 
@@ -383,42 +390,38 @@ export default function Section1AboutMe({ onComplete, onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localForm.pincode]);
 
-  const handleUseLocation = () => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setGeoStatus("error");
+  const handleUseLocation = async () => {
+    const blocked = geolocationBlockReason();
+    if (blocked) {
+      setGeoStatus(blocked);
       return;
     }
     setGeoStatus("locating");
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const data = await reverseGeocodeLocation({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-          if (!data?.ok) {
-            setGeoStatus("error");
-            return;
-          }
-          lastLookedUpPin.current = data.pincode || "";
-          if (data.pincode && isValidIndianPincode(data.pincode)) {
-            setPinLookup("found");
-          }
-          handleChange({
-            pincode: data.pincode || localForm.pincode,
-            city: data.city || localForm.city,
-            state: data.state || localForm.state,
-          });
-          setGeoStatus("idle");
-        } catch {
-          setGeoStatus("error");
-        }
-      },
-      (err) => {
-        setGeoStatus(err?.code === 1 ? "denied" : "error");
-      },
-      { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 }
-    );
+    try {
+      const pos = await readDevicePosition();
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      let data = await reverseGeocodeLocation({ lat, lng });
+      if (!isUsableGeoResult(data)) {
+        data = await reverseGeocodeBrowserFallback({ lat, lng });
+      }
+      if (!isUsableGeoResult(data)) {
+        setGeoStatus(data?.reason === "outside_india" ? "outside" : "error");
+        return;
+      }
+      lastLookedUpPin.current = data.pincode || "";
+      if (data.pincode && isValidIndianPincode(data.pincode)) {
+        setPinLookup("found");
+      }
+      handleChange({
+        pincode: data.pincode || localForm.pincode,
+        city: data.city || localForm.city,
+        state: data.state || localForm.state,
+      });
+      setGeoStatus("idle");
+    } catch (err) {
+      setGeoStatus(geolocationErrorStatus(err));
+    }
   };
 
   const currentStep = STEPS[step];
@@ -738,6 +741,26 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                 {geoStatus === "denied" && (
                   <p className="text-xs text-gray-500">
                     Location permission denied — enter pincode instead
+                  </p>
+                )}
+                {geoStatus === "timeout" && (
+                  <p className="text-xs text-gray-500">
+                    Location timed out — turn on GPS and try again, or enter pincode
+                  </p>
+                )}
+                {geoStatus === "insecure" && (
+                  <p className="text-xs text-gray-500">
+                    Location needs a secure page (https) — enter pincode instead
+                  </p>
+                )}
+                {geoStatus === "unsupported" && (
+                  <p className="text-xs text-gray-500">
+                    This browser can’t share location — enter pincode instead
+                  </p>
+                )}
+                {geoStatus === "outside" && (
+                  <p className="text-xs text-gray-500">
+                    Location is outside India — enter pincode instead
                   </p>
                 )}
                 {geoStatus === "error" && (
