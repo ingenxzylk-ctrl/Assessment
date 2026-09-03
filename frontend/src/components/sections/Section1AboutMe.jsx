@@ -11,9 +11,7 @@ import { lookupPincode, reverseGeocodeLocation } from "../../api/quizApi";
 import {
   geolocationBlockReason,
   geolocationErrorStatus,
-  isUsableGeoResult,
   readDevicePosition,
-  reverseGeocodeBrowserFallback,
 } from "../../utils/geolocation";
 
 const STEPS = ["name", "contact", "age", "gender"];
@@ -402,39 +400,38 @@ export default function Section1AboutMe({ onComplete, onBack }) {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       const accuracy = pos.coords.accuracy;
-      let data = await reverseGeocodeLocation({ lat, lng, accuracy });
-      if (!isUsableGeoResult(data) && data?.reason !== "inaccurate" && data?.reason !== "mismatch") {
-        data = await reverseGeocodeBrowserFallback({ lat, lng });
-      }
-      if (!isUsableGeoResult(data)) {
-        setGeoStatus(
-          data?.reason === "outside_india"
-            ? "outside"
-            : data?.reason === "inaccurate"
-              ? "inaccurate"
-              : data?.reason === "not_found" || data?.reason === "mismatch"
-                ? "no_pin"
-                : "error"
-        );
+      const data = await reverseGeocodeLocation({ lat, lng, accuracy });
+      if (data?.reason === "outside_india") {
+        setGeoStatus("outside");
         return;
       }
-      let city = data.city || "";
-      let state = data.state || "";
-      if (!city || !state) {
-        const official = await lookupPincode(data.pincode);
-        if (official?.ok) {
-          city = official.city || city;
-          state = official.state || state;
-        }
+      if (!data?.ok) {
+        setGeoStatus(data?.reason === "not_found" ? "no_pin" : "error");
+        return;
       }
-      lastLookedUpPin.current = data.pincode;
-      setPinLookup("found");
-      handleChange({
-        pincode: data.pincode,
-        city,
-        state,
-      });
-      setGeoStatus("idle");
+      if (data.fill === "pin" && isValidIndianPincode(data.pincode)) {
+        lastLookedUpPin.current = data.pincode;
+        setPinLookup("found");
+        handleChange({
+          pincode: data.pincode,
+          city: data.city || "",
+          state: data.state || "",
+        });
+        setGeoStatus("idle");
+        return;
+      }
+      if (data.fill === "city" && (data.city || data.state)) {
+        lastLookedUpPin.current = "";
+        setPinLookup("idle");
+        handleChange({
+          pincode: "",
+          city: data.city || "",
+          state: data.state || "",
+        });
+        setGeoStatus("enter_pin");
+        return;
+      }
+      setGeoStatus("coarse");
     } catch (err) {
       setGeoStatus(geolocationErrorStatus(err));
     }
@@ -759,9 +756,9 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                     Location permission denied — enter pincode instead
                   </p>
                 )}
-                {geoStatus === "inaccurate" && (
+                {geoStatus === "timeout" && (
                   <p className="text-xs text-gray-500">
-                    GPS is not precise yet — turn on location, step outdoors, and try again, or enter pincode
+                    Location timed out — turn on GPS and try again, or enter pincode
                   </p>
                 )}
                 {geoStatus === "insecure" && (
@@ -779,14 +776,24 @@ export default function Section1AboutMe({ onComplete, onBack }) {
                     Location is outside India — enter pincode instead
                   </p>
                 )}
+                {geoStatus === "enter_pin" && (
+                  <p className="text-xs text-[#064e3b]">
+                    City filled. Enter your 6-digit pincode to confirm the area
+                  </p>
+                )}
+                {geoStatus === "coarse" && (
+                  <p className="text-xs text-gray-500">
+                    This device can only guess your town — enter pincode for the exact area
+                  </p>
+                )}
                 {geoStatus === "no_pin" && (
                   <p className="text-xs text-gray-500">
-                    Couldn’t find a pincode for this spot — enter it instead
+                    Couldn’t match this spot — enter pincode instead
                   </p>
                 )}
                 {geoStatus === "error" && (
                   <p className="text-xs text-gray-500">
-                    Couldn’t read location — enter pincode instead
+                    Couldn’t read location — allow permission, turn on GPS, and try again, or enter pincode
                   </p>
                 )}
                 {errors.pincode && pinLookup !== "invalid" && (

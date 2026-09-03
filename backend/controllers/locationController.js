@@ -22,11 +22,9 @@ export async function postReverseGeocode(req, res) {
   const result = await reverseGeocode(lat, lng, { accuracy });
   const status = result.ok
     ? 200
-    : result.reason === "invalid_coords" ||
-        result.reason === "outside_india" ||
-        result.reason === "inaccurate"
+    : result.reason === "invalid_coords" || result.reason === "outside_india"
       ? 400
-      : result.reason === "not_found" || result.reason === "mismatch"
+      : result.reason === "not_found"
         ? 404
         : 502;
   return res.status(status).json(result);

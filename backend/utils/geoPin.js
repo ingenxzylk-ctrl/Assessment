@@ -45,6 +45,15 @@ export function normalizePlaceName(value) {
     .replace(/(district|nagar|city|corporation|india)$/g, "");
 }
 
+/** What the UI may auto-fill from a GPS reading. */
+export function locationFillLevel(accuracy) {
+  const acc = Number(accuracy);
+  if (!Number.isFinite(acc) || acc <= 0) return "none";
+  if (acc <= 500) return "pin";
+  if (acc <= 4000) return "city";
+  return "none";
+}
+
 /** True when GPS locality and India Post place names refer to the same area. */
 export function placesOverlap(hints = [], places = []) {
   const hay = hints.map(normalizePlaceName).filter((s) => s.length >= 5);

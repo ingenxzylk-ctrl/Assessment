@@ -1,4 +1,4 @@
-import { nearestOsmPin, pinFromOsmTags, placesOverlap } from "./geoPin.js";
+import { nearestOsmPin, pinFromOsmTags, placesOverlap, locationFillLevel } from "./geoPin.js";
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -26,5 +26,10 @@ assert(
   !placesOverlap(["Tirunelveli", "Palayamkottai"], ["Villupuram"]),
   "Tirunelveli GPS must not accept Villupuram PIN"
 );
+
+assert(locationFillLevel(40) === "pin", "GPS lock can fill pincode");
+assert(locationFillLevel(1200) === "city", "cell accuracy can fill city only");
+assert(locationFillLevel(15000) === "none", "desktop/network guess must not auto-fill");
+assert(locationFillLevel(undefined) === "none", "missing accuracy must not auto-fill");
 
 console.log("ok geoPin nearest postal code");
