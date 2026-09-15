@@ -64,8 +64,8 @@ export const ZYLK_PRODUCTS = {
     id: "zylk-hair-growth-serum",
     name: "Hair Growth Serum",
     subtitle: "For Hair Density",
-    price: 199,
-    originalPrice: 299,
+    price: 399,
+    originalPrice: 399,
     imgUrl: "/products/serum.jpg",
   },
   "zylk-advanced-hair-serum": {
@@ -168,9 +168,8 @@ export const ZYLK_PRODUCTS = {
 
 export const WOMEN_ADVANCE_PRODUCT_IDS = [
   "zylk-rosemary-oil",
-  "zylk-rosemary-mist",
   "zylk-dermaroller",
-  "zylk-scalp-massager-complimentary",
+  "zylk-scalp-massager",
   "zylk-salicylic-shampoo",
   "zylk-hair-growth-serum",
 ];
@@ -203,10 +202,10 @@ export const BUNDLE_PRODUCT_IDS = {
   // Men Advance Hair Regrowth Kit (stage 1 / overall thinning)
   1: [
     "zylk-rosemary-oil",
-    "zylk-rosemary-mist",
     "zylk-dermaroller",
     "zylk-scalp-massager",
     "zylk-salicylic-shampoo",
+    "zylk-hair-growth-serum",
   ],
   // Stage 2 Hair Regrowth Kit
   2: [

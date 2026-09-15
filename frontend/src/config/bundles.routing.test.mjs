@@ -58,7 +58,9 @@ assert(BUNDLE_CONFIG[1].wooProductId === 8588, "bundle 1 is 8588");
 const womenAdvance = namesOf(6);
 assert(womenAdvance.includes("Hair Growth Serum"), `women advance missing serum: ${womenAdvance.join(", ")}`);
 assert(womenAdvance.includes("Rosemary Hair Oil"), "women advance missing rosemary oil");
-assert(getBundleItems(6).find((p) => p.name === "Scalp Massager")?.price === 0, "women advance massager should be free");
+assert(womenAdvance.join("|") === "Rosemary Hair Oil|Dermaroller|Scalp Massager|Salicylic Acid Shampoo|Hair Growth Serum", `women advance kit mismatch: ${womenAdvance.join(", ")}`);
+assert(getBundleItems(6).find((p) => p.name === "Scalp Massager")?.price === 99, "women advance massager should be ₹99");
+assert(getBundleItems(6).find((p) => p.name === "Hair Growth Serum")?.price === 399, "women advance serum should be ₹399");
 
 const womenS3 = getBundleItems(7);
 assert(womenS3.length === 5, `stage 3 female should have 5 products, got ${womenS3.length}`);
@@ -75,5 +77,7 @@ assert(
   anti.join("|") === "Tea Tree Oil|Tea Tree Mist Spray|Anti-Dandruff Shampoo|Scalp Massager|Hair Growth Serum",
   `antidandruff kit items: ${anti.join(", ")}`
 );
+assert(getBundleItems(8).find((p) => p.name === "Scalp Massager")?.price === 129, "anti-dandruff massager should be ₹129");
+assert(getBundleItems(8).find((p) => p.name === "Hair Growth Serum")?.price === 200, "anti-dandruff serum should be ₹200");
 
 console.log(`ok ${cases.length} routing cases + kit contents`);
