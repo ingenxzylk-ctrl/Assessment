@@ -12,6 +12,7 @@ import {
   buildPublicPdfUrl,
   isSheetsConfigured,
 } from "./googleSheetsService.js";
+import { syncQuizToSupabase } from "./supabaseService.js";
 
 async function writeSheetsSidecar(storageInfo, reportId, sheets) {
   const dir =
@@ -206,10 +207,20 @@ export async function runReportPipeline({
 
   await writeSheetsSidecar(storageInfo, reportId, sheets);
 
+  // 3b) Sync assessment record to Supabase database
+  let supabaseResult = { ok: false, reason: "not_attempted" };
+  try {
+    supabaseResult = await syncQuizToSupabase(payload);
+  } catch (err) {
+    console.error(`[pipeline] ${reportId}: supabase sync failed:`, err?.message || err);
+    supabaseResult = { ok: false, error: err?.message || String(err) };
+  }
+
   await logStorageEvent("pipeline_complete", {
     reportId,
     quizId,
     sheetsAppended,
+    supabaseSynced: Boolean(supabaseResult?.ok),
     isDuplicate: Boolean(storageInfo.isDuplicate),
     status: "ok",
   });

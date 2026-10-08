@@ -1842,12 +1842,14 @@ const testimonial =
     return () => window.clearTimeout(timer);
   }, [photosReady, restorePhotosFromIdb, state?.archivedReportId, reportIdentityHash]);
 
+  const prevReportIdentityHashRef = useRef(reportIdentityHash);
   useEffect(() => {
-    // Reset only when contact identity (phone/email) changes — never when
-    // photos hydrate or the user edits a quiz answer like stress.
-    reportSubmitRef.current = false;
-    setReportSaveStatus("idle");
-    setSavedReportPackage(null);
+    if (prevReportIdentityHashRef.current !== reportIdentityHash) {
+      prevReportIdentityHashRef.current = reportIdentityHash;
+      reportSubmitRef.current = false;
+      setReportSaveStatus("idle");
+      setSavedReportPackage(null);
+    }
   }, [reportIdentityHash]);
 
   useEffect(() => {
