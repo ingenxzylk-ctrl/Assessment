@@ -27,11 +27,11 @@ const PRODUCT_DETAIL_CONTENT = {
     title: "Anti Dandruff Shampoo",
     summary: "Clinically formulated to remove flakes, calm irritation, and clean the scalp deeply.",
     usage: "Wet your hair, lather well, massage into the scalp for 60 seconds, then rinse. Use 3 times a week.",
-    ingredients: ["Salicylic Acid", "Tea Tree Oil", "Aloe Vera", "Natural Surfactants"],
+    ingredients: ["Salicylic Acid", "Tea Tree Oil", "Piroctone Olamine"],
     hindi: {
       summary: "खुरदरी त्वचा और पपड़ी को दूर करने के लिए शांति देने वाला क्लीनिंग शैम्पू।",
       usage: "बाल गीले करें, अच्छी तरह झाग बनायें, 60 सेकेंड तक खोपड़ी पर मसाज करें और फिर धो लें। सप्ताह में 3 बार उपयोग करें।",
-      ingredients: ["सैलिसिलिक एसिड", "टी ट्री ऑयल", "एलो वेरा", "प्राकृतिक क्लीनिंग घटक"],
+      ingredients: ["सैलिसिलिक एसिड", "टी ट्री ऑयल", "पिरोक्टोन ओलामाइन", "प्राकृतिक क्लीनिंग घटक"],
     },
   },
   "zylk-dermaroller": {
@@ -49,18 +49,18 @@ const PRODUCT_DETAIL_CONTENT = {
     title: "Pumpkin Seed Softgel",
     summary: "Provides daily nutritional support to strengthen follicles and reduce shedding.",
     usage: "Take one softgel daily after a meal or as directed by your physician.",
-    ingredients: ["Pumpkin Seed Oil", "Vitamin E", "Zinc"],
+    ingredients: ["Pumpkin Seed Oil"],
     hindi: {
       summary: "बालों की जड़ें मजबूत करने और गिरावट को कम करने के लिए दैनिक पोषण समर्थन देता है।",
       usage: "एक सॉफ्टगेल रोज़ भोजन के बाद लें या डॉक्टर के निर्देशानुसार।",
-      ingredients: ["कद्दू के बीज का तेल", "विटामिन ई", "जिंक"],
+      ingredients: ["कद्दू के बीज का तेल"],
     },
   },
   "zylk-serum": {
     title: "Serum",
     summary: "Lightweight topical serum designed to nourish follicles and improve scalp hydration.",
     usage: "Apply 4-6 drops to the scalp daily, gently massage until absorbed.",
-    ingredients: ["Niacinamide", "Caffeine", "Botanical Extracts"],
+    ingredients: ["Rosemary", "Caffeine", "Peppermint "],
     hindi: {
       summary: "फोलिकल को पोषण देने और खोपड़ी को हाइड्रेटेड रखने के लिए तैयार किया गया सीरम।",
       usage: "रोज़ाना 4-6 बूंदें खोपड़ी पर लगायें, धीरे से मसाज करें।",
@@ -71,7 +71,7 @@ const PRODUCT_DETAIL_CONTENT = {
     title: "Advanced Serum",
     summary: "A deeper-strength serum for mature thinning, repairing damaged strands and boosting density.",
     usage: "Apply daily to the scalp and massage. Use consistently for best results.",
-    ingredients: ["Peptides", "Amino Acids", "Antioxidants"],
+    ingredients: ["Rosemary", "Caffeine", "Peppermint " , "Saw Palmetto"],
     hindi: {
       summary: "पुराने पतले बालों के लिए गहरी शक्ति वाला सीरम, जो खराब धारा की मरम्मत करता है।",
       usage: "रोज़ाना खोपड़ी पर लगायें और मसाज करें। बेहतर परिणामों के लिए नियमित उपयोग करें।",
@@ -104,7 +104,7 @@ const PRODUCT_DETAIL_CONTENT = {
     title: "Rosemary Mist Spray",
     summary: "Refreshing scalp spray that calms irritation and supports daily hydration.",
     usage: "Spray evenly across the scalp once a day and massage lightly.",
-    ingredients: ["Rosemary Extract", "Aloe Vera", "Botanical Hydrators"],
+    ingredients: ["Rosemary ", "Peppermint "],
     hindi: {
       summary: "ताज़ा करने वाला खोपड़ी स्प्रे जो जलन को शांत करता है।",
       usage: "रोज़ाना एक बार खोपड़ी पर समान रूप से स्प्रे करें और हल्के से मसाज करें।",
@@ -115,7 +115,7 @@ const PRODUCT_DETAIL_CONTENT = {
     title: "Salicylic Acid Shampoo",
     summary: "Deep-clean shampoo that removes excess oil, unclogs pores and keeps the scalp balanced.",
     usage: "Lather on wet hair focusing on scalp, leave for 1 minute, then rinse thoroughly.",
-    ingredients: ["Salicylic Acid", "Zinc Pyrithione", "Mint Extract"],
+    ingredients: ["Salicylic Acid", "Polyquaternium-7"],
     hindi: {
       summary: "अतिरिक्त तेल निकालने और खोपड़ी को संतुलित रखने वाला गहरा शैम्पू।",
       usage: "गीले बालों पर झाग लगायें, 1 मिनट तक छोड़ें और फिर अच्छी तरह धो लें।",
@@ -126,7 +126,7 @@ const PRODUCT_DETAIL_CONTENT = {
     title: "5% Minoxidil + 0.1% Finasteride",
     summary: "Clinically designed to stimulate regrowth and strengthen thinning follicles.",
     usage: "Apply twice daily to a clean, dry scalp. Use as directed and avoid contact with eyes.",
-    ingredients: ["Minoxidil", "Finasteride", "Propylene Glycol", "Purified Water"],
+    ingredients: ["Minoxidil", "Finasteride", "Purified Water"],
     hindi: {
       summary: "बालों की जड़ों को मजबूती देने और पतले बालों की रिकवरी में मदद करने के लिए तैयार।",
       usage: "दो बार रोज़ साफ और सूखी खोपड़ी पर लगायें। आंखों से बचायें।",
@@ -137,40 +137,30 @@ const PRODUCT_DETAIL_CONTENT = {
     title: "2% Minoxidil",
     summary: "A 2% minoxidil solution formulated for female pattern hair loss and sensitive scalps.",
     usage: "Apply 1 ml twice daily to a clean, dry scalp on thinning areas. Avoid contact with eyes.",
-    ingredients: ["Minoxidil 2%", "Alcohol", "Propylene Glycol", "Purified Water"],
+    ingredients: ["Minoxidil 2%", "Purified Water"],
     hindi: {
       summary: "महिलाओं के पैटर्न हेयर लॉस के लिए तैयार 2% मिनॉक्सिडिल घोल।",
       usage: "पतले हिस्सों पर साफ सूखी खोपड़ी पर दिन में दो बार 1 मिली लगायें।",
-      ingredients: ["मिनॉक्सिडिल 2%", "अल्कोहल", "प्रोपाइलीन ग्लाइकोल", "शुद्ध पानी"],
+      ingredients: ["मिनॉक्सिडिल 2%", "शुद्ध पानी"],
     },
   },
   "zylk-hair-growth-serum": {
     title: "Hair Growth Serum",
     summary: "Lightweight serum that nourishes follicles and supports visible density.",
     usage: "Apply 4-6 drops to the scalp daily and massage until absorbed.",
-    ingredients: ["Niacinamide", "Caffeine", "Botanical Extracts"],
+    ingredients: ["Rosemary", "Caffeine", "Peppermint " , "Saw Palmetto"],
     hindi: {
       summary: "फोलिकल को पोषण देने और घनत्व बढ़ाने वाला हल्का सीरम।",
       usage: "रोज़ाना 4-6 बूंदें खोपड़ी पर लगायें और मसाज करें।",
       ingredients: ["नियासिनामाइड", "कैफीन", "औषधीय अर्क"],
     },
   },
-  "zylk-advanced-hair-serum": {
-    title: "Advanced Hair Serum",
-    summary: "A deeper-strength serum for advanced thinning, repairing strands and boosting density.",
-    usage: "Apply daily to the scalp and massage. Use consistently for best results.",
-    ingredients: ["Peptides", "Amino Acids", "Antioxidants"],
-    hindi: {
-      summary: "एडवांस्ड थिनिंग के लिए गहरी शक्ति वाला सीरम।",
-      usage: "रोज़ाना खोपड़ी पर लगायें और मसाज करें।",
-      ingredients: ["पेप्टाइड्स", "अमीनो एसिड", "एंटीऑक्सिडेंट"],
-    },
-  },
+  
   "zylk-tea-tree-oil": {
     title: "Tea Tree Oil",
     summary: "Tea tree oil that helps calm an itchy, flaky scalp and supports a cleaner hair environment.",
     usage: "Apply a few drops to the scalp, massage gently, and leave on before shampooing.",
-    ingredients: ["Tea Tree Oil", "Jojoba Oil", "Vitamin E"],
+    ingredients: ["Tea Tree Oil", "CCTG "],
     hindi: {
       summary: "खुजली और पपड़ी वाली खोपड़ी को शांत करने वाला टी ट्री ऑयल।",
       usage: "खोपड़ी पर कुछ बूंदें लगायें, मालिश करें और शैम्पू से पहले लगा रहने दें।",
@@ -181,24 +171,14 @@ const PRODUCT_DETAIL_CONTENT = {
     title: "Tea Tree Mist Spray",
     summary: "A lightweight tea tree mist for daily scalp freshness and flake control.",
     usage: "Spray evenly across the scalp once a day and massage lightly.",
-    ingredients: ["Tea Tree Extract", "Aloe Vera", "Botanical Hydrators"],
+    ingredients: ["Tea Tree Extract", "Salicylic Acid"],
     hindi: {
       summary: "रोज़मर्रा की ताज़गी और फ्लेक कंट्रोल के लिए टी ट्री मिस्ट।",
       usage: "रोज़ाना एक बार खोपड़ी पर स्प्रे करें और हल्के से मसाज करें।",
       ingredients: ["टी ट्री अर्क", "एलो वेरा", "बोटैनिकल ह्यूड्रेटर्स"],
     },
   },
-  "zylk-scalp-massager-complimentary": {
-    title: "Scalp Massager",
-    summary: "Improves circulation and helps products penetrate the scalp more effectively.",
-    usage: "Use for 2-3 minutes on damp or dry scalp. Move in small circles over the problem areas.",
-    ingredients: ["Soft Silicone Bristles", "Ergonomic Grip"],
-    hindi: {
-      summary: "संचरण को बेहतर बनाता है और उत्पादों को खोपड़ी में असरदार तरीके से पहुँचाता है।",
-      usage: "गीली या सूखी खोपड़ी पर 2-3 मिनट तक छोटे घेरे में उपयोग करें।",
-      ingredients: ["नरम सिलिकॉन ब्रिसल", "आरामदायक पकड़"],
-    },
-  },
+  
 };
 
 function getProductDetails(product = {}, language = "english") {
